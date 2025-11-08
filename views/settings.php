@@ -140,6 +140,30 @@
   <?php endforeach; ?>
 </table>
 
+<h2>Měrné jednotky</h2>
+<form method="post" action="/settings/unit">
+  <label>Kód jednotky (např. ks, kg)</label><input type="text" name="kod" required />
+  <button type="submit">Přidat jednotku</button>
+</form>
+<table>
+  <tr><th>Jednotka</th><th>Akce</th></tr>
+  <?php foreach (($units ?? []) as $u): ?>
+  <tr>
+    <td><?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?></td>
+    <td>
+      <?php if ((int)($u['used_count'] ?? 0) === 0): ?>
+        <form method="post" action="/settings/unit/delete" style="display:inline;">
+          <input type="hidden" name="id" value="<?= (int)$u['id'] ?>" />
+          <button type="submit" class="link-danger" title="Smazat jednotku" aria-label="Smazat jednotku">×</button>
+        </form>
+      <?php else: ?>
+        <span class="muted">nelze smazat (<?= (int)$u['used_count'] ?>)</span>
+      <?php endif; ?>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+
 <h2>Globální nastavení</h2>
 <form method="post" action="/settings/global">
   <label>Okno průměru (dnů)</label><input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" />

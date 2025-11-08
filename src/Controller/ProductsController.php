@@ -81,6 +81,10 @@ final class ProductsController
             }
             $brands = $this->loadDictionary('produkty_znacky');
             $groups = $this->loadDictionary('produkty_skupiny');
+            $units  = $this->loadUnitsDictionary();
+            if (empty($units)) {
+                throw new \RuntimeException('Nejprve definujte povolené měrné jednotky v Nastavení.');
+            }
             $ins = $pdo->prepare(
                 'INSERT INTO produkty (sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
                 'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
@@ -104,6 +108,9 @@ final class ProductsController
                 if($nazev===''){ $err[]="Řádek $i: chybí nazev"; continue; }
                 if($typ===''||!in_array($typ,['produkt','obal','etiketa','surovina','baleni','karton'],true)){ $err[]="Řádek $i: neplatný typ"; continue; }
                 if($mj===''){ $err[]="Řádek $i: chybí merna_jednotka"; continue; }
+                $mjKey = mb_strtolower($mj,'UTF-8');
+                if(!isset($units[$mjKey])){ $err[]="Řádek $i: měrná jednotka '{$mj}' není definována"; continue; }
+                $mj = $units[$mjKey];
                 if($act===''){ $err[]="Řádek $i: aktivni je povinné (0/1)"; continue; }
                 $aktivni=(int)$act;
                 $brandId=null;
@@ -152,11 +159,24 @@ final class ProductsController
         }
     }
 
-    private function loadDictionary(string $table): array
+    private function loadDictionary(string $table, string $column = 'nazev', bool $caseInsensitive = true): array
     {
         $map = [];
-        foreach (DB::pdo()->query("SELECT id,nazev FROM {$table}") as $row) {
-            $map[mb_strtolower((string)$row['nazev'],'UTF-8')] = (int)$row['id'];
+        $stmt = DB::pdo()->query("SELECT id,{$column} AS value FROM {$table}");
+        foreach ($stmt as $row) {
+            $key = (string)$row['value'];
+            $map[$caseInsensitive ? mb_strtolower($key,'UTF-8') : $key] = (int)$row['id'];
+        }
+        return $map;
+    }
+
+    private function loadUnitsDictionary(): array
+    {
+        $map = [];
+        foreach (DB::pdo()->query('SELECT kod FROM produkty_merne_jednotky') as $row) {
+            $value = trim((string)$row['kod']);
+            if ($value === '') continue;
+            $map[mb_strtolower($value,'UTF-8')] = $value;
         }
         return $map;
     }

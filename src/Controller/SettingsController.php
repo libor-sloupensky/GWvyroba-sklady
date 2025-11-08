@@ -14,6 +14,7 @@ final class SettingsController
         $glob   = $pdo->query('SELECT okno_pro_prumer_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
         $brands = $pdo->query('SELECT z.id,z.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.znacka_id=z.id) AS used_count FROM produkty_znacky z ORDER BY z.nazev')->fetchAll();
         $groups = $pdo->query('SELECT g.id,g.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.skupina_id=g.id) AS used_count FROM produkty_skupiny g ORDER BY g.nazev')->fetchAll();
+        $units  = $pdo->query('SELECT u.id,u.kod,(SELECT COUNT(*) FROM produkty p WHERE p.merna_jednotka=u.kod) AS used_count FROM produkty_merne_jednotky u ORDER BY u.kod')->fetchAll();
         $flashError = $_SESSION['settings_error'] ?? null;
         $flashMessage = $_SESSION['settings_message'] ?? null;
         unset($_SESSION['settings_error'], $_SESSION['settings_message']);
@@ -24,6 +25,7 @@ final class SettingsController
             'glob'=>$glob,
             'brands'=>$brands,
             'groups'=>$groups,
+            'units'=>$units,
             'flashError'=>$flashError,
             'flashMessage'=>$flashMessage
         ]);
@@ -206,6 +208,55 @@ final class SettingsController
         $del = $pdo->prepare('DELETE FROM produkty_skupiny WHERE id=?');
         $del->execute([$id]);
         $_SESSION['settings_message'] = 'Skupina odstraněna.';
+        header('Location: /settings');
+    }
+
+    public function saveUnit(): void
+    {
+        $this->requireAdmin();
+        $code = trim((string)($_POST['kod'] ?? ''));
+        if ($code === '') {
+            $_SESSION['settings_error'] = 'Zadejte kód měrné jednotky.';
+        } else {
+            try {
+                DB::pdo()->prepare('INSERT INTO produkty_merne_jednotky (kod) VALUES (?)')->execute([$code]);
+                $_SESSION['settings_message'] = 'Měrná jednotka přidána.';
+            } catch (\PDOException $e) {
+                $_SESSION['settings_error'] = 'Měrná jednotka již existuje.';
+            }
+        }
+        header('Location: /settings');
+    }
+
+    public function deleteUnit(): void
+    {
+        $this->requireAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['settings_error'] = 'Neplatný požadavek na odstranění měrné jednotky.';
+            header('Location: /settings');
+            return;
+        }
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare('SELECT kod FROM produkty_merne_jednotky WHERE id=?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            $_SESSION['settings_error'] = 'Měrná jednotka nenalezena.';
+            header('Location: /settings');
+            return;
+        }
+        $code = (string)$row['kod'];
+        $inUse = $pdo->prepare('SELECT COUNT(*) FROM produkty WHERE merna_jednotka=?');
+        $inUse->execute([$code]);
+        if ((int)$inUse->fetchColumn() > 0) {
+            $_SESSION['settings_error'] = 'Jednotku nelze smazat, používá se u produktů.';
+            header('Location: /settings');
+            return;
+        }
+        $del = $pdo->prepare('DELETE FROM produkty_merne_jednotky WHERE id=?');
+        $del->execute([$id]);
+        $_SESSION['settings_message'] = 'Měrná jednotka odstraněna.';
         header('Location: /settings');
     }
 
