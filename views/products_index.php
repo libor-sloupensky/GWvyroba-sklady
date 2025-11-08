@@ -1,18 +1,17 @@
-<h1>Produkty</h1>
-<p class="muted">CSV „Produkty“ – hlavičky: <code>sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni</code></p>
+﻿<h1>Produkty</h1>
 <div class="csv-help">
   <strong>Popis sloupců:</strong>
   <ul>
     <li><code>sku</code> – povinný interní kód produktu, podle kterého se řádky párují/aktualizují.</li>
-    <li><code>nazev</code> – zobrazený název položky.</li>
-    <li><code>typ</code> – jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>baleni</code>, <code>karton</code>.</li>
-    <li><code>merna_jednotka</code> – měrná jednotka (např. <code>ks</code>, <code>kg</code>), používá se v přehledech i výpočtech.</li>
+    <li><code>nazev</code> – povinný název položky.</li>
+    <li><code>typ</code> – povinný typ: <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>baleni</code>, <code>karton</code>.</li>
+    <li><code>merna_jednotka</code> – povinná měrná jednotka (např. <code>ks</code>, <code>kg</code>).</li>
     <li><code>ean</code> – volitelný EAN / čárový kód.</li>
-    <li><code>min_zasoba</code> – minimální zásoba, při jejímž poklesu systém hlásí potřebu výroby/dodávky.</li>
-    <li><code>min_davka</code> – minimální dávka výroby (např. velikost šarže).</li>
-    <li><code>krok_vyroby</code> – krok, na který se zaokrouhluje návrh výroby (např. vyrábíme po 10 ks).</li>
-    <li><code>vyrobni_doba_dni</code> – délka výroby v dnech (lead time).</li>
-    <li><code>aktivni</code> – 1 = aktivní produkt, 0 = skrytý.</li>
+    <li><code>min_zasoba</code>, <code>min_davka</code>, <code>krok_vyroby</code>, <code>vyrobni_doba_dni</code> – volitelné číselné hodnoty (pokud je systém vyžaduje, uveďte je).</li>
+    <li><code>aktivni</code> – povinné 0/1.</li>
+    <li><code>znacka</code> – volitelná značka výrobce, musí být nejprve definována v Nastavení.</li>
+    <li><code>poznamka</code> – libovolná textová poznámka.</li>
+    <li><code>skupina</code> – volitelná skupina produktů definovaná v Nastavení.</li>
   </ul>
 </div>
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
@@ -41,7 +40,10 @@
     <th class="help" title="Minimální zásoba">Min</th>
     <th class="help" title="Minimální dávka výroby">Min dávka</th>
     <th class="help" title="Zaokrouhlení návrhu na tento krok">Krok</th>
-    <th class="help" title="Výrobní doba v dnech">Výr.doba</th>
+    <th class="help" title="Výrobní doba v dnech">Výrob.doba</th>
+    <th>Značka</th>
+    <th>Skupina</th>
+    <th>Poznámka</th>
     <th>Aktivní</th>
   </tr>
   <?php foreach (($items ?? []) as $it): ?>
@@ -55,7 +57,10 @@
     <td><?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= (int)$it['aktivni'] ? '✓' : '×' ?></td>
+    <td><?= htmlspecialchars((string)($it['znacka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)($it['skupina'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= (int)$it['aktivni'] ? '✔' : '✖' ?></td>
   </tr>
   <?php endforeach; ?>
 </table>

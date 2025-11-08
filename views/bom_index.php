@@ -1,5 +1,4 @@
 <h1>BOM (karton / sada)</h1>
-<p class="muted">CSV „BOM“ – hlavičky: <code>rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby</code>. Při prvním výskytu rodiče v souboru se jeho BOM nahradí.</p>
 <div class="csv-help">
   <strong>Popis sloupců:</strong>
   <ul>

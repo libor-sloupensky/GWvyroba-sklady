@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 namespace App\Controller;
 
 use App\Support\DB;
@@ -12,6 +12,8 @@ final class SettingsController
         $series = $pdo->query('SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do, EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports FROM nastaveni_rady nr ORDER BY nr.eshop_source')->fetchAll();
         $ignores= $pdo->query('SELECT id,vzor FROM nastaveni_ignorovane_polozky ORDER BY id DESC')->fetchAll();
         $glob   = $pdo->query('SELECT okno_pro_prumer_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
+        $brands = $pdo->query('SELECT z.id,z.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.znacka_id=z.id) AS used_count FROM produkty_znacky z ORDER BY z.nazev')->fetchAll();
+        $groups = $pdo->query('SELECT g.id,g.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.skupina_id=g.id) AS used_count FROM produkty_skupiny g ORDER BY g.nazev')->fetchAll();
         $flashError = $_SESSION['settings_error'] ?? null;
         $flashMessage = $_SESSION['settings_message'] ?? null;
         unset($_SESSION['settings_error'], $_SESSION['settings_message']);
@@ -20,6 +22,8 @@ final class SettingsController
             'series'=>$series,
             'ignores'=>$ignores,
             'glob'=>$glob,
+            'brands'=>$brands,
+            'groups'=>$groups,
             'flashError'=>$flashError,
             'flashMessage'=>$flashMessage
         ]);
@@ -122,6 +126,87 @@ final class SettingsController
         } else {
             $_SESSION['settings_error'] = 'Ignorovaná položka nenalezena.';
         }
+        header('Location: /settings');
+    }
+
+    public function saveBrand(): void
+    {
+        $this->requireAdmin();
+        $name = trim((string)($_POST['nazev'] ?? ''));
+        if ($name === '') {
+            $_SESSION['settings_error'] = 'Zadejte název značky.';
+        } else {
+            try {
+                DB::pdo()->prepare('INSERT INTO produkty_znacky (nazev) VALUES (?)')->execute([$name]);
+                $_SESSION['settings_message'] = 'Značka přidána.';
+            } catch (\PDOException $e) {
+                $_SESSION['settings_error'] = 'Značka již existuje.';
+            }
+        }
+        header('Location: /settings');
+    }
+
+    public function deleteBrand(): void
+    {
+        $this->requireAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['settings_error'] = 'Neplatný požadavek na odstranění značky.';
+            header('Location: /settings');
+            return;
+        }
+        $pdo = DB::pdo();
+        $inUse = (int)$pdo->prepare('SELECT COUNT(*) FROM produkty WHERE znacka_id=?')->execute([$id]) || false;
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM produkty WHERE znacka_id=?');
+        $stmt->execute([$id]);
+        if ((int)$stmt->fetchColumn() > 0) {
+            $_SESSION['settings_error'] = 'Značku nelze smazat, je použita u produktů.';
+            header('Location: /settings');
+            return;
+        }
+        $del = $pdo->prepare('DELETE FROM produkty_znacky WHERE id=?');
+        $del->execute([$id]);
+        $_SESSION['settings_message'] = 'Značka odstraněna.';
+        header('Location: /settings');
+    }
+
+    public function saveGroup(): void
+    {
+        $this->requireAdmin();
+        $name = trim((string)($_POST['nazev'] ?? ''));
+        if ($name === '') {
+            $_SESSION['settings_error'] = 'Zadejte název skupiny.';
+        } else {
+            try {
+                DB::pdo()->prepare('INSERT INTO produkty_skupiny (nazev) VALUES (?)')->execute([$name]);
+                $_SESSION['settings_message'] = 'Skupina přidána.';
+            } catch (\PDOException $e) {
+                $_SESSION['settings_error'] = 'Skupina již existuje.';
+            }
+        }
+        header('Location: /settings');
+    }
+
+    public function deleteGroup(): void
+    {
+        $this->requireAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION'settings_error'] = 'Neplatný požadavek na odstranění skupiny.';
+            header('Location: /settings');
+            return;
+        }
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM produkty WHERE skupina_id=?');
+        $stmt->execute([$id]);
+        if ((int)$stmt->fetchColumn() > 0) {
+            $_SESSION['settings_error'] = 'Skupinu nelze smazat, je použitá u produktů.';
+            header('Location: /settings');
+            return;
+        }
+        $del = $pdo->prepare('DELETE FROM produkty_skupiny WHERE id=?');
+        $del->execute([$id]);
+        $_SESSION['settings_message'] = 'Skupina odstraněna.';
         header('Location: /settings');
     }
 

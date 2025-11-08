@@ -117,6 +117,7 @@ final class ImportController
     {
         $pdo = DB::pdo();
         $importTs = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $ignorePatterns = $this->loadIgnorePatterns();
         $docInsert = $pdo->prepare('INSERT INTO doklady_eshop (eshop_source,cislo_dokladu,typ_dokladu,platba_typ,dopravce_ids,cislo_objednavky,sym_var,datum_vystaveni,duzp,splatnost,mena_puvodni,kurz_na_czk,kontakt_id,import_batch_id,import_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL,?,?)');
         $itemInsert = $pdo->prepare('INSERT INTO polozky_eshop (eshop_source,cislo_dokladu,code_raw,stock_ids_raw,sku,ean,nazev,mnozstvi,merna_jednotka,cena_jedn_mena,cena_jedn_czk,mena_puvodni,sazba_dph_hint,plati_dph,sleva_procento,duzp,import_batch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $deleteItems = $pdo->prepare('DELETE FROM polozky_eshop WHERE eshop_source=? AND cislo_dokladu=?');
@@ -183,6 +184,12 @@ final class ImportController
                     ]);
                     $itemCount++;
                     if ($code === '' && $stock === '') {
+                        if ($this->matchesIgnorePatterns($ignorePatterns, [
+                            (string)($item['text'] ?? ''),
+                            (string)$docNumber,
+                        ])) {
+                            continue;
+                        }
                         $missingSku[] = [
                             'duzp' => $duzp,
                             'eshop_source' => $eshop,
@@ -211,25 +218,18 @@ final class ImportController
         $glob = $pdo->query('SELECT okno_pro_prumer_dni FROM nastaveni_global WHERE id=1')->fetch() ?: [];
         $days = max(1, (int)($glob['okno_pro_prumer_dni'] ?? 30));
         $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
-        $patterns = array_map(
-            fn($r) => strtolower((string)$r['vzor']),
-            $pdo->query('SELECT vzor FROM nastaveni_ignorovane_polozky')->fetchAll()
-        );
+        $patterns = $this->loadIgnorePatterns();
         $stmt = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw FROM polozky_eshop WHERE duzp>=? AND ((code_raw IS NULL OR code_raw='') AND (stock_ids_raw IS NULL OR stock_ids_raw='')) ORDER BY eshop_source, duzp DESC");
         $stmt->execute([$since]);
         $groups = [];
         $flat = [];
         $seen = [];
         foreach ($stmt as $r) {
-            $code = strtolower((string)($r['code_raw'] ?? ''));
-            $skip = false;
-            foreach ($patterns as $p) {
-                if ($p !== '' && fnmatch($p, $code)) {
-                    $skip = true;
-                    break;
-                }
-            }
-            if ($skip) {
+            if ($this->matchesIgnorePatterns($patterns, [
+                (string)($r['code_raw'] ?? ''),
+                (string)($r['nazev'] ?? ''),
+                (string)($r['cislo_dokladu'] ?? ''),
+            ])) {
                 continue;
             }
             $keyBase = (string)$r['nazev'];
@@ -429,16 +429,56 @@ final class ImportController
     {
         $pdo = DB::pdo();
         $eshops = $this->loadEshops();
+        $outstanding = $this->collectOutstandingMissingSku();
         if (!isset($vars['title'])) {
             $vars['title'] = 'Import Pohoda XML';
         }
         $vars['eshops'] = $eshops;
+        $vars['outstandingMissing'] = $outstanding['groups'];
+        $vars['outstandingDays'] = $outstanding['days'];
         $this->render('import_form.php', $vars);
     }
 
     private function loadEshops(): array
     {
         return DB::pdo()->query('SELECT nr.id,nr.eshop_source,MAX(de.import_batch_id) AS last_batch FROM nastaveni_rady nr LEFT JOIN doklady_eshop de ON de.eshop_source = nr.eshop_source GROUP BY nr.id,nr.eshop_source ORDER BY nr.eshop_source')->fetchAll();
+    }
+
+    private function loadIgnorePatterns(): array
+    {
+        return array_map(
+            fn($r) => (string)$r['vzor'],
+            DB::pdo()->query('SELECT vzor FROM nastaveni_ignorovane_polozky')->fetchAll()
+        );
+    }
+
+    private function matchesIgnorePatterns(array $patterns, array $values): bool
+    {
+        foreach ($patterns as $pattern) {
+            $pattern = trim((string)$pattern);
+            if ($pattern === '') {
+                continue;
+            }
+            $regex = $this->wildcardToRegex($pattern);
+            foreach ($values as $value) {
+                $value = trim((string)$value);
+                if ($value === '') {
+                    continue;
+                }
+                if (preg_match($regex, mb_strtolower($value, 'UTF-8'))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private function wildcardToRegex(string $pattern): string
+    {
+        $lower = mb_strtolower($pattern, 'UTF-8');
+        $quoted = preg_quote($lower, '/');
+        $quoted = str_replace(['\*', '\?'], ['.*', '.'], $quoted);
+        return '/^' . $quoted . '$/u';
     }
 
     private function isKnownEshop(string $eshop): bool

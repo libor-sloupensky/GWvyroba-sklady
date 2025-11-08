@@ -75,6 +75,16 @@ CREATE TABLE IF NOT EXISTS polozky_eshop (
   CONSTRAINT fk_pol_doc FOREIGN KEY (eshop_source, cislo_dokladu) REFERENCES doklady_eshop(eshop_source, cislo_dokladu) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
+CREATE TABLE IF NOT EXISTS produkty_znacky (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nazev VARCHAR(128) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS produkty_skupiny (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nazev VARCHAR(128) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
 CREATE TABLE IF NOT EXISTS produkty (
   id INT AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(128) NOT NULL UNIQUE,
@@ -87,7 +97,14 @@ CREATE TABLE IF NOT EXISTS produkty (
   krok_vyroby DECIMAL(18,3) NOT NULL DEFAULT 0,
   vyrobni_doba_dni INT NOT NULL DEFAULT 0,
   aktivni TINYINT(1) NOT NULL DEFAULT 1,
-  KEY idx_produkty_typ (typ)
+  znacka_id INT NULL,
+  skupina_id INT NULL,
+  poznamka VARCHAR(1024) NULL,
+  KEY idx_produkty_typ (typ),
+  KEY idx_produkty_znacka (znacka_id),
+  KEY idx_produkty_skupina (skupina_id),
+  CONSTRAINT fk_produkty_znacka FOREIGN KEY (znacka_id) REFERENCES produkty_znacky(id) ON DELETE SET NULL,
+  CONSTRAINT fk_produkty_skupina FOREIGN KEY (skupina_id) REFERENCES produkty_skupiny(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 CREATE TABLE IF NOT EXISTS bom (
