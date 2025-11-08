@@ -22,6 +22,7 @@ final class AdminController
         try {
             $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_czech_ci");
             $pdo->exec($sql);
+            $this->ensureProductSchema($pdo);
             $this->render('admin_migrate.php', ['title'=>'Admin – Migrace DB', 'message'=>'Migrace proběhla úspěšně.']);
         } catch (\Throwable $e) {
             $this->render('admin_migrate.php', ['title'=>'Admin – Migrace DB', 'error'=>'Migrace selhala: '.$e->getMessage()]);
@@ -66,5 +67,34 @@ final class AdminController
     {
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
+    }
+
+    private function ensureProductSchema(\PDO $pdo): void
+    {
+        $this->addColumnIfMissing($pdo, 'produkty', 'znacka_id INT NULL', 'aktivni');
+        $this->addColumnIfMissing($pdo, 'produkty', 'skupina_id INT NULL', 'znacka_id');
+        $this->addColumnIfMissing($pdo, 'produkty', 'poznamka VARCHAR(1024) NULL', 'skupina_id');
+
+        try { $pdo->exec('ALTER TABLE `produkty` ADD KEY idx_produkty_znacka (znacka_id)'); } catch (\Throwable $e) {}
+        try { $pdo->exec('ALTER TABLE `produkty` ADD KEY idx_produkty_skupina (skupina_id)'); } catch (\Throwable $e) {}
+        try { $pdo->exec('ALTER TABLE `produkty` ADD CONSTRAINT fk_produkty_znacka FOREIGN KEY (znacka_id) REFERENCES produkty_znacky(id) ON DELETE SET NULL'); } catch (\Throwable $e) {}
+        try { $pdo->exec('ALTER TABLE `produkty` ADD CONSTRAINT fk_produkty_skupina FOREIGN KEY (skupina_id) REFERENCES produkty_skupiny(id) ON DELETE SET NULL'); } catch (\Throwable $e) {}
+    }
+
+    private function columnExists(\PDO $pdo, string $table, string $column): bool
+    {
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$table}` LIKE ?");
+        $stmt->execute([$column]);
+        return (bool)$stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    private function addColumnIfMissing(\PDO $pdo, string $table, string $definition, string $afterColumn): void
+    {
+        preg_match('/`?([a-zA-Z0-9_]+)`?/', $definition, $matches);
+        $column = $matches[1] ?? '';
+        if ($column === '' || $this->columnExists($pdo, $table, $column)) {
+            return;
+        }
+        $pdo->exec("ALTER TABLE `{$table}` ADD {$definition} AFTER `{$afterColumn}`");
     }
 }
