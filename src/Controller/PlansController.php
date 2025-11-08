@@ -12,7 +12,12 @@ final class PlansController
         if (is_file($plansFile)) { $plans = json_decode((string)file_get_contents($plansFile), true) ?: []; }
         $this->render('plans.php', ['title'=>'Plány','plans'=>$plans]);
     }
-    private function requireAuth(): void { if (!isset($_SESSION['user'])) { header('Location: /login'); exit; } }
+    private function requireAuth(): void {
+        if (!isset($_SESSION['user'])) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
+            header('Location: /login');
+            exit;
+        }
+    }
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }
 }
-

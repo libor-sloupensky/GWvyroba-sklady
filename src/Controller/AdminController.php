@@ -31,7 +31,11 @@ final class AdminController
     private function requireAdmin(): void
     {
         $u = $_SESSION['user'] ?? null;
-        if (!$u) { header('Location: /login'); exit; }
+        if (!$u) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
+            header('Location: /login');
+            exit;
+        }
         if (($u['role'] ?? 'user') !== 'admin') { http_response_code(403); echo 'Přístup jen pro admina.'; exit; }
     }
 
@@ -41,4 +45,3 @@ final class AdminController
         require __DIR__ . '/../../views/_layout.php';
     }
 }
-

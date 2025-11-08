@@ -29,7 +29,9 @@ final class AuthController
         }
         if ($ok) {
             $_SESSION['user'] = ['id'=>$u['id'], 'email'=>$u['email'], 'role'=>$u['role']];
-            $this->redirect('/');
+            $target = $_SESSION['redirect_after_login'] ?? '/';
+            unset($_SESSION['redirect_after_login']);
+            $this->redirect($target !== '' ? $target : '/');
             return;
         }
         $this->redirect('/login');
@@ -62,4 +64,3 @@ final class AuthController
         header('Location: ' . $path, true, 302); exit;
     }
 }
-

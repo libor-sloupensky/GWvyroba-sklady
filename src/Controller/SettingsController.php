@@ -45,7 +45,17 @@ final class SettingsController
         header('Location: /settings');
     }
 
-    private function requireAdmin(): void { if (!isset($_SESSION['user'])) { header('Location: /login'); exit; } if (($_SESSION['user']['role'] ?? 'user') !== 'admin'){ http_response_code(403); echo 'Přístup jen pro admina.'; exit; } }
+    private function requireAdmin(): void {
+        if (!isset($_SESSION['user'])) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
+            header('Location: /login');
+            exit;
+        }
+        if (($_SESSION['user']['role'] ?? 'user') !== 'admin'){
+            http_response_code(403);
+            echo 'Přístup jen pro admina.';
+            exit;
+        }
+    }
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }
 }
-

@@ -11,7 +11,11 @@ final class HomeController
 
     private function requireAuth(): void
     {
-        if (!isset($_SESSION['user'])) { header('Location: /login'); exit; }
+        if (!isset($_SESSION['user'])) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
+            header('Location: /login');
+            exit;
+        }
     }
 
     private function render(string $view, array $vars = []): void
@@ -20,4 +24,3 @@ final class HomeController
         require __DIR__ . '/../../views/_layout.php';
     }
 }
-

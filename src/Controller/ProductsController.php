@@ -45,8 +45,20 @@ final class ProductsController
         } catch (\Throwable $e){ if($pdo->inTransaction())$pdo->rollBack(); $this->render('products_index.php',['title'=>'Produkty','error'=>$e->getMessage()]); }
     }
 
-    private function requireAuth(): void { if (!isset($_SESSION['user'])) { header('Location: /login'); exit; } }
-    private function requireAdmin(): void { $this->requireAuth(); if (($_SESSION['user']['role'] ?? 'user') !== 'admin'){ http_response_code(403); echo 'Přístup jen pro admina.'; exit; } }
+    private function requireAuth(): void {
+        if (!isset($_SESSION['user'])) {
+            $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
+            header('Location: /login');
+            exit;
+        }
+    }
+    private function requireAdmin(): void {
+        $this->requireAuth();
+        if (($_SESSION['user']['role'] ?? 'user') !== 'admin'){
+            http_response_code(403);
+            echo 'Přístup jen pro admina.';
+            exit;
+        }
+    }
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }
 }
-
