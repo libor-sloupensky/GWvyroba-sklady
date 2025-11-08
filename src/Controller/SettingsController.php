@@ -19,10 +19,35 @@ final class SettingsController
     {
         $this->requireAdmin();
         $pdo = DB::pdo();
-        $id = (int)($_POST['id'] ?? 0);
-        $data = [trim((string)$_POST['eshop_source'] ?? ''), trim((string)$_POST['prefix'] ?? ''), trim((string)$_POST['cislo_od'] ?? ''), trim((string)$_POST['cislo_do'] ?? '')];
-        if ($id>0) { $st=$pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=? WHERE id=?'); $st->execute([...$data,$id]); }
-        else { $st=$pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do) VALUES (?,?,?,?)'); $st->execute($data); }
+        $id = max(0, (int)($_POST['id'] ?? 0));
+        $eshop = trim((string)($_POST['eshop_source'] ?? ''));
+        $prefix = trim((string)($_POST['prefix'] ?? ''));
+        $from   = trim((string)($_POST['cislo_od'] ?? ''));
+        $to     = trim((string)($_POST['cislo_do'] ?? ''));
+
+        if ($eshop === '') {
+            header('Location: /settings');
+            return;
+        }
+
+        $existingStmt = $pdo->prepare('SELECT id FROM nastaveni_rady WHERE eshop_source = ? LIMIT 1');
+        $existingStmt->execute([$eshop]);
+        $existingId = (int)($existingStmt->fetchColumn() ?: 0);
+
+        if ($existingId > 0 && $existingId !== $id) {
+            $id = 0;
+            $targetId = $existingId;
+        } else {
+            $targetId = $id;
+        }
+
+        if ($targetId > 0) {
+            $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=? WHERE id=?');
+            $st->execute([$eshop, $prefix, $from, $to, $targetId]);
+        } else {
+            $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do) VALUES (?,?,?,?)');
+            $st->execute([$eshop, $prefix, $from, $to]);
+        }
         header('Location: /settings');
     }
 

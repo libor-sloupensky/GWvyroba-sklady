@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS nastaveni_rady (
   prefix VARCHAR(32) NOT NULL,
   cislo_od VARCHAR(32) NOT NULL,
   cislo_do VARCHAR(32) NOT NULL,
-  KEY idx_rady_eshop (eshop_source)
+  UNIQUE KEY uniq_rady_eshop (eshop_source)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 CREATE TABLE IF NOT EXISTS nastaveni_ignorovane_polozky (
@@ -147,4 +147,3 @@ CREATE TABLE IF NOT EXISTS nastaveni_global (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 INSERT IGNORE INTO nastaveni_global (id) VALUES (1);
-
