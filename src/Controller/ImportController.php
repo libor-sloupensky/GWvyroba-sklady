@@ -528,6 +528,14 @@ final class ImportController
             $eshop = (string)($row['eshop_source'] ?? '');
             $groups[$eshop][] = $row;
         }
+        foreach ($groups as $eshop => $items) {
+            usort($items, function ($a, $b) {
+                $qtyA = $this->toFloat($a['mnozstvi'] ?? 0);
+                $qtyB = $this->toFloat($b['mnozstvi'] ?? 0);
+                return $qtyB <=> $qtyA;
+            });
+            $groups[$eshop] = $items;
+        }
         return $groups;
     }
 

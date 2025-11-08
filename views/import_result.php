@@ -6,6 +6,10 @@
 .cell-matched { background:#e6f4ea; }
 .cell-ignored { background:#fdecea; }
 </style>
+<?php $formatQty = static function ($value): string {
+    $num = (float)$value;
+    return number_format($num, 0, '', '');
+}; ?>
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
@@ -41,18 +45,16 @@
 
 <?php if (!empty($missingSku)): ?>
   <h3>Chybějící SKU (poslední import)</h3>
-  <table>
-    <tr><th>DUZP</th><th>ESHOP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th></tr>
+      <table>
+    <tr><th>DUZP</th><th>ESHOP</th><th>Doklad</th><th>SKU</th><th>Název</th><th>Množství</th></tr>
     <?php foreach ($missingSku as $r): ?>
       <tr>
         <td><?= htmlspecialchars((string)$r['duzp'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['eshop_source'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$r['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)($r['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$r['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)($r['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars($formatQty($r['mnozstvi'] ?? 0),ENT_QUOTES,'UTF-8') ?></td>
       </tr>
     <?php endforeach; ?>
   </table>
@@ -63,26 +65,24 @@
   <?php foreach ($outstandingMissing as $eshopName => $items): if (empty($items)) continue; ?>
     <h4><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h4>
     <table>
-      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th><th>Stav</th></tr>
+      <tr><th>DUZP</th><th>Doklad</th><th>SKU</th><th>Název</th><th>Množství</th></tr>
       <?php foreach ($items as $item): ?>
       <?php
         $status = $item['status'] ?? 'unmatched';
         $highlight = $item['highlight_field'] ?? '';
         $note = $item['status_note'] ?? '';
+        $rowHighlight = ($highlight === 'code') ? ($status === 'matched' ? 'cell-matched' : ($status === 'ignored' ? 'cell-ignored' : '')) : '';
         $cellClass = function(string $field) use ($highlight,$status) {
             if ($highlight !== $field) return '';
             return $status === 'matched' ? 'cell-matched' : ($status === 'ignored' ? 'cell-ignored' : '');
         };
       ?>
-      <tr>
+      <tr class="<?= $rowHighlight ?>">
         <td class="<?= $cellClass('duzp') ?>"><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="<?= $cellClass('doklad') ?>"><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
-        <td class="<?= $cellClass('nazev') ?>"><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="<?= $cellClass('sku') ?>"><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-        <td class="<?= $cellClass('code') ?>"><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)($item['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-        <td><?php if ($note !== ''): ?><small class="status-note"><?= htmlspecialchars($note,ENT_QUOTES,'UTF-8') ?></small><?php endif; ?></td>
+        <td class="<?= $cellClass('nazev') ?>"><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars($formatQty($item['mnozstvi'] ?? 0),ENT_QUOTES,'UTF-8') ?><?php if ($note !== ''): ?><small class="status-note"><?= htmlspecialchars($note,ENT_QUOTES,'UTF-8') ?></small><?php endif; ?></td>
       </tr>
       <?php endforeach; ?>
     </table>
