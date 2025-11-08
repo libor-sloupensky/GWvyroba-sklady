@@ -1,0 +1,37 @@
+name: Deploy via FTP (Webglobe)
+
+on:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: deploy-gworm
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: FTP Deploy to Webglobe (FTPS 21)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./
+          server-dir: /public_html/gworm/
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/.DS_Store
+            **/Thumbs.db
+          state-name: .ftp-deploy-sync-state.json
+          dangerous-clean-slate: false
+          log-level: verbose
