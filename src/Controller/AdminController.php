@@ -71,7 +71,9 @@ final class AdminController
 
     private function ensureProductSchema(\PDO $pdo): void
     {
-        $this->addColumnIfMissing($pdo, 'produkty', 'znacka_id INT NULL', 'aktivni');
+        $this->addColumnIfMissing($pdo, 'produkty', 'alt_sku VARCHAR(128) NULL', 'sku');
+        try { $pdo->exec('ALTER TABLE `produkty` ADD UNIQUE KEY uniq_produkty_alt_sku (alt_sku)'); } catch (\Throwable $e) {}
+        $this->addColumnIfMissing($pdo, 'produkty', 'znacka_id INT NULL', 'alt_sku');
         $this->addColumnIfMissing($pdo, 'produkty', 'skupina_id INT NULL', 'znacka_id');
         $this->addColumnIfMissing($pdo, 'produkty', 'poznamka VARCHAR(1024) NULL', 'skupina_id');
 

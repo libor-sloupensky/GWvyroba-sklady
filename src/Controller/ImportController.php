@@ -247,10 +247,13 @@ final class ImportController
                 $status = 'ignored';
                 $highlight = $ignoreMatch['field'] ?? null;
                 $note = $ignoreMatch['pattern'] !== '' ? 'Ignorováno dle: '.$ignoreMatch['pattern'] : 'Ignorováno';
-            } elseif ($skuValue !== '' && $this->productExists($skuValue)) {
-                $status = 'matched';
-                $highlight = 'sku';
-                $note = 'Spárováno (SKU)';
+            } elseif ($skuValue !== '') {
+                $matchedField = $this->matchProductField($skuValue);
+                if ($matchedField !== null) {
+                    $status = 'matched';
+                    $highlight = $matchedField === 'alt_sku' ? 'sku' : $matchedField;
+                    $note = $matchedField === 'alt_sku' ? 'Spárováno (ALT SKU)' : 'Spárováno (SKU)';
+                }
             }
             $eshop = (string)$r['eshop_source'];
             if (!isset($groups[$eshop])) {
@@ -468,17 +471,32 @@ final class ImportController
         );
     }
 
-    private function productExists(string $sku): bool
+    private function matchProductField(string $skuOrAlt): ?string
     {
         static $cache = [];
-        $key = mb_strtolower($sku, 'UTF-8');
+        $key = mb_strtolower($skuOrAlt, 'UTF-8');
         if (array_key_exists($key, $cache)) {
             return $cache[$key];
         }
-        $stmt = DB::pdo()->prepare('SELECT 1 FROM produkty WHERE sku=? LIMIT 1');
-        $stmt->execute([$sku]);
-        $cache[$key] = (bool)$stmt->fetchColumn();
-        return $cache[$key];
+        $stmt = DB::pdo()->prepare('SELECT sku, alt_sku FROM produkty WHERE sku=? OR alt_sku=? LIMIT 1');
+        $stmt->execute([$skuOrAlt, $skuOrAlt]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            $cache[$key] = null;
+            return null;
+        }
+        $match = null;
+        $dbSku = (string)$row['sku'];
+        $dbAlt = $row['alt_sku'] === null ? null : (string)$row['alt_sku'];
+        if (mb_strtolower($dbSku, 'UTF-8') === $key) {
+            $match = 'sku';
+        } elseif ($dbAlt !== null && $dbAlt !== '' && mb_strtolower($dbAlt, 'UTF-8') === $key) {
+            $match = 'alt_sku';
+        } else {
+            $match = 'sku';
+        }
+        $cache[$key] = $match;
+        return $match;
     }
 
     private function viewModes(): array
@@ -520,6 +538,7 @@ final class ImportController
     {
         if ($mode === 'unmatched') {
             $rows = array_values(array_filter($rows, fn($r) => ($r['status'] ?? '') === 'unmatched'));
+            $rows = $this->uniqueBySkuOrName($rows);
         } elseif ($mode === 'unique') {
             $rows = $this->uniqueOutstandingRows($rows);
         }
@@ -554,6 +573,38 @@ final class ImportController
             $name = trim((string)($row['cislo_dokladu'] ?? '') . '|' . (string)($row['mnozstvi'] ?? ''));
         }
         return mb_strtolower((string)($row['eshop_source'] ?? '') . '|' . $name, 'UTF-8');
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     */
+    private function uniqueBySkuOrName(array $rows): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($rows as $row) {
+            $key = $this->skuOrNameKey($row);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    private function skuOrNameKey(array $row): string
+    {
+        $eshop = mb_strtolower((string)($row['eshop_source'] ?? ''), 'UTF-8');
+        $sku = mb_strtolower(trim((string)($row['sku'] ?? '')), 'UTF-8');
+        if ($sku !== '') {
+            return $eshop . '|sku|' . $sku;
+        }
+        $name = mb_strtolower(trim((string)($row['nazev'] ?? '')), 'UTF-8');
+        if ($name !== '') {
+            return $eshop . '|name|' . $name;
+        }
+        return $this->uniqueRowKey($row);
     }
 
     private function matchesIgnorePatterns(array $patterns, array $values): ?array

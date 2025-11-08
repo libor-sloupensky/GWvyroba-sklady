@@ -45,6 +45,10 @@ function addColumn(PDO $pdo, string $table, string $definition): void {
 }
 
 try {
+    if (!columnExists($pdo, 'produkty', 'alt_sku')) {
+        addColumn($pdo, 'produkty', "COLUMN `alt_sku` VARCHAR(128) NULL AFTER `sku`");
+        try { $pdo->exec('ALTER TABLE `produkty` ADD UNIQUE KEY uniq_produkty_alt_sku (alt_sku)'); } catch (Throwable $e) {}
+    }
     if (!columnExists($pdo, 'produkty', 'znacka_id')) {
         addColumn($pdo, 'produkty', 'COLUMN `znacka_id` INT NULL AFTER `aktivni`');
         $pdo->exec('ALTER TABLE `produkty` ADD KEY idx_produkty_znacka (znacka_id)');

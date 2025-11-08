@@ -35,10 +35,11 @@ final class ProductsController
         $delimiter = ';';
         $enclosure = '"';
         $escape = '\\';
-        fputcsv($fh, ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
+        fputcsv($fh, ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
         foreach ($rows as $r) {
             fputcsv($fh, [
                 $r['sku'],
+                $r['alt_sku'],
                 $r['ean'],
                 $r['znacka'],
                 $r['skupina'],
@@ -72,7 +73,7 @@ final class ProductsController
         $pdo->beginTransaction();
         try {
             $header = $this->readCsvRow($fh);
-            $expected = ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+            $expected = ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
             if (!$header || array_map('strtolower', $header) !== $expected) {
                 throw new \RuntimeException('Neplatná hlavička CSV.');
             }
@@ -82,10 +83,13 @@ final class ProductsController
             if (empty($units)) {
                 throw new \RuntimeException('Nejprve definujte povolené měrné jednotky v Nastavení.');
             }
+            [$existingSkuMap,$existingAltMap] = $this->loadExistingSkuMaps();
+            $pendingSku = [];
+            $pendingAlt = [];
             $stmt = $pdo->prepare(
-                'INSERT INTO produkty (sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
-                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
-                'ON DUPLICATE KEY UPDATE nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
+                'INSERT INTO produkty (sku,alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
+                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
+                'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
             );
             $ok = 0;
             $errors = [];
@@ -95,9 +99,10 @@ final class ProductsController
                 if (count(array_filter($row, fn($v) => trim((string)$v) !== '')) === 0) {
                     continue;
                 }
-                $row = array_pad($row, 13, '');
-                [$sku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$note] = $row;
+                $row = array_pad($row, 14, '');
+                [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$note] = $row;
                 $sku = $this->toUtf8($sku);
+                $altSku = $this->toUtf8($altSku);
                 $nazev = $this->toUtf8($nazev);
                 $typ = $this->toUtf8($typ);
                 $mj = $this->toUtf8($mj);
@@ -130,8 +135,39 @@ final class ProductsController
                 if ($ean === '') {
                     $ean = null;
                 }
+                $skuKey = mb_strtolower($sku, 'UTF-8');
+                $existingRecord = $existingSkuMap[$skuKey] ?? null;
+                $currentAltKey = $existingRecord && !empty($existingRecord['alt']) ? mb_strtolower($existingRecord['alt'],'UTF-8') : '';
+                if (!$existingRecord && (isset($existingSkuMap[$skuKey]) || isset($pendingSku[$skuKey]))) {
+                    $errors[] = "Řádek {$line}: SKU '{$sku}' již existuje.";
+                    continue;
+                }
+                $pendingSku[$skuKey] = true;
+                $altKey = $altSku === '' ? '' : mb_strtolower($altSku, 'UTF-8');
+                if ($altKey !== '') {
+                    if ($altKey === $skuKey) {
+                        $errors[] = "Řádek {$line}: alt_sku nesmí být stejné jako sku.";
+                        continue;
+                    }
+                    $conflict = false;
+                    if ($altKey !== $currentAltKey) {
+                        if (isset($existingSkuMap[$altKey])) { $conflict = true; }
+                        $altOwner = $existingAltMap[$altKey] ?? null;
+                        if ($altOwner !== null && mb_strtolower($altOwner,'UTF-8') !== $skuKey) { $conflict = true; }
+                        if (isset($pendingSku[$altKey]) && $pendingSku[$altKey] === true) { $conflict = true; }
+                        if (isset($pendingAlt[$altKey]) && $pendingAlt[$altKey] !== $skuKey) { $conflict = true; }
+                    }
+                    if ($conflict) {
+                        $errors[] = "Řádek {$line}: alt_sku '{$altSku}' je již použito.";
+                        continue;
+                    }
+                    $pendingAlt[$altKey] = $skuKey;
+                } else {
+                    $altSku = null;
+                }
                 $stmt->execute([
                     $sku,
+                    $altSku,
                     $nazev,
                     $typ,
                     $mj,
@@ -170,6 +206,7 @@ final class ProductsController
     {
         $this->requireAdmin();
         $sku   = trim((string)($_POST['sku'] ?? ''));
+        $altSku= trim((string)($_POST['alt_sku'] ?? ''));
         $ean   = trim((string)($_POST['ean'] ?? ''));
         $name  = trim((string)($_POST['nazev'] ?? ''));
         $type  = trim((string)($_POST['typ'] ?? ''));
@@ -191,6 +228,14 @@ final class ProductsController
         if ($unit === '' || !in_array($unit, $unitCodes, true)) $errors[] = 'Vyberte měrnou jednotku.';
         if ($brandId > 0 && !$this->dictionaryIdExists('produkty_znacky', $brandId)) $errors[] = 'Neplatná značka.';
         if ($groupId > 0 && !$this->dictionaryIdExists('produkty_skupiny', $groupId)) $errors[] = 'Neplatná skupina.';
+        $altSku = $this->toUtf8($altSku);
+        if ($altSku !== '') {
+            if (mb_strtolower($altSku, 'UTF-8') === mb_strtolower($sku, 'UTF-8')) {
+                $errors[] = 'alt_sku nesmí být shodné se sku.';
+            } elseif ($this->altSkuConflictExists($altSku)) {
+                $errors[] = 'alt_sku je již použito nebo koliduje s jiným SKU.';
+            }
+        }
 
         if ($errors) {
             $_SESSION['products_error'] = implode(' ', $errors);
@@ -200,9 +245,10 @@ final class ProductsController
 
         $pdo = DB::pdo();
         try {
-            $stmt = $pdo->prepare('INSERT INTO produkty (sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, min_davka, krok_vyroby, vyrobni_doba_dni, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO produkty (sku, alt_sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, min_davka, krok_vyroby, vyrobni_doba_dni, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
             $stmt->execute([
                 $sku,
+                $altSku === '' ? null : $altSku,
                 $ean === '' ? null : $ean,
                 $brandId ?: null,
                 $groupId ?: null,
@@ -247,7 +293,7 @@ final class ProductsController
             return;
         }
 
-        [$normalized, $error] = $this->normalizeFieldValue($field, $value);
+        [$normalized, $error] = $this->normalizeFieldValue($field, $value, $sku);
         if ($error !== null) {
             echo json_encode(['ok'=>false,'error'=>$error]);
             return;
@@ -265,15 +311,30 @@ final class ProductsController
 
     private function editableFields(): array
     {
-        return ['ean','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+        return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
     }
 
-    private function normalizeFieldValue(string $field, $value): array
+    private function normalizeFieldValue(string $field, $value, string $currentSku = ''): array
     {
         switch ($field) {
             case 'ean':
                 $val = $this->toUtf8((string)$value);
                 return [$val === '' ? null : $val, null];
+            case 'alt_sku':
+                $val = $this->toUtf8((string)$value);
+                if ($val === '') {
+                    return [null, null];
+                }
+                if ($currentSku === '') {
+                    return [null, 'Nelze určit SKU produktu.'];
+                }
+                if (mb_strtolower($val, 'UTF-8') === mb_strtolower($currentSku, 'UTF-8')) {
+                    return [null, 'alt_sku nesmí být shodné se sku.'];
+                }
+                if ($this->altSkuConflictExists($val, $currentSku)) {
+                    return [null, 'alt_sku je již použito nebo koliduje se SKU.'];
+                }
+                return [$val, null];
             case 'nazev':
                 $val = $this->toUtf8((string)$value);
                 return $val === '' ? [null, 'Název nesmí být prázdný.'] : [$val, null];
@@ -362,10 +423,52 @@ final class ProductsController
 
     private function productsSelectSql(): string
     {
-        return 'SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
+        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
                'FROM produkty p ' .
                'LEFT JOIN produkty_znacky zb ON p.znacka_id = zb.id ' .
                'LEFT JOIN produkty_skupiny sg ON p.skupina_id = sg.id';
+    }
+
+    /**
+     * @return array{0:array<string,array{sku:string,alt:?string}>,1:array<string,string>}
+     */
+    private function loadExistingSkuMaps(): array
+    {
+        $skuMap = [];
+        $altMap = [];
+        foreach (DB::pdo()->query('SELECT sku, alt_sku FROM produkty') as $row) {
+            $sku = trim((string)$row['sku']);
+            if ($sku === '') {
+                continue;
+            }
+            $skuKey = mb_strtolower($sku, 'UTF-8');
+            $alt = $row['alt_sku'] === null ? null : trim((string)$row['alt_sku']);
+            $skuMap[$skuKey] = [
+                'sku' => $sku,
+                'alt' => $alt === '' ? null : $alt,
+            ];
+            if ($alt !== null && $alt !== '') {
+                $altMap[mb_strtolower($alt, 'UTF-8')] = $sku;
+            }
+        }
+        return [$skuMap, $altMap];
+    }
+
+    private function altSkuConflictExists(string $altSku, string $currentSku = ''): bool
+    {
+        if ($altSku === '') {
+            return false;
+        }
+        $ownerNorm = $currentSku === '' ? '' : mb_strtolower($currentSku, 'UTF-8');
+        if ($ownerNorm !== '' && $ownerNorm === mb_strtolower($altSku, 'UTF-8')) {
+            return true;
+        }
+        $stmt = DB::pdo()->prepare('SELECT 1 FROM produkty WHERE (sku = :alt OR alt_sku = :alt) AND (:sku = \'\' OR sku <> :sku) LIMIT 1');
+        $stmt->execute([
+            ':alt' => $altSku,
+            ':sku' => $currentSku,
+        ]);
+        return (bool)$stmt->fetchColumn();
     }
 
     private function loadDictionary(string $table, string $column = 'nazev'): array

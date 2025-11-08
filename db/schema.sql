@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS produkty_merne_jednotky (
 CREATE TABLE IF NOT EXISTS produkty (
   id INT AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(128) NOT NULL UNIQUE,
+  alt_sku VARCHAR(128) NULL UNIQUE,
   ean VARCHAR(32) NULL UNIQUE,
   nazev VARCHAR(255) NOT NULL,
   typ ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL,

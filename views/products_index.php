@@ -3,6 +3,7 @@
   <strong>Popis sloupců CSV (oddělovač ;):</strong>
   <ul>
     <li><code>sku</code> – povinný interní kód produktu.</li>
+    <li><code>alt_sku</code> – volitelný alternativní kód (unikátní, nesmí být shodný se SKU).</li>
     <li><code>ean</code> – volitelný EAN / čárový kód.</li>
     <li><code>znacka</code> – název značky definovaný v Nastavení (povolené hodnoty).</li>
     <li><code>skupina</code> – název produktové skupiny z Nastavení.</li>
@@ -45,6 +46,7 @@
 <h2>Přidat nový produkt</h2>
 <form method="post" action="/products/create" class="product-create-form">
   <label>SKU*</label><input type="text" name="sku" required />
+  <label>Alt SKU</label><input type="text" name="alt_sku" />
   <label>EAN</label><input type="text" name="ean" />
   <label>Značka</label>
   <select name="znacka_id">
@@ -90,6 +92,7 @@
 <table class="products-table">
   <tr>
     <th>SKU</th>
+    <th>Alt SKU</th>
     <th>EAN</th>
     <th>Značka</th>
     <th>Skupina</th>
@@ -106,7 +109,12 @@
   <?php foreach (($items ?? []) as $it): ?>
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
     <td><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
+      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '–' ?>
+    </td>
+    <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
+      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '–' ?>
+    </td>
     <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? '—'),ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? '—'),ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
