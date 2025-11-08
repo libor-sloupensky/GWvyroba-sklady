@@ -77,6 +77,7 @@ $router->get('/settings', [SettingsController::class, 'index']);
 $router->post('/settings/series', [SettingsController::class, 'saveSeries']);
 $router->post('/settings/series/delete', [SettingsController::class, 'deleteSeries']);
 $router->post('/settings/ignore', [SettingsController::class, 'saveIgnore']);
+$router->post('/settings/ignore/delete', [SettingsController::class, 'deleteIgnore']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 
 // Plans page

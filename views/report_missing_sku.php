@@ -1,5 +1,5 @@
 <h1>Chybějící SKU</h1>
-<p class="muted">Výpis za posledních <?= (int)($days ?? 30) ?> dní podle DUZP. Ignor vzory (glob, case-insensitive) jsou aplikovány na code/sku a takové řádky se nezobrazují.</p>
+<p class="muted">Výpis za posledních <?= (int)($days ?? 30) ?> dní podle globálního nastavení. Zobrazuje unikátní položky bez SKU napříč všemi importy v období (ignor vzory se nadále aplikují).</p>
 <table>
   <tr>
     <th class="help" title="Datum uskutečnění zdanitelného plnění">DUZP</th>
@@ -20,4 +20,3 @@
   </tr>
   <?php endforeach; ?>
 </table>
-

@@ -82,7 +82,13 @@
 </form>
 <ul>
   <?php foreach (($ignores ?? []) as $i): ?>
-    <li><?= htmlspecialchars((string)$i['vzor'],ENT_QUOTES,'UTF-8') ?></li>
+    <li>
+      <span><?= htmlspecialchars((string)$i['vzor'],ENT_QUOTES,'UTF-8') ?></span>
+      <form method="post" action="/settings/ignore/delete" style="display:inline;margin-left:8px;">
+        <input type="hidden" name="id" value="<?= (int)$i['id'] ?>" />
+        <button type="submit" class="link-danger" title="Odebrat vzor" aria-label="Odebrat vzor">×</button>
+      </form>
+    </li>
   <?php endforeach; ?>
 </ul>
 

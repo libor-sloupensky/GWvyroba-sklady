@@ -98,7 +98,30 @@ final class SettingsController
     {
         $this->requireAdmin();
         $vzor = trim((string)($_POST['vzor'] ?? ''));
-        if ($vzor!=='') { DB::pdo()->prepare('INSERT INTO nastaveni_ignorovane_polozky (vzor) VALUES (?)')->execute([$vzor]); }
+        if ($vzor!=='') {
+            DB::pdo()->prepare('INSERT INTO nastaveni_ignorovane_polozky (vzor) VALUES (?)')->execute([$vzor]);
+            $_SESSION['settings_message'] = 'Ignorovaná položka přidána.';
+        }
+        header('Location: /settings');
+    }
+
+    public function deleteIgnore(): void
+    {
+        $this->requireAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['settings_error'] = 'Neplatný požadavek na odstranění ignorované položky.';
+            header('Location: /settings');
+            return;
+        }
+        $pdo = DB::pdo();
+        $st = $pdo->prepare('DELETE FROM nastaveni_ignorovane_polozky WHERE id=?');
+        $st->execute([$id]);
+        if ($st->rowCount() > 0) {
+            $_SESSION['settings_message'] = 'Ignorovaná položka odstraněna.';
+        } else {
+            $_SESSION['settings_error'] = 'Ignorovaná položka nenalezena.';
+        }
         header('Location: /settings');
     }
 

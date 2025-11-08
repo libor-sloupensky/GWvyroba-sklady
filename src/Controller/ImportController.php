@@ -79,22 +79,35 @@ final class ImportController
     public function reportMissingSku(): void
     {
         $this->requireAdmin();
-        $days = (int)($_GET['days'] ?? 30);
-        $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
         $pdo = DB::pdo();
+        $glob = $pdo->query('SELECT okno_pro_prumer_dni FROM nastaveni_global WHERE id=1')->fetch() ?: [];
+        $days = max(1, (int)($glob['okno_pro_prumer_dni'] ?? 30));
+        $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
         // load ignore patterns
         $pat = array_map(fn($r)=> strtolower((string)$r['vzor']), $pdo->query('SELECT vzor FROM nastaveni_ignorovane_polozky')->fetchAll());
         $rows = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw FROM polozky_eshop WHERE duzp>=? AND code_raw IS NULL AND stock_ids_raw IS NULL ORDER BY duzp DESC");
         $rows->execute([$since]);
-        $out = [];
+        $unique = [];
         foreach ($rows as $r) {
             $code = strtolower((string)($r['code_raw'] ?? ''));
             $sku  = '';
             $skip = false;
             foreach ($pat as $p) { if ($p !== '' && fnmatch($p, $code)) { $skip=true; break; } }
             if ($skip) continue;
-            $out[] = $r;
+            $keyBase = (string)$r['nazev'];
+            if ($keyBase === '') {
+                $keyBase = (string)$r['code_raw'];
+            }
+            if ($keyBase === '') {
+                $keyBase = (string)$r['cislo_dokladu'] . '|' . (string)$r['mnozstvi'];
+            }
+            $key = mb_strtolower((string)$r['eshop_source'] . '|' . $keyBase, 'UTF-8');
+            if (isset($unique[$key])) {
+                continue;
+            }
+            $unique[$key] = $r;
         }
+        $out = array_values($unique);
         $this->render('report_missing_sku.php', ['title'=>'Chybějící SKU', 'rows'=>$out, 'days'=>$days]);
     }
 
