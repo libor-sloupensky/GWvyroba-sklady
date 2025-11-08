@@ -186,9 +186,9 @@ final class ImportController
                     $isMissingSku = ($sku === '' || $sku === null);
                     if ($isMissingSku) {
                     $ignoreMatch = $this->matchesIgnorePatterns($ignorePatterns, [
-                        (string)($item['text'] ?? ''),
-                        (string)$code,
-                        (string)$docNumber,
+                        'nazev' => (string)($item['text'] ?? ''),
+                        'code'  => (string)$code,
+                        'doklad'=> (string)$docNumber,
                     ]);
                     if ($ignoreMatch !== null) {
                         continue;
@@ -229,17 +229,24 @@ final class ImportController
         $groups = [];
         $flat = [];
         foreach ($stmt as $r) {
-            $ignorePattern = $this->matchesIgnorePatterns($patterns, [
-                (string)($r['nazev'] ?? ''),
-                (string)($r['code_raw'] ?? ''),
-                (string)($r['sku'] ?? ''),
-                (string)($r['cislo_dokladu'] ?? ''),
+            $ignoreMatch = $this->matchesIgnorePatterns($patterns, [
+                'nazev'  => (string)($r['nazev'] ?? ''),
+                'code'   => (string)($r['code_raw'] ?? ''),
+                'sku'    => (string)($r['sku'] ?? ''),
+                'doklad' => (string)($r['cislo_dokladu'] ?? ''),
             ]);
             $status = 'unmatched';
-            if ($ignorePattern !== null) {
+            $highlight = null;
+            $note = '';
+            $skuValue = trim((string)($r['sku'] ?? ''));
+            if ($ignoreMatch !== null) {
                 $status = 'ignored';
-            } elseif (trim((string)($r['sku'] ?? '')) !== '') {
+                $highlight = $ignoreMatch['field'] ?? null;
+                $note = $ignoreMatch['pattern'] !== '' ? 'Ignorováno dle: '.$ignoreMatch['pattern'] : 'Ignorováno';
+            } elseif ($skuValue !== '' && $this->productExists($skuValue)) {
                 $status = 'matched';
+                $highlight = 'sku';
+                $note = 'Spárováno (SKU)';
             }
             $eshop = (string)$r['eshop_source'];
             if (!isset($groups[$eshop])) {
@@ -247,7 +254,9 @@ final class ImportController
             }
             $entry = $r;
             $entry['status'] = $status;
-            $entry['ignore_pattern'] = $ignorePattern;
+            $entry['highlight_field'] = $highlight;
+            $entry['status_note'] = $note;
+            $entry['ignore_pattern'] = $ignoreMatch['pattern'] ?? null;
             $groups[$eshop][] = $entry;
             $flat[] = $entry;
         }
@@ -452,7 +461,20 @@ final class ImportController
         );
     }
 
-    private function matchesIgnorePatterns(array $patterns, array $values): ?string
+    private function productExists(string $sku): bool
+    {
+        static $cache = [];
+        $key = mb_strtolower($sku, 'UTF-8');
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+        $stmt = DB::pdo()->prepare('SELECT 1 FROM produkty WHERE sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $cache[$key] = (bool)$stmt->fetchColumn();
+        return $cache[$key];
+    }
+
+    private function matchesIgnorePatterns(array $patterns, array $values): ?array
     {
         foreach ($patterns as $pattern) {
             $pattern = trim((string)$pattern);
@@ -460,13 +482,13 @@ final class ImportController
                 continue;
             }
             $regex = $this->wildcardToRegex($pattern);
-            foreach ($values as $value) {
+            foreach ($values as $field => $value) {
                 $value = trim((string)$value);
                 if ($value === '') {
                     continue;
                 }
                 if (preg_match($regex, mb_strtolower($value, 'UTF-8'))) {
-                    return $pattern;
+                    return ['pattern'=>$pattern,'field'=>$field];
                 }
             }
         }

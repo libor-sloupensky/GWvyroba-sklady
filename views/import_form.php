@@ -1,8 +1,10 @@
-﻿<h1>Import Pohoda XML</h1>
+<h1>Import Pohoda XML</h1>
 <style>
 .status-matched { background:#e6f4ea; }
 .status-ignored { background:#fdecea; }
 .status-note { font-size:12px; color:#607d8b; display:block; }
+.cell-matched { background:#e6f4ea; }
+.cell-ignored { background:#fdecea; }
 </style>
 <p class="muted">Postup: vyberte e-shop a XML (Stormware Pohoda). Pokud nejsou nastavené řady, import propustí všechny doklady. Při nesouladu řad import zastaví a nic neuloží.</p>
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
@@ -41,22 +43,20 @@
       <?php foreach ($items as $item): ?>
       <?php
         $status = $item['status'] ?? 'unmatched';
-        $class = $status === 'matched' ? 'status-matched' : ($status === 'ignored' ? 'status-ignored' : '');
-        $note = '';
-        if ($status === 'matched') {
-            $note = 'Spárováno (SKU)';
-        } elseif ($status === 'ignored') {
-            $pattern = (string)($item['ignore_pattern'] ?? '');
-            $note = $pattern !== '' ? 'Ignorováno dle: ' . $pattern : 'Ignorováno';
-        }
+        $highlight = $item['highlight_field'] ?? '';
+        $note = $item['status_note'] ?? '';
+        $cellClass = function(string $field) use ($highlight,$status) {
+            if ($highlight !== $field) return '';
+            return $status === 'matched' ? 'cell-matched' : ($status === 'ignored' ? 'cell-ignored' : '');
+        };
       ?>
-      <tr class="<?= $class ?>">
-        <td><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+      <tr>
+        <td class="<?= $cellClass('duzp') ?>"><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('doklad') ?>"><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('nazev') ?>"><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('sku') ?>"><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('code') ?>"><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)($item['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
         <td><?php if ($note !== ''): ?><small class="status-note"><?= htmlspecialchars($note,ENT_QUOTES,'UTF-8') ?></small><?php endif; ?></td>
       </tr>
