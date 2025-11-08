@@ -228,6 +228,7 @@ final class ImportController
         $stmt->execute([$since]);
         $groups = [];
         $flat = [];
+        $flat = [];
         foreach ($stmt as $r) {
             $ignoreMatch = $this->matchesIgnorePatterns($patterns, [
                 'nazev'  => (string)($r['nazev'] ?? ''),
