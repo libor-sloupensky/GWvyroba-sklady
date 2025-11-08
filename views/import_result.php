@@ -9,6 +9,9 @@
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
+<?php if (!empty($viewModes ?? []) && isset($viewMode)): ?>
+  <p class="muted">Zobrazení: <?= htmlspecialchars((string)($viewModes[$viewMode] ?? ''),ENT_QUOTES,'UTF-8') ?></p>
+<?php endif; ?>
 
 <h2>Nahrát další XML</h2>
 <?php

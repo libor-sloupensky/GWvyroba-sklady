@@ -44,6 +44,7 @@ final class ImportController
             [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch);
             $eshops = $this->loadEshops();
             $outstanding = $this->collectOutstandingMissingSku();
+            $displayRows = $this->filterOutstandingRows($outstanding['rows'], 'unmatched');
             $this->render('import_result.php', [
                 'title'=>'Import dokončen',
                 'batch'=>$batch,
@@ -52,8 +53,10 @@ final class ImportController
                 'notice'=>null,
                 'eshops'=>$eshops,
                 'selectedEshop'=>$eshop,
-                'outstandingMissing'=>$outstanding['groups'],
-                'outstandingDays'=>$outstanding['days']
+                'outstandingMissing'=>$this->groupRowsByEshop($displayRows),
+                'outstandingDays'=>$outstanding['days'],
+                'viewMode'=>'unmatched',
+                'viewModes'=>$this->viewModes()
             ]);
         } catch (\Throwable $e) {
             $this->renderImportForm(['error'=>$e->getMessage(), 'selectedEshop'=>$eshop]);
@@ -437,15 +440,18 @@ final class ImportController
 
     private function renderImportForm(array $vars = []): void
     {
-        $pdo = DB::pdo();
+        $viewMode = $this->currentViewMode();
         $eshops = $this->loadEshops();
         $outstanding = $this->collectOutstandingMissingSku();
+        $displayRows = $this->filterOutstandingRows($outstanding['rows'], $viewMode);
         if (!isset($vars['title'])) {
             $vars['title'] = 'Import Pohoda XML';
         }
         $vars['eshops'] = $eshops;
-        $vars['outstandingMissing'] = $outstanding['groups'];
+        $vars['outstandingMissing'] = $this->groupRowsByEshop($displayRows);
         $vars['outstandingDays'] = $outstanding['days'];
+        $vars['viewMode'] = $viewMode;
+        $vars['viewModes'] = $this->viewModes();
         $this->render('import_form.php', $vars);
     }
 
@@ -473,6 +479,81 @@ final class ImportController
         $stmt->execute([$sku]);
         $cache[$key] = (bool)$stmt->fetchColumn();
         return $cache[$key];
+    }
+
+    private function viewModes(): array
+    {
+        return [
+            'unmatched' => 'Nespárované',
+            'all'       => 'Všechny vazby',
+            'unique'    => 'Všechny unikátní vazby',
+        ];
+    }
+
+    private function currentViewMode(): string
+    {
+        $mode = $_GET['view'] ?? 'unmatched';
+        $allowed = array_keys($this->viewModes());
+        if (!in_array($mode, $allowed, true)) {
+            $mode = 'unmatched';
+        }
+        return $mode;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     */
+    private function groupRowsByEshop(array $rows): array
+    {
+        $groups = [];
+        foreach ($rows as $row) {
+            $eshop = (string)($row['eshop_source'] ?? '');
+            $groups[$eshop][] = $row;
+        }
+        return $groups;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     */
+    private function filterOutstandingRows(array $rows, string $mode): array
+    {
+        if ($mode === 'unmatched') {
+            $rows = array_values(array_filter($rows, fn($r) => ($r['status'] ?? '') === 'unmatched'));
+        } elseif ($mode === 'unique') {
+            $rows = $this->uniqueOutstandingRows($rows);
+        }
+        return $rows;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     */
+    private function uniqueOutstandingRows(array $rows): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($rows as $row) {
+            $key = $this->uniqueRowKey($row);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    private function uniqueRowKey(array $row): string
+    {
+        $name = trim((string)($row['nazev'] ?? ''));
+        if ($name === '') {
+            $name = trim((string)($row['code_raw'] ?? ''));
+        }
+        if ($name === '') {
+            $name = trim((string)($row['cislo_dokladu'] ?? '') . '|' . (string)($row['mnozstvi'] ?? ''));
+        }
+        return mb_strtolower((string)($row['eshop_source'] ?? '') . '|' . $name, 'UTF-8');
     }
 
     private function matchesIgnorePatterns(array $patterns, array $values): ?array

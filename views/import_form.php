@@ -33,6 +33,18 @@
   <button type="submit"<?= $hasEshops ? '' : ' disabled' ?>>Importovat</button>
 </form>
 
+<?php if (!empty($viewModes ?? [])): ?>
+  <form method="get" class="view-mode-form" style="margin-top:1rem;">
+    <label>Zobrazení</label>
+    <select name="view" onchange="this.form.submit()">
+      <?php foreach (($viewModes ?? []) as $key => $label): ?>
+        <option value="<?= htmlspecialchars((string)$key,ENT_QUOTES,'UTF-8') ?>"<?= ($viewMode ?? 'unmatched') === $key ? ' selected' : '' ?>><?= htmlspecialchars((string)$label,ENT_QUOTES,'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+    <noscript><button type="submit">Zobrazit</button></noscript>
+  </form>
+<?php endif; ?>
+
 <?php if (!empty($outstandingMissing)): ?>
   <hr>
   <h2>Nespárované položky za posledních <?= (int)($outstandingDays ?? 30) ?> dní</h2>
