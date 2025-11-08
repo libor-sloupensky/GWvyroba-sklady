@@ -550,17 +550,16 @@ final class ImportController
      */
     private function uniqueOutstandingRows(array $rows): array
     {
-        $seen = [];
-        $out = [];
+        $map = [];
         foreach ($rows as $row) {
             $key = $this->uniqueRowKey($row);
-            if (isset($seen[$key])) {
+            if (!isset($map[$key])) {
+                $map[$key] = $row;
                 continue;
             }
-            $seen[$key] = true;
-            $out[] = $row;
+            $map[$key] = $this->mergeAggregatedRow($map[$key], $row);
         }
-        return $out;
+        return array_values($map);
     }
 
     private function uniqueRowKey(array $row): string
@@ -580,17 +579,16 @@ final class ImportController
      */
     private function uniqueBySkuOrName(array $rows): array
     {
-        $seen = [];
-        $out = [];
+        $map = [];
         foreach ($rows as $row) {
             $key = $this->skuOrNameKey($row);
-            if (isset($seen[$key])) {
+            if (!isset($map[$key])) {
+                $map[$key] = $row;
                 continue;
             }
-            $seen[$key] = true;
-            $out[] = $row;
+            $map[$key] = $this->mergeAggregatedRow($map[$key], $row);
         }
-        return $out;
+        return array_values($map);
     }
 
     private function skuOrNameKey(array $row): string
@@ -634,6 +632,30 @@ final class ImportController
         $quoted = preg_quote($lower, '/');
         $quoted = str_replace(['\*', '\?'], ['.*', '.'], $quoted);
         return '/^' . $quoted . '$/u';
+    }
+
+    private function mergeAggregatedRow(array $dest, array $src): array
+    {
+        $destQty = $this->toFloat($dest['mnozstvi'] ?? 0);
+        $srcQty  = $this->toFloat($src['mnozstvi'] ?? 0);
+        $sum = $destQty + $srcQty;
+        $dest['mnozstvi'] = $this->formatQuantity($sum);
+        return $dest;
+    }
+
+    private function toFloat($value): float
+    {
+        if (is_float($value) || is_int($value)) {
+            return (float)$value;
+        }
+        $normalized = str_replace(',', '.', trim((string)$value));
+        return is_numeric($normalized) ? (float)$normalized : 0.0;
+    }
+
+    private function formatQuantity(float $value): string
+    {
+        $formatted = number_format($value, 3, '.', '');
+        return rtrim(rtrim($formatted, '0'), '.') ?: '0';
     }
 
     private function isKnownEshop(string $eshop): bool
