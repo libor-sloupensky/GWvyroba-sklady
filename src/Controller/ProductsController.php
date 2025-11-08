@@ -595,12 +595,6 @@ final class ProductsController
         }
     }
 
-    private function render(string $view, array $vars = []): void
-    {
-        extract($vars);
-        require __DIR__ . '/../../views/_layout.php';
-    }
-}
     private function currentFilters(): array
     {
         $brand = (int)($_GET['znacka_id'] ?? 0);
@@ -615,3 +609,10 @@ final class ProductsController
             'search'=> $search,
         ];
     }
+
+    private function render(string $view, array $vars = []): void
+    {
+        extract($vars);
+        require __DIR__ . '/../../views/_layout.php';
+    }
+}
