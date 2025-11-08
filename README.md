@@ -7,6 +7,7 @@ UTF‑8, PHP (bez frameworku), MySQL (utf8mb4_czech_ci). Viz `db/schema.sql`.
 2) Spusť migraci: `php scripts/migrate.php`
 3) Seed admina: `php scripts/seed_admin.php admin@local` (heslo: `dokola`)
 4) Nastav web root na `public/` (viz `public/.htaccess`) a otevři `/login`.
+   - Pokud musíš nechat web root v kořeni projektu, použij kořenový `.htaccess` (již přiložen) — přesměruje všechny požadavky na `index.php` v rootu, který načte `public/index.php`.
 
 ## Funkce (stav)
 - Import Pohoda XML: formulář `/import` (parser – TODO dle MASTER_PROMPT; zatím stub)
@@ -28,4 +29,3 @@ BOM: `rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby`
 - Všude UTF‑8.
 - DB collation: `utf8mb4_czech_ci`.
 - Footer zobrazuje „Poslední úprava“ (mtime) a „Verze/Deploy“ z configu.
-
