@@ -8,18 +8,31 @@ final class ImportController
     public function form(): void
     {
         $this->requireAdmin();
-        $this->render('import_form.php', ['title'=>'Import Pohoda XML']);
+        $this->renderImportForm();
     }
 
     public function importPohoda(): void
     {
         $this->requireAdmin();
         $eshop = trim((string)($_POST['eshop'] ?? ''));
-        if (!isset($_FILES['xml']) || $eshop === '') { $this->render('import_form.php', ['title'=>'Import', 'error'=>'Zadejte e-shop a vyberte XML.']); return; }
+        if (!isset($_FILES['xml'])) {
+            $this->renderImportForm(['error'=>'Vyberte XML soubor.', 'selectedEshop'=>$eshop]);
+            return;
+        }
+        if ($eshop === '' || !$this->isKnownEshop($eshop)) {
+            $this->renderImportForm(['error'=>'Zvolte e-shop z nastaveného seznamu.', 'selectedEshop'=>$eshop]);
+            return;
+        }
         $tmp = $_FILES['xml']['tmp_name'];
-        if (!is_uploaded_file($tmp)) { $this->render('import_form.php', ['title'=>'Import', 'error'=>'Soubor nebyl nahrán.']); return; }
+        if (!is_uploaded_file($tmp)) {
+            $this->renderImportForm(['error'=>'Soubor nebyl nahrán.', 'selectedEshop'=>$eshop]);
+            return;
+        }
         $xml = file_get_contents($tmp);
-        if ($xml === false) { $this->render('import_form.php', ['title'=>'Import', 'error'=>'Nelze číst soubor.']); return; }
+        if ($xml === false) {
+            $this->renderImportForm(['error'=>'Nelze číst soubor.', 'selectedEshop'=>$eshop]);
+            return;
+        }
         $xml = $this->ensureUtf8($xml);
         // minimal stub: just store batch marker, do real parsing in next step
         $batch = date('YmdHis');
@@ -30,7 +43,7 @@ final class ImportController
             'batch'=>$batch,
             'summary'=>['doklady'=>0,'polozky'=>0],
             'missingSku'=>[],
-            'notice'=>'Parser implementovat dle MASTER PROMPT — validace řad, DUZP, měna/kurz, kontakty, chybějící SKU.'
+            'notice'=>'Parser implementovat dle MASTER PROMPT - validace řad, DUZP, měna/kurz, kontakty, chybějící SKU.'
         ]);
     }
 
@@ -38,16 +51,22 @@ final class ImportController
     {
         $this->requireAdmin();
         $eshop = trim((string)($_POST['eshop'] ?? ''));
-        if ($eshop === '') { $this->render('import_form.php', ['title'=>'Import', 'error'=>'Zadejte e-shop.']); return; }
+        if ($eshop === '' || !$this->isKnownEshop($eshop)) {
+            $this->renderImportForm(['error'=>'Vyberte e-shop z nabídky.', 'selectedEshop'=>$eshop]);
+            return;
+        }
         $pdo = DB::pdo();
         $st = $pdo->prepare("SELECT import_batch_id FROM doklady_eshop WHERE eshop_source=? ORDER BY import_batch_id DESC LIMIT 1");
         $st->execute([$eshop]);
         $row = $st->fetch();
-        if (!$row) { $this->render('import_form.php', ['title'=>'Import', 'error'=>'Nenalezen žádný import pro zadaný e-shop.']); return; }
+        if (!$row) {
+            $this->renderImportForm(['error'=>'Pro tento e-shop není co mazat.', 'selectedEshop'=>$eshop]);
+            return;
+        }
         $batch = $row['import_batch_id'];
         $pdo->prepare("DELETE FROM polozky_eshop WHERE import_batch_id=? AND eshop_source=?")->execute([$batch,$eshop]);
         $pdo->prepare("DELETE FROM doklady_eshop WHERE import_batch_id=? AND eshop_source=?")->execute([$batch,$eshop]);
-        $this->render('import_form.php', ['title'=>'Import', 'message'=>"Smazán poslední import batch={$batch}"]);
+        $this->renderImportForm(['message'=>"Smazán poslední import batch={$batch}"]);
     }
 
     public function reportMissingSku(): void
@@ -70,6 +89,27 @@ final class ImportController
             $out[] = $r;
         }
         $this->render('report_missing_sku.php', ['title'=>'Chybějící SKU', 'rows'=>$out, 'days'=>$days]);
+    }
+
+    private function renderImportForm(array $vars = []): void
+    {
+        $pdo = DB::pdo();
+        $eshops = $pdo->query('SELECT nr.id,nr.eshop_source,MAX(de.import_batch_id) AS last_batch FROM nastaveni_rady nr LEFT JOIN doklady_eshop de ON de.eshop_source = nr.eshop_source GROUP BY nr.id,nr.eshop_source ORDER BY nr.eshop_source')->fetchAll();
+        if (!isset($vars['title'])) {
+            $vars['title'] = 'Import Pohoda XML';
+        }
+        $vars['eshops'] = $eshops;
+        $this->render('import_form.php', $vars);
+    }
+
+    private function isKnownEshop(string $eshop): bool
+    {
+        if ($eshop === '') {
+            return false;
+        }
+        $st = DB::pdo()->prepare('SELECT 1 FROM nastaveni_rady WHERE eshop_source=? LIMIT 1');
+        $st->execute([$eshop]);
+        return (bool)$st->fetchColumn();
     }
 
     private function ensureUtf8(string $s): string

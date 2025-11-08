@@ -1,5 +1,16 @@
 <h1>Nastavení</h1>
 
+<?php if (!empty($flashError)): ?>
+  <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
+    <?= htmlspecialchars((string)$flashError,ENT_QUOTES,'UTF-8') ?>
+  </div>
+<?php endif; ?>
+<?php if (!empty($flashMessage)): ?>
+  <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;">
+    <?= htmlspecialchars((string)$flashMessage,ENT_QUOTES,'UTF-8') ?>
+  </div>
+<?php endif; ?>
+
 <h2>Fakturační řady</h2>
 <form method="post" action="/settings/series" id="series-form">
   <input type="hidden" name="id" value="" />
@@ -27,6 +38,14 @@
         data-cislo-od="<?= htmlspecialchars((string)$s['cislo_od'],ENT_QUOTES,'UTF-8') ?>"
         data-cislo-do="<?= htmlspecialchars((string)$s['cislo_do'],ENT_QUOTES,'UTF-8') ?>"
       >Upravit</button>
+      <?php if (empty($s['has_imports'])): ?>
+        <form method="post" action="/settings/series/delete" style="display:inline;margin-left:8px;">
+          <input type="hidden" name="id" value="<?= (int)$s['id'] ?>" />
+          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop">×</button>
+        </form>
+      <?php else: ?>
+        <span class="muted" title="E-shop má importovaná data, nejde smazat.">nelze smazat</span>
+      <?php endif; ?>
     </td>
   </tr>
   <?php endforeach; ?>

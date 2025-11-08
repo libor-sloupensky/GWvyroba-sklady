@@ -9,10 +9,20 @@ final class SettingsController
     {
         $this->requireAdmin();
         $pdo = DB::pdo();
-        $series = $pdo->query('SELECT id,eshop_source,prefix,cislo_od,cislo_do FROM nastaveni_rady ORDER BY eshop_source')->fetchAll();
+        $series = $pdo->query('SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do, EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports FROM nastaveni_rady nr ORDER BY nr.eshop_source')->fetchAll();
         $ignores= $pdo->query('SELECT id,vzor FROM nastaveni_ignorovane_polozky ORDER BY id DESC')->fetchAll();
         $glob   = $pdo->query('SELECT okno_pro_prumer_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
-        $this->render('settings.php', ['title'=>'Nastavení','series'=>$series,'ignores'=>$ignores,'glob'=>$glob]);
+        $flashError = $_SESSION['settings_error'] ?? null;
+        $flashMessage = $_SESSION['settings_message'] ?? null;
+        unset($_SESSION['settings_error'], $_SESSION['settings_message']);
+        $this->render('settings.php', [
+            'title'=>'Nastavení',
+            'series'=>$series,
+            'ignores'=>$ignores,
+            'glob'=>$glob,
+            'flashError'=>$flashError,
+            'flashMessage'=>$flashMessage
+        ]);
     }
 
     public function saveSeries(): void
@@ -26,6 +36,7 @@ final class SettingsController
         $to     = trim((string)($_POST['cislo_do'] ?? ''));
 
         if ($eshop === '') {
+            $_SESSION['settings_error'] = 'Zadejte název e-shopu.';
             header('Location: /settings');
             return;
         }
@@ -44,10 +55,42 @@ final class SettingsController
         if ($targetId > 0) {
             $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=? WHERE id=?');
             $st->execute([$eshop, $prefix, $from, $to, $targetId]);
+            $_SESSION['settings_message'] = "E-shop {$eshop} byl upraven.";
         } else {
             $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do) VALUES (?,?,?,?)');
             $st->execute([$eshop, $prefix, $from, $to]);
+            $_SESSION['settings_message'] = "E-shop {$eshop} byl přidán.";
         }
+        header('Location: /settings');
+    }
+
+    public function deleteSeries(): void
+    {
+        $this->requireAdmin();
+        $pdo = DB::pdo();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['settings_error'] = 'Neplatný požadavek na smazání.';
+            header('Location: /settings');
+            return;
+        }
+        $st = $pdo->prepare('SELECT eshop_source FROM nastaveni_rady WHERE id=?');
+        $st->execute([$id]);
+        $row = $st->fetch();
+        if (!$row) {
+            $_SESSION['settings_error'] = 'Zadaný e-shop neexistuje.';
+            header('Location: /settings');
+            return;
+        }
+        $eshop = (string)$row['eshop_source'];
+        if ($this->seriesHasImports($eshop)) {
+            $_SESSION['settings_error'] = "E-shop {$eshop} má importovaná data a nelze ho smazat.";
+            header('Location: /settings');
+            return;
+        }
+        $del = $pdo->prepare('DELETE FROM nastaveni_rady WHERE id=?');
+        $del->execute([$id]);
+        $_SESSION['settings_message'] = "E-shop {$eshop} byl smazán.";
         header('Location: /settings');
     }
 
@@ -82,5 +125,17 @@ final class SettingsController
             exit;
         }
     }
+
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }
+
+    private function seriesHasImports(string $eshop): bool
+    {
+        if ($eshop === '') {
+            return false;
+        }
+        $pdo = DB::pdo();
+        $check = $pdo->prepare('SELECT 1 FROM doklady_eshop WHERE eshop_source=? LIMIT 1');
+        $check->execute([$eshop]);
+        return (bool)$check->fetchColumn();
+    }
 }

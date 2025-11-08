@@ -75,6 +75,7 @@ $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
 $router->post('/settings/series', [SettingsController::class, 'saveSeries']);
+$router->post('/settings/series/delete', [SettingsController::class, 'deleteSeries']);
 $router->post('/settings/ignore', [SettingsController::class, 'saveIgnore']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 
