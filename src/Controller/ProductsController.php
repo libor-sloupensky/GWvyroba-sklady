@@ -38,22 +38,22 @@ final class ProductsController
         $delimiter = ',';
         $enclosure = '"';
         $escape = '\\';
-        fputcsv($fh, ['sku','nazev','typ','merna_jednotka','ean','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','znacka','poznamka','skupina'], $delimiter, $enclosure, $escape);
+        fputcsv($fh, ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
         foreach ($rows as $r) {
             fputcsv($fh, [
                 $r['sku'],
-                $r['nazev'],
+                $r['ean'],
+                $r['znacka'],
+                $r['skupina'],
                 $r['typ'],
                 $r['merna_jednotka'],
-                $r['ean'],
+                $r['nazev'],
                 $r['min_zasoba'],
                 $r['min_davka'],
                 $r['krok_vyroby'],
                 $r['vyrobni_doba_dni'],
                 $r['aktivni'],
-                $r['znacka'],
                 $r['poznamka'],
-                $r['skupina'],
             ], $delimiter, $enclosure, $escape);
         }
         exit;
@@ -75,7 +75,7 @@ final class ProductsController
         $pdo->beginTransaction();
         try {
             $header = fgetcsv($fh);
-            $expected = ['sku','nazev','typ','merna_jednotka','ean','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','znacka','poznamka','skupina'];
+            $expected = ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
             if (!$header || array_map('strtolower',$header)!==$expected) {
                 throw new \RuntimeException('Neplatná hlavička CSV.');
             }
@@ -95,7 +95,7 @@ final class ProductsController
                 $i++;
                 if(count(array_filter($row,fn($v)=>trim((string)$v)!==''))===0)continue;
                 $row = array_pad($row, 13, '');
-                [$sku,$nazev,$typ,$mj,$ean,$min,$md,$krok,$vdd,$act,$znackaName,$poznamka,$skupinaName]=$row;
+                [$sku,$ean,$znackaName,$skupinaName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$poznamka]=$row;
                 $sku=trim((string)$sku);
                 $nazev=trim((string)$nazev);
                 $typ=trim((string)$typ);

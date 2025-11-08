@@ -3,15 +3,15 @@
   <strong>Popis sloupců:</strong>
   <ul>
     <li><code>sku</code> – povinný interní kód produktu, podle kterého se řádky párují/aktualizují.</li>
-    <li><code>nazev</code> – povinný název položky.</li>
+    <li><code>ean</code> – volitelný EAN / čárový kód.</li>
+    <li><code>znacka</code> – volitelná značka výrobce, musí být nejprve definována v Nastavení.</li>
+    <li><code>skupina</code> – volitelná skupina produktů definovaná v Nastavení.</li>
     <li><code>typ</code> – povinný typ: <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>baleni</code>, <code>karton</code>.</li>
     <li><code>merna_jednotka</code> – povinná měrná jednotka (např. <code>ks</code>, <code>kg</code>).</li>
-    <li><code>ean</code> – volitelný EAN / čárový kód.</li>
+    <li><code>nazev</code> – povinný název položky.</li>
     <li><code>min_zasoba</code>, <code>min_davka</code>, <code>krok_vyroby</code>, <code>vyrobni_doba_dni</code> – volitelné číselné hodnoty (pokud je systém vyžaduje, uveďte je).</li>
     <li><code>aktivni</code> – povinné 0/1.</li>
-    <li><code>znacka</code> – volitelná značka výrobce, musí být nejprve definována v Nastavení.</li>
     <li><code>poznamka</code> – libovolná textová poznámka.</li>
-    <li><code>skupina</code> – volitelná skupina produktů definovaná v Nastavení.</li>
   </ul>
 </div>
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
@@ -33,34 +33,34 @@
 <table>
   <tr>
     <th class="help" title="Primární klíč pro párování">SKU</th>
-    <th>Název</th>
+    <th>EAN</th>
+    <th>Značka</th>
+    <th>Skupina</th>
     <th class="help" title="Typ položky: produkt/obal/etiketa/surovina/baleni/karton">Typ</th>
     <th class="help" title="Měrná jednotka (ks, kg)">MJ</th>
-    <th>EAN</th>
+    <th>Název</th>
     <th class="help" title="Minimální zásoba">Min</th>
     <th class="help" title="Minimální dávka výroby">Min dávka</th>
     <th class="help" title="Zaokrouhlení návrhu na tento krok">Krok</th>
     <th class="help" title="Výrobní doba v dnech">Výrob.doba</th>
-    <th>Značka</th>
-    <th>Skupina</th>
-    <th>Poznámka</th>
     <th>Aktivní</th>
+    <th>Poznámka</th>
   </tr>
   <?php foreach (($items ?? []) as $it): ?>
   <tr>
     <td><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)($it['znacka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)($it['skupina'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['min_zasoba'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)($it['znacka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)($it['skupina'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
     <td><?= (int)$it['aktivni'] ? '✔' : '✖' ?></td>
+    <td><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
   </tr>
   <?php endforeach; ?>
 </table>
