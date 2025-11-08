@@ -44,14 +44,7 @@ $fi = app_footer_info();
       <a href="/analytics/revenue" title="Přehled obratu (všechny položky)">Analýza</a>
       <a href="/settings" title="Řady, ignor vzory, globální nastavení">Nastavení</a>
       <a href="/plany" title="Seznam naplánovaných funkcí">Plány</a>
-      <span style="float:right;">
-        <?php if(isset($_SESSION['user'])): ?>
-          <span class="muted"><?= htmlspecialchars((string)($_SESSION['user']['email'] ?? 'uživatel'), ENT_QUOTES, 'UTF-8') ?></span>
-          <a href="/logout">Odhlásit</a>
-        <?php else: ?>
-          <a href="/login">Přihlásit</a>
-        <?php endif; ?>
-      </span>
+      <span style="float:right;" class="muted">Režim: otevřený (login vypnut)</span>
     </nav>
   </header>
   <main class="container">
@@ -63,4 +56,3 @@ $fi = app_footer_info();
   </div>
 </body>
 </html>
-

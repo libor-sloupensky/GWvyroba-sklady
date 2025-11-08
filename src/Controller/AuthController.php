@@ -7,50 +7,30 @@ final class AuthController
 {
     public function loginForm(): void
     {
-        $this->render('auth_login.php', ['title'=>'Přihlášení']);
+        // Login dočasně vypnutý – uživatel je automaticky admin
+        $this->redirect('/');
     }
 
     public function loginSubmit(): void
     {
-        $email = trim((string)($_POST['email'] ?? ''));
-        $pass  = (string)($_POST['password'] ?? '');
-        if ($email === '' || $pass === '') { $this->redirect('/login'); return; }
-        $pdo = DB::pdo();
-        $st = $pdo->prepare('SELECT id,email,role,active,password_hash FROM users WHERE email=? LIMIT 1');
-        $st->execute([$email]);
-        $u = $st->fetch();
-        if (!$u || (int)$u['active'] !== 1) { $this->redirect('/login'); return; }
-        $ok = false;
-        if (!empty($u['password_hash'])) {
-            $ok = password_verify($pass, (string)$u['password_hash']);
-        } else {
-            // dočasný fallback: admin/dokola
-            $ok = ($email === 'admin' || $email === 'admin@local') && $pass === 'dokola';
-        }
-        if ($ok) {
-            $_SESSION['user'] = ['id'=>$u['id'], 'email'=>$u['email'], 'role'=>$u['role']];
-            $target = $_SESSION['redirect_after_login'] ?? '/';
-            unset($_SESSION['redirect_after_login']);
-            $this->redirect($target !== '' ? $target : '/');
-            return;
-        }
-        $this->redirect('/login');
+        $this->redirect('/');
     }
 
     public function googleStart(): void
     {
-        http_response_code(501); echo 'Google OAuth stub (implementovat s klientskými údaji)';
+        $this->redirect('/');
     }
 
     public function googleCallback(): void
     {
-        http_response_code(501); echo 'Google OAuth callback stub';
+        $this->redirect('/');
     }
 
     public function logout(): void
     {
-        $_SESSION = []; session_destroy();
-        $this->redirect('/login');
+        $_SESSION = [];
+        session_destroy();
+        $this->redirect('/');
     }
 
     private function render(string $view, array $vars = []): void
