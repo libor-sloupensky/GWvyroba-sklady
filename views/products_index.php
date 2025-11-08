@@ -1,5 +1,20 @@
 <h1>Produkty</h1>
 <p class="muted">CSV „Produkty“ – hlavičky: <code>sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni</code></p>
+<div class="csv-help">
+  <strong>Popis sloupců:</strong>
+  <ul>
+    <li><code>sku</code> – povinný interní kód produktu, podle kterého se řádky párují/aktualizují.</li>
+    <li><code>nazev</code> – zobrazený název položky.</li>
+    <li><code>typ</code> – jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>baleni</code>, <code>karton</code>.</li>
+    <li><code>merna_jednotka</code> – měrná jednotka (např. <code>ks</code>, <code>kg</code>), používá se v přehledech i výpočtech.</li>
+    <li><code>ean</code> – volitelný EAN / čárový kód.</li>
+    <li><code>min_zasoba</code> – minimální zásoba, při jejímž poklesu systém hlásí potřebu výroby/dodávky.</li>
+    <li><code>min_davka</code> – minimální dávka výroby (např. velikost šarže).</li>
+    <li><code>krok_vyroby</code> – krok, na který se zaokrouhluje návrh výroby (např. vyrábíme po 10 ks).</li>
+    <li><code>vyrobni_doba_dni</code> – délka výroby v dnech (lead time).</li>
+    <li><code>aktivni</code> – 1 = aktivní produkt, 0 = skrytý.</li>
+  </ul>
+</div>
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php if (!empty($message)): ?><div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php if (!empty($errors)): ?><div class="notice">
@@ -44,4 +59,3 @@
   </tr>
   <?php endforeach; ?>
 </table>
-

@@ -42,12 +42,18 @@ final class ImportController
             }
             $batch = date('YmdHis');
             [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch);
+            $eshops = $this->loadEshops();
+            $outstanding = $this->collectOutstandingMissingSku();
             $this->render('import_result.php', [
                 'title'=>'Import dokončen',
                 'batch'=>$batch,
                 'summary'=>['doklady'=>$docCount,'polozky'=>$itemCount],
                 'missingSku'=>$missingSku,
-                'notice'=>null
+                'notice'=>null,
+                'eshops'=>$eshops,
+                'selectedEshop'=>$eshop,
+                'outstandingMissing'=>$outstanding['groups'],
+                'outstandingDays'=>$outstanding['days']
             ]);
         } catch (\Throwable $e) {
             $this->renderImportForm(['error'=>$e->getMessage(), 'selectedEshop'=>$eshop]);
@@ -79,36 +85,13 @@ final class ImportController
     public function reportMissingSku(): void
     {
         $this->requireAdmin();
-        $pdo = DB::pdo();
-        $glob = $pdo->query('SELECT okno_pro_prumer_dni FROM nastaveni_global WHERE id=1')->fetch() ?: [];
-        $days = max(1, (int)($glob['okno_pro_prumer_dni'] ?? 30));
-        $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
-        // load ignore patterns
-        $pat = array_map(fn($r)=> strtolower((string)$r['vzor']), $pdo->query('SELECT vzor FROM nastaveni_ignorovane_polozky')->fetchAll());
-        $rows = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw FROM polozky_eshop WHERE duzp>=? AND code_raw IS NULL AND stock_ids_raw IS NULL ORDER BY duzp DESC");
-        $rows->execute([$since]);
-        $unique = [];
-        foreach ($rows as $r) {
-            $code = strtolower((string)($r['code_raw'] ?? ''));
-            $sku  = '';
-            $skip = false;
-            foreach ($pat as $p) { if ($p !== '' && fnmatch($p, $code)) { $skip=true; break; } }
-            if ($skip) continue;
-            $keyBase = (string)$r['nazev'];
-            if ($keyBase === '') {
-                $keyBase = (string)$r['code_raw'];
-            }
-            if ($keyBase === '') {
-                $keyBase = (string)$r['cislo_dokladu'] . '|' . (string)$r['mnozstvi'];
-            }
-            $key = mb_strtolower((string)$r['eshop_source'] . '|' . $keyBase, 'UTF-8');
-            if (isset($unique[$key])) {
-                continue;
-            }
-            $unique[$key] = $r;
-        }
-        $out = array_values($unique);
-        $this->render('report_missing_sku.php', ['title'=>'Chybějící SKU', 'rows'=>$out, 'days'=>$days]);
+        $data = $this->collectOutstandingMissingSku();
+        $this->render('report_missing_sku.php', [
+            'title'=>'Chybějící SKU',
+            'rows'=>$data['rows'],
+            'grouped'=>$data['groups'],
+            'days'=>$data['days']
+        ]);
     }
 
     private function loadSeries(string $eshop): array
@@ -217,6 +200,58 @@ final class ImportController
             throw $e;
         }
         return [$docCount, $itemCount, $missingSku];
+    }
+
+    /**
+     * @return array{days:int,groups:array<string,array<int,array<string,mixed>>>,rows:array<int,array<string,mixed>>}
+     */
+    private function collectOutstandingMissingSku(): array
+    {
+        $pdo = DB::pdo();
+        $glob = $pdo->query('SELECT okno_pro_prumer_dni FROM nastaveni_global WHERE id=1')->fetch() ?: [];
+        $days = max(1, (int)($glob['okno_pro_prumer_dni'] ?? 30));
+        $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
+        $patterns = array_map(
+            fn($r) => strtolower((string)$r['vzor']),
+            $pdo->query('SELECT vzor FROM nastaveni_ignorovane_polozky')->fetchAll()
+        );
+        $stmt = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw FROM polozky_eshop WHERE duzp>=? AND ((code_raw IS NULL OR code_raw='') AND (stock_ids_raw IS NULL OR stock_ids_raw='')) ORDER BY eshop_source, duzp DESC");
+        $stmt->execute([$since]);
+        $groups = [];
+        $flat = [];
+        $seen = [];
+        foreach ($stmt as $r) {
+            $code = strtolower((string)($r['code_raw'] ?? ''));
+            $skip = false;
+            foreach ($patterns as $p) {
+                if ($p !== '' && fnmatch($p, $code)) {
+                    $skip = true;
+                    break;
+                }
+            }
+            if ($skip) {
+                continue;
+            }
+            $keyBase = (string)$r['nazev'];
+            if ($keyBase === '') {
+                $keyBase = (string)$r['code_raw'];
+            }
+            if ($keyBase === '') {
+                $keyBase = (string)$r['cislo_dokladu'] . '|' . (string)$r['mnozstvi'];
+            }
+            $key = mb_strtolower((string)$r['eshop_source'] . '|' . $keyBase, 'UTF-8');
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $eshop = (string)$r['eshop_source'];
+            if (!isset($groups[$eshop])) {
+                $groups[$eshop] = [];
+            }
+            $groups[$eshop][] = $r;
+            $flat[] = $r;
+        }
+        return ['days'=>$days,'groups'=>$groups,'rows'=>$flat];
     }
 
     /**
@@ -393,12 +428,17 @@ final class ImportController
     private function renderImportForm(array $vars = []): void
     {
         $pdo = DB::pdo();
-        $eshops = $pdo->query('SELECT nr.id,nr.eshop_source,MAX(de.import_batch_id) AS last_batch FROM nastaveni_rady nr LEFT JOIN doklady_eshop de ON de.eshop_source = nr.eshop_source GROUP BY nr.id,nr.eshop_source ORDER BY nr.eshop_source')->fetchAll();
+        $eshops = $this->loadEshops();
         if (!isset($vars['title'])) {
             $vars['title'] = 'Import Pohoda XML';
         }
         $vars['eshops'] = $eshops;
         $this->render('import_form.php', $vars);
+    }
+
+    private function loadEshops(): array
+    {
+        return DB::pdo()->query('SELECT nr.id,nr.eshop_source,MAX(de.import_batch_id) AS last_batch FROM nastaveni_rady nr LEFT JOIN doklady_eshop de ON de.eshop_source = nr.eshop_source GROUP BY nr.id,nr.eshop_source ORDER BY nr.eshop_source')->fetchAll();
     }
 
     private function isKnownEshop(string $eshop): bool
