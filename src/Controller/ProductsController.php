@@ -8,31 +8,28 @@ final class ProductsController
     public function index(): void
     {
         $this->requireAuth();
-        $pdo = DB::pdo();
-        $rows = $pdo->query(
-            'SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,' .
-            'p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,zb.nazev AS znacka,p.poznamka,sg.nazev AS skupina ' .
-            'FROM produkty p ' .
-            'LEFT JOIN produkty_znacky zb ON p.znacka_id = zb.id ' .
-            'LEFT JOIN produkty_skupiny sg ON p.skupina_id = sg.id ' .
-            'ORDER BY p.nazev LIMIT 500'
-        )->fetchAll();
-        $this->render('products_index.php', ['title'=>'Produkty','items'=>$rows]);
+        $message = $_SESSION['products_message'] ?? null;
+        $errorMessage = $_SESSION['products_error'] ?? null;
+        unset($_SESSION['products_message'], $_SESSION['products_error']);
+
+        $this->render('products_index.php', [
+            'title'  => 'Produkty',
+            'items'  => $this->fetchProducts(),
+            'brands' => $this->fetchBrands(),
+            'groups' => $this->fetchGroups(),
+            'units'  => $this->fetchUnits(),
+            'types'  => $this->productTypes(),
+            'message'=> $message,
+            'error'  => $errorMessage,
+        ]);
     }
 
     public function exportCsv(): void
     {
         $this->requireAuth();
         $pdo = DB::pdo();
-        $rows = $pdo->query(
-            'SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,' .
-            'p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,zb.nazev AS znacka,p.poznamka,sg.nazev AS skupina ' .
-            'FROM produkty p ' .
-            'LEFT JOIN produkty_znacky zb ON p.znacka_id = zb.id ' .
-            'LEFT JOIN produkty_skupiny sg ON p.skupina_id = sg.id ' .
-            'ORDER BY p.nazev'
-        )->fetchAll();
-        $fh = fopen('php://output','wb');
+        $rows = $pdo->query($this->productsSelectSql() . ' ORDER BY p.nazev')->fetchAll();
+        $fh = fopen('php://output', 'wb');
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="produkty.csv"');
         $delimiter = ';';
@@ -63,12 +60,12 @@ final class ProductsController
     {
         $this->requireAdmin();
         if (!isset($_FILES['csv']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
-            $this->render('products_index.php',['title'=>'Produkty','error'=>'Soubor nebyl nahrán.']);
+            $this->renderIndexWithError('Soubor nebyl nahrán.');
             return;
         }
-        $fh = fopen($_FILES['csv']['tmp_name'],'rb');
-        if (!$fh){
-            $this->render('products_index.php',['title'=>'Produkty','error'=>'Nelze číst soubor.']);
+        $fh = fopen($_FILES['csv']['tmp_name'], 'rb');
+        if (!$fh) {
+            $this->renderIndexWithError('Nelze číst soubor.');
             return;
         }
         $pdo = DB::pdo();
@@ -76,7 +73,7 @@ final class ProductsController
         try {
             $header = $this->readCsvRow($fh);
             $expected = ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
-            if (!$header || array_map('strtolower',$header)!==$expected) {
+            if (!$header || array_map('strtolower', $header) !== $expected) {
                 throw new \RuntimeException('Neplatná hlavička CSV.');
             }
             $brands = $this->loadDictionary('produkty_znacky');
@@ -85,87 +82,298 @@ final class ProductsController
             if (empty($units)) {
                 throw new \RuntimeException('Nejprve definujte povolené měrné jednotky v Nastavení.');
             }
-            $ins = $pdo->prepare(
+            $stmt = $pdo->prepare(
                 'INSERT INTO produkty (sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
                 'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
                 'ON DUPLICATE KEY UPDATE nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
             );
-            $ok=0;$err=[];$i=1;
-            while(($row=$this->readCsvRow($fh))!==false){
-                $i++;
-                if(count(array_filter($row,fn($v)=>trim((string)$v)!==''))===0)continue;
+            $ok = 0;
+            $errors = [];
+            $line = 1;
+            while (($row = $this->readCsvRow($fh)) !== false) {
+                $line++;
+                if (count(array_filter($row, fn($v) => trim((string)$v) !== '')) === 0) {
+                    continue;
+                }
                 $row = array_pad($row, 13, '');
-                [$sku,$ean,$znackaName,$skupinaName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$poznamka]=$row;
-                $sku=$this->toUtf8($sku);
-                $nazev=$this->toUtf8($nazev);
-                $typ=$this->toUtf8($typ);
-                $mj=$this->toUtf8($mj);
-                $ean=$this->toUtf8($ean);
-                $znackaName=$this->toUtf8($znackaName);
-                $poznamka=$this->toUtf8($poznamka);
-                $skupinaName=$this->toUtf8($skupinaName);
-                if($sku===''){ $err[]="Řádek $i: chybí sku"; continue; }
-                if($nazev===''){ $err[]="Řádek $i: chybí nazev"; continue; }
-                if($typ===''||!in_array($typ,['produkt','obal','etiketa','surovina','baleni','karton'],true)){ $err[]="Řádek $i: neplatný typ"; continue; }
-                if($mj===''){ $err[]="Řádek $i: chybí merna_jednotka"; continue; }
-                $mjKey = mb_strtolower($mj,'UTF-8');
-                if(!isset($units[$mjKey])){ $err[]="Řádek $i: měrná jednotka '{$mj}' není definována"; continue; }
-                $mj = $units[$mjKey];
-                if($act===''){ $err[]="Řádek $i: aktivni je povinné (0/1)"; continue; }
-                $aktivni=(int)$act;
-                $brandId=null;
-                if($znackaName!==''){
-                    $key=mb_strtolower($znackaName,'UTF-8');
-                    if(!isset($brands[$key])){ $err[]="Řádek $i: značka '{$znackaName}' není definována"; continue; }
-                    $brandId=$brands[$key];
+                [$sku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$note] = $row;
+                $sku = $this->toUtf8($sku);
+                $nazev = $this->toUtf8($nazev);
+                $typ = $this->toUtf8($typ);
+                $mj = $this->toUtf8($mj);
+                $ean = $this->toUtf8($ean);
+                $brandName = $this->toUtf8($brandName);
+                $groupName = $this->toUtf8($groupName);
+                $note = $this->toUtf8($note);
+
+                if ($sku === '') { $errors[] = "Řádek {$line}: chybí sku"; continue; }
+                if ($nazev === '') { $errors[] = "Řádek {$line}: chybí název"; continue; }
+                if ($typ === '' || !in_array($typ, $this->productTypes(), true)) { $errors[] = "Řádek {$line}: neplatný typ"; continue; }
+                if ($mj === '') { $errors[] = "Řádek {$line}: chybí měrná jednotka"; continue; }
+                $unitKey = mb_strtolower($mj, 'UTF-8');
+                if (!isset($units[$unitKey])) { $errors[] = "Řádek {$line}: měrná jednotka '{$mj}' není definována"; continue; }
+                $mj = $units[$unitKey];
+                if ($act === '') { $errors[] = "Řádek {$line}: aktivni je povinné (0/1)"; continue; }
+                $aktivni = (int)$act;
+                $brandId = null;
+                if ($brandName !== '') {
+                    $brandKey = mb_strtolower($brandName, 'UTF-8');
+                    if (!isset($brands[$brandKey])) { $errors[] = "Řádek {$line}: značka '{$brandName}' není definována"; continue; }
+                    $brandId = $brands[$brandKey];
                 }
-                $groupId=null;
-                if($skupinaName!==''){
-                    $key=mb_strtolower($skupinaName,'UTF-8');
-                    if(!isset($groups[$key])){ $err[]="Řádek $i: skupina '{$skupinaName}' není definována"; continue; }
-                    $groupId=$groups[$key];
+                $groupId = null;
+                if ($groupName !== '') {
+                    $groupKey = mb_strtolower($groupName, 'UTF-8');
+                    if (!isset($groups[$groupKey])) { $errors[] = "Řádek {$line}: skupina '{$groupName}' není definována"; continue; }
+                    $groupId = $groups[$groupKey];
                 }
-                if($ean===''){ $ean=null; }
-                $ins->execute([
+                if ($ean === '') {
+                    $ean = null;
+                }
+                $stmt->execute([
                     $sku,
                     $nazev,
                     $typ,
                     $mj,
                     $ean,
-                    $min===''?0:$min,
-                    $md===''?0:$md,
-                    $krok===''?0:$krok,
-                    $vdd===''?0:$vdd,
+                    $min === '' ? 0 : $min,
+                    $md === '' ? 0 : $md,
+                    $krok === '' ? 0 : $krok,
+                    $vdd === '' ? 0 : $vdd,
                     $aktivni,
                     $brandId,
-                    ($poznamka === '' ? null : $poznamka),
+                    $note === '' ? null : $note,
                     $groupId,
                 ]);
                 $ok++;
             }
             $pdo->commit();
-            $items = $pdo->query(
-                'SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,' .
-                'p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,zb.nazev AS znacka,p.poznamka,sg.nazev AS skupina ' .
-                'FROM produkty p ' .
-                'LEFT JOIN produkty_znacky zb ON p.znacka_id = zb.id ' .
-                'LEFT JOIN produkty_skupiny sg ON p.skupina_id = sg.id ' .
-                'ORDER BY p.nazev LIMIT 500'
-            )->fetchAll();
-            $this->render('products_index.php',[ 'title'=>'Produkty','items'=>$items,'message'=>"Import OK: $ok", 'errors'=>$err ]);
-        } catch (\Throwable $e){
-            if($pdo->inTransaction())$pdo->rollBack();
-            $this->render('products_index.php',['title'=>'Produkty','error'=>$e->getMessage()]);
+            $this->render('products_index.php', [
+                'title'  => 'Produkty',
+                'items'  => $this->fetchProducts(),
+                'brands' => $this->fetchBrands(),
+                'groups' => $this->fetchGroups(),
+                'units'  => $this->fetchUnits(),
+                'types'  => $this->productTypes(),
+                'message'=> "Import OK: {$ok}",
+                'errors' => $errors,
+            ]);
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $this->renderIndexWithError($e->getMessage());
         }
     }
 
-    private function loadDictionary(string $table, string $column = 'nazev', bool $caseInsensitive = true): array
+    public function create(): void
+    {
+        $this->requireAdmin();
+        $sku   = trim((string)($_POST['sku'] ?? ''));
+        $ean   = trim((string)($_POST['ean'] ?? ''));
+        $name  = trim((string)($_POST['nazev'] ?? ''));
+        $type  = trim((string)($_POST['typ'] ?? ''));
+        $unit  = trim((string)($_POST['merna_jednotka'] ?? ''));
+        $min   = trim((string)($_POST['min_zasoba'] ?? ''));
+        $batch = trim((string)($_POST['min_davka'] ?? ''));
+        $step  = trim((string)($_POST['krok_vyroby'] ?? ''));
+        $lead  = trim((string)($_POST['vyrobni_doba_dni'] ?? ''));
+        $active= (int)($_POST['aktivni'] ?? 1);
+        $brandId = (int)($_POST['znacka_id'] ?? 0);
+        $groupId = (int)($_POST['skupina_id'] ?? 0);
+        $note  = trim((string)($_POST['poznamka'] ?? ''));
+
+        $errors = [];
+        if ($sku === '') $errors[] = 'Zadejte SKU.';
+        if ($name === '') $errors[] = 'Zadejte název.';
+        if (!in_array($type, $this->productTypes(), true)) $errors[] = 'Neplatný typ.';
+        $unitCodes = array_column($this->fetchUnits(), 'kod');
+        if ($unit === '' || !in_array($unit, $unitCodes, true)) $errors[] = 'Vyberte měrnou jednotku.';
+        if ($brandId > 0 && !$this->dictionaryIdExists('produkty_znacky', $brandId)) $errors[] = 'Neplatná značka.';
+        if ($groupId > 0 && !$this->dictionaryIdExists('produkty_skupiny', $groupId)) $errors[] = 'Neplatná skupina.';
+
+        if ($errors) {
+            $_SESSION['products_error'] = implode(' ', $errors);
+            header('Location: /products');
+            return;
+        }
+
+        $pdo = DB::pdo();
+        try {
+            $stmt = $pdo->prepare('INSERT INTO produkty (sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, min_davka, krok_vyroby, vyrobni_doba_dni, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([
+                $sku,
+                $ean === '' ? null : $ean,
+                $brandId ?: null,
+                $groupId ?: null,
+                $type,
+                $unit,
+                $name,
+                $min === '' ? 0 : $min,
+                $batch === '' ? 0 : $batch,
+                $step === '' ? 0 : $step,
+                $lead === '' ? 0 : $lead,
+                $active === 1 ? 1 : 0,
+                $note === '' ? null : $note,
+            ]);
+            $_SESSION['products_message'] = 'Produkt byl přidán.';
+        } catch (\Throwable $e) {
+            $_SESSION['products_error'] = 'Uložení selhalo: ' . $e->getMessage();
+        }
+        header('Location: /products');
+    }
+
+    public function inlineUpdate(): void
+    {
+        $this->requireAdmin();
+        $payload = $_POST;
+        if (empty($payload)) {
+            $raw = file_get_contents('php://input');
+            if ($raw !== false) {
+                $payload = json_decode($raw, true) ?? [];
+            }
+        }
+        $sku = trim((string)($payload['sku'] ?? ''));
+        $field = (string)($payload['field'] ?? '');
+        $value = $payload['value'] ?? '';
+
+        header('Content-Type: application/json');
+        if ($sku === '' || $field === '') {
+            echo json_encode(['ok'=>false,'error'=>'Neplatný požadavek.']);
+            return;
+        }
+        if (!in_array($field, $this->editableFields(), true)) {
+            echo json_encode(['ok'=>false,'error'=>'Pole nelze upravit.']);
+            return;
+        }
+
+        [$normalized, $error] = $this->normalizeFieldValue($field, $value);
+        if ($error !== null) {
+            echo json_encode(['ok'=>false,'error'=>$error]);
+            return;
+        }
+
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare("UPDATE produkty SET {$field}=? WHERE sku=?");
+        $stmt->execute([$normalized, $sku]);
+        if ($stmt->rowCount() === 0) {
+            echo json_encode(['ok'=>false,'error'=>'Produkt nenalezen.']);
+            return;
+        }
+        echo json_encode(['ok'=>true]);
+    }
+
+    private function editableFields(): array
+    {
+        return ['ean','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+    }
+
+    private function normalizeFieldValue(string $field, $value): array
+    {
+        switch ($field) {
+            case 'ean':
+                $val = $this->toUtf8((string)$value);
+                return [$val === '' ? null : $val, null];
+            case 'nazev':
+                $val = $this->toUtf8((string)$value);
+                return $val === '' ? [null, 'Název nesmí být prázdný.'] : [$val, null];
+            case 'poznamka':
+                $val = $this->toUtf8((string)$value);
+                return [$val === '' ? null : $val, null];
+            case 'typ':
+                $val = $this->toUtf8((string)$value);
+                return in_array($val, $this->productTypes(), true) ? [$val, null] : [null, 'Neplatný typ.'];
+            case 'merna_jednotka':
+                $val = $this->toUtf8((string)$value);
+                $units = array_column($this->fetchUnits(), 'kod');
+                return in_array($val, $units, true) ? [$val, null] : [null, 'Neznámá měrná jednotka.'];
+            case 'znacka_id':
+                $id = (int)$value;
+                if ($id !== 0 && !$this->dictionaryIdExists('produkty_znacky', $id)) {
+                    return [null, 'Značka neexistuje.'];
+                }
+                return [$id ?: null, null];
+            case 'skupina_id':
+                $id = (int)$value;
+                if ($id !== 0 && !$this->dictionaryIdExists('produkty_skupiny', $id)) {
+                    return [null, 'Skupina neexistuje.'];
+                }
+                return [$id ?: null, null];
+            case 'min_zasoba':
+            case 'min_davka':
+            case 'krok_vyroby':
+                return $this->normalizeDecimal($value);
+            case 'vyrobni_doba_dni':
+                return $this->normalizeInteger($value);
+            case 'aktivni':
+                return [(int)($value === '0' ? 0 : 1), null];
+        }
+        return [null, 'Neznámé pole.'];
+    }
+
+    private function normalizeDecimal($value): array
+    {
+        $val = trim((string)$value);
+        if ($val === '') {
+            return ['0', null];
+        }
+        if (!is_numeric($val)) {
+            return [null, 'Hodnota musí být číslo.'];
+        }
+        return [$val, null];
+    }
+
+    private function normalizeInteger($value): array
+    {
+        $val = trim((string)$value);
+        if ($val === '') {
+            return [0, null];
+        }
+        if (!is_numeric($val)) {
+            return [null, 'Hodnota musí být číslo.'];
+        }
+        return [(int)$val, null];
+    }
+
+    private function fetchProducts(): array
+    {
+        return DB::pdo()->query($this->productsSelectSql() . ' ORDER BY p.nazev LIMIT 500')->fetchAll();
+    }
+
+    private function fetchBrands(): array
+    {
+        return DB::pdo()->query('SELECT id,nazev FROM produkty_znacky ORDER BY nazev')->fetchAll();
+    }
+
+    private function fetchGroups(): array
+    {
+        return DB::pdo()->query('SELECT id,nazev FROM produkty_skupiny ORDER BY nazev')->fetchAll();
+    }
+
+    private function fetchUnits(): array
+    {
+        return DB::pdo()->query('SELECT id,kod FROM produkty_merne_jednotky ORDER BY kod')->fetchAll();
+    }
+
+    private function productTypes(): array
+    {
+        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+    }
+
+    private function productsSelectSql(): string
+    {
+        return 'SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
+               'FROM produkty p ' .
+               'LEFT JOIN produkty_znacky zb ON p.znacka_id = zb.id ' .
+               'LEFT JOIN produkty_skupiny sg ON p.skupina_id = sg.id';
+    }
+
+    private function loadDictionary(string $table, string $column = 'nazev'): array
     {
         $map = [];
         $stmt = DB::pdo()->query("SELECT id,{$column} AS value FROM {$table}");
         foreach ($stmt as $row) {
-            $key = (string)$row['value'];
-            $map[$caseInsensitive ? mb_strtolower($key,'UTF-8') : $key] = (int)$row['id'];
+            $map[mb_strtolower((string)$row['value'], 'UTF-8')] = (int)$row['id'];
         }
         return $map;
     }
@@ -175,10 +383,22 @@ final class ProductsController
         $map = [];
         foreach (DB::pdo()->query('SELECT kod FROM produkty_merne_jednotky') as $row) {
             $value = trim((string)$row['kod']);
-            if ($value === '') continue;
-            $map[mb_strtolower($value,'UTF-8')] = $value;
+            if ($value === '') {
+                continue;
+            }
+            $map[mb_strtolower($value, 'UTF-8')] = $value;
         }
         return $map;
+    }
+
+    private function dictionaryIdExists(string $table, int $id): bool
+    {
+        if ($id <= 0) {
+            return false;
+        }
+        $stmt = DB::pdo()->prepare("SELECT 1 FROM {$table} WHERE id=? LIMIT 1");
+        $stmt->execute([$id]);
+        return (bool)$stmt->fetchColumn();
     }
 
     private function readCsvRow($handle)
@@ -197,20 +417,41 @@ final class ProductsController
         return trim($value);
     }
 
-    private function requireAuth(): void {
+    private function renderIndexWithError(string $message): void
+    {
+        $this->render('products_index.php', [
+            'title'  => 'Produkty',
+            'items'  => $this->fetchProducts(),
+            'brands' => $this->fetchBrands(),
+            'groups' => $this->fetchGroups(),
+            'units'  => $this->fetchUnits(),
+            'types'  => $this->productTypes(),
+            'error'  => $message,
+        ]);
+    }
+
+    private function requireAuth(): void
+    {
         if (!isset($_SESSION['user'])) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
             header('Location: /login');
             exit;
         }
     }
-    private function requireAdmin(): void {
+
+    private function requireAdmin(): void
+    {
         $this->requireAuth();
-        if (($_SESSION['user']['role'] ?? 'user') !== 'admin'){
+        if (($_SESSION['user']['role'] ?? 'user') !== 'admin') {
             http_response_code(403);
             echo 'Přístup jen pro admina.';
             exit;
         }
     }
-    private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }
+
+    private function render(string $view, array $vars = []): void
+    {
+        extract($vars);
+        require __DIR__ . '/../../views/_layout.php';
+    }
 }

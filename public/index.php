@@ -49,6 +49,8 @@ $router->get('/report/missing-sku', [ImportController::class, 'reportMissingSku'
 $router->get('/products', [ProductsController::class, 'index']);
 $router->get('/products/export', [ProductsController::class, 'exportCsv']);
 $router->post('/products/import', [ProductsController::class, 'importCsv']);
+$router->post('/products/create', [ProductsController::class, 'create']);
+$router->post('/products/update', [ProductsController::class, 'inlineUpdate']);
 
 // BOM
 $router->get('/bom', [BomController::class, 'index']);
