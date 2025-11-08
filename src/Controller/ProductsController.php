@@ -8,19 +8,21 @@ final class ProductsController
     public function index(): void
     {
         $this->requireAuth();
+        $filters = $this->currentFilters();
         $message = $_SESSION['products_message'] ?? null;
         $errorMessage = $_SESSION['products_error'] ?? null;
         unset($_SESSION['products_message'], $_SESSION['products_error']);
 
         $this->render('products_index.php', [
             'title'  => 'Produkty',
-            'items'  => $this->fetchProducts(),
+            'items'  => $this->fetchProducts($filters),
             'brands' => $this->fetchBrands(),
             'groups' => $this->fetchGroups(),
             'units'  => $this->fetchUnits(),
             'types'  => $this->productTypes(),
             'message'=> $message,
             'error'  => $errorMessage,
+            'filters'=> $filters,
         ]);
     }
 
@@ -184,15 +186,17 @@ final class ProductsController
                 $ok++;
             }
             $pdo->commit();
+            $filters = $this->currentFilters();
             $this->render('products_index.php', [
                 'title'  => 'Produkty',
-                'items'  => $this->fetchProducts(),
+                'items'  => $this->fetchProducts($filters),
                 'brands' => $this->fetchBrands(),
                 'groups' => $this->fetchGroups(),
                 'units'  => $this->fetchUnits(),
                 'types'  => $this->productTypes(),
                 'message'=> "Import OK: {$ok}",
                 'errors' => $errors,
+                'filters'=> $filters,
             ]);
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -396,9 +400,46 @@ final class ProductsController
         return [(int)$val, null];
     }
 
-    private function fetchProducts(): array
+    private function fetchProducts(?array $filters = null): array
     {
-        return DB::pdo()->query($this->productsSelectSql() . ' ORDER BY p.nazev LIMIT 500')->fetchAll();
+        $filters ??= $this->currentFilters();
+        $sql = $this->productsSelectSql();
+        $conditions = [];
+        $params = [];
+
+        $brandId = (int)($filters['brand'] ?? 0);
+        if ($brandId > 0) {
+            $conditions[] = 'p.znacka_id = ?';
+            $params[] = $brandId;
+        }
+
+        $groupId = (int)($filters['group'] ?? 0);
+        if ($groupId > 0) {
+            $conditions[] = 'p.skupina_id = ?';
+            $params[] = $groupId;
+        }
+
+        $type = (string)($filters['type'] ?? '');
+        if ($type !== '' && in_array($type, $this->productTypes(), true)) {
+            $conditions[] = 'p.typ = ?';
+            $params[] = $type;
+        }
+
+        $search = trim((string)($filters['search'] ?? ''));
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $conditions[] = '(p.sku LIKE ? OR p.alt_sku LIKE ? OR p.nazev LIKE ? OR p.ean LIKE ?)';
+            array_push($params, $like, $like, $like, $like);
+        }
+
+        if ($conditions) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+        $sql .= ' ORDER BY p.nazev LIMIT 500';
+
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
     }
 
     private function fetchBrands(): array
@@ -522,14 +563,16 @@ final class ProductsController
 
     private function renderIndexWithError(string $message): void
     {
+        $filters = $this->currentFilters();
         $this->render('products_index.php', [
             'title'  => 'Produkty',
-            'items'  => $this->fetchProducts(),
+            'items'  => $this->fetchProducts($filters),
             'brands' => $this->fetchBrands(),
             'groups' => $this->fetchGroups(),
             'units'  => $this->fetchUnits(),
             'types'  => $this->productTypes(),
             'error'  => $message,
+            'filters'=> $filters,
         ]);
     }
 
@@ -558,3 +601,17 @@ final class ProductsController
         require __DIR__ . '/../../views/_layout.php';
     }
 }
+    private function currentFilters(): array
+    {
+        $brand = (int)($_GET['znacka_id'] ?? 0);
+        $group = (int)($_GET['skupina_id'] ?? 0);
+        $typeRaw = trim((string)($_GET['typ'] ?? ''));
+        $type = in_array($typeRaw, $this->productTypes(), true) ? $typeRaw : '';
+        $search = $this->toUtf8((string)($_GET['q'] ?? ''));
+        return [
+            'brand' => $brand > 0 ? $brand : 0,
+            'group' => $group > 0 ? $group : 0,
+            'type'  => $type,
+            'search'=> $search,
+        ];
+    }

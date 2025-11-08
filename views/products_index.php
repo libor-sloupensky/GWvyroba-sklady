@@ -26,6 +26,52 @@
     <?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?>
   </div>
 <?php endif; ?>
+
+<?php
+  $activeFilters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
+  $filterBrand = (int)($activeFilters['brand'] ?? 0);
+  $filterGroup = (int)($activeFilters['group'] ?? 0);
+  $filterType  = (string)($activeFilters['type'] ?? '');
+  $filterSearch= (string)($activeFilters['search'] ?? '');
+?>
+<form method="get" action="/products" class="product-filter-form" style="margin:1rem 0;padding:0.5rem;border:1px solid #ddd;display:flex;flex-wrap:wrap;gap:1rem;">
+  <label style="display:flex;flex-direction:column;gap:0.3rem;">
+    <span>Značka</span>
+    <select name="znacka_id">
+      <option value="">–</option>
+      <?php foreach (($brands ?? []) as $b): $id = (int)$b['id']; ?>
+        <option value="<?= $id ?>"<?= $filterBrand === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.3rem;">
+    <span>Skupina</span>
+    <select name="skupina_id">
+      <option value="">–</option>
+      <?php foreach (($groups ?? []) as $g): $id = (int)$g['id']; ?>
+        <option value="<?= $id ?>"<?= $filterGroup === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.3rem;">
+    <span>Typ</span>
+    <select name="typ">
+      <option value="">–</option>
+      <?php foreach (($types ?? []) as $t): ?>
+        <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $filterType === $t ? ' selected' : '' ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+  </label>
+  <label style="display:flex;flex-direction:column;gap:0.3rem;">
+    <span>Hledat</span>
+    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / název / EAN" />
+  </label>
+  <div style="align-self:flex-end;display:flex;gap:0.5rem;">
+    <button type="submit">Filtrovat</button>
+    <a href="/products" style="align-self:center;">Zrušit filtr</a>
+  </div>
+</form>
+
 <?php if (!empty($errors)): ?>
   <div class="notice">
     <strong>Chyby importu:</strong>
