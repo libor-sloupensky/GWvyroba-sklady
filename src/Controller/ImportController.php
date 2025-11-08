@@ -232,14 +232,14 @@ final class ImportController
             ])) {
                 continue;
             }
-            $keyBase = (string)$r['nazev'];
-            if ($keyBase === '') {
-                $keyBase = (string)$r['code_raw'];
+            $nameKey = trim((string)$r['nazev']);
+            if ($nameKey === '') {
+                $nameKey = trim((string)$r['code_raw']);
             }
-            if ($keyBase === '') {
-                $keyBase = (string)$r['cislo_dokladu'] . '|' . (string)$r['mnozstvi'];
+            if ($nameKey === '') {
+                $nameKey = trim((string)$r['cislo_dokladu'] . '|' . (string)$r['mnozstvi']);
             }
-            $key = mb_strtolower((string)$r['eshop_source'] . '|' . $keyBase, 'UTF-8');
+            $key = mb_strtolower((string)$r['eshop_source'] . '|' . $nameKey, 'UTF-8');
             if (isset($seen[$key])) {
                 continue;
             }
