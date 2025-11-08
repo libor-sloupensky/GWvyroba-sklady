@@ -3,6 +3,7 @@ name: Deploy via FTP (Webglobe)
 on:
   push:
     branches: [ main ]
+    workflow_dispatch: {}
 
 concurrency:
   group: deploy-gworm
