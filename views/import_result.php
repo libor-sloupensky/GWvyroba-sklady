@@ -1,4 +1,9 @@
-<h1>Import – výsledek</h1>
+﻿<h1>Import – výsledek</h1>
+<style>
+.status-matched { background:#e6f4ea; }
+.status-ignored { background:#fdecea; }
+.status-note { font-size:12px; color:#607d8b; display:block; }
+</style>
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
@@ -53,17 +58,29 @@
   <?php foreach ($outstandingMissing as $eshopName => $items): if (empty($items)) continue; ?>
     <h4><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h4>
     <table>
-      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th></tr>
+      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th><th>Stav</th></tr>
       <?php foreach ($items as $item): ?>
-        <tr>
-          <td><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
-          <td><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
-          <td><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
-          <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
-          <td><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-          <td><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
-          <td><?= htmlspecialchars((string)($item['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-        </tr>
+      <?php
+        $status = $item['status'] ?? 'unmatched';
+        $class = $status === 'matched' ? 'status-matched' : ($status === 'ignored' ? 'status-ignored' : '');
+        $note = '';
+        if ($status === 'matched') {
+            $note = 'Spárováno (SKU)';
+        } elseif ($status === 'ignored') {
+            $pattern = (string)($item['ignore_pattern'] ?? '');
+            $note = $pattern !== '' ? 'Ignorováno dle: ' . $pattern : 'Ignorováno';
+        }
+      ?>
+      <tr class="<?= $class ?>">
+        <td><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($item['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+        <td><?php if ($note !== ''): ?><small class="status-note"><?= htmlspecialchars($note,ENT_QUOTES,'UTF-8') ?></small><?php endif; ?></td>
+      </tr>
       <?php endforeach; ?>
     </table>
   <?php endforeach; ?>

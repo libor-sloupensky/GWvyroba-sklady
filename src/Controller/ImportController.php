@@ -185,13 +185,14 @@ final class ImportController
                     $itemCount++;
                     $isMissingSku = ($sku === '' || $sku === null);
                     if ($isMissingSku) {
-                        if ($this->matchesIgnorePatterns($ignorePatterns, [
-                            (string)($item['text'] ?? ''),
-                            (string)$code,
-                            (string)$docNumber,
-                        ])) {
-                            continue;
-                        }
+                    $ignoreMatch = $this->matchesIgnorePatterns($ignorePatterns, [
+                        (string)($item['text'] ?? ''),
+                        (string)$code,
+                        (string)$docNumber,
+                    ]);
+                    if ($ignoreMatch !== null) {
+                        continue;
+                    }
                         $missingSku[] = [
                             'duzp' => $duzp,
                             'eshop_source' => $eshop,
@@ -223,38 +224,32 @@ final class ImportController
         $days = max(1, (int)($glob['okno_pro_prumer_dni'] ?? 30));
         $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
         $patterns = $this->loadIgnorePatterns();
-        $stmt = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw, sku, ean FROM polozky_eshop WHERE duzp>=? AND (sku IS NULL OR sku='') ORDER BY eshop_source, duzp DESC");
+        $stmt = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw, sku, ean FROM polozky_eshop WHERE duzp>=? ORDER BY eshop_source, duzp DESC");
         $stmt->execute([$since]);
         $groups = [];
         $flat = [];
-        $seen = [];
         foreach ($stmt as $r) {
-            if ($this->matchesIgnorePatterns($patterns, [
+            $ignorePattern = $this->matchesIgnorePatterns($patterns, [
                 (string)($r['nazev'] ?? ''),
                 (string)($r['code_raw'] ?? ''),
                 (string)($r['sku'] ?? ''),
                 (string)($r['cislo_dokladu'] ?? ''),
-            ])) {
-                continue;
+            ]);
+            $status = 'unmatched';
+            if ($ignorePattern !== null) {
+                $status = 'ignored';
+            } elseif (trim((string)($r['sku'] ?? '')) !== '') {
+                $status = 'matched';
             }
-            $nameKey = trim((string)$r['nazev']);
-            if ($nameKey === '') {
-                $nameKey = trim((string)$r['code_raw']);
-            }
-            if ($nameKey === '') {
-                $nameKey = trim((string)$r['cislo_dokladu'] . '|' . (string)$r['mnozstvi']);
-            }
-            $key = mb_strtolower((string)$r['eshop_source'] . '|' . $nameKey, 'UTF-8');
-            if (isset($seen[$key])) {
-                continue;
-            }
-            $seen[$key] = true;
             $eshop = (string)$r['eshop_source'];
             if (!isset($groups[$eshop])) {
                 $groups[$eshop] = [];
             }
-            $groups[$eshop][] = $r;
-            $flat[] = $r;
+            $entry = $r;
+            $entry['status'] = $status;
+            $entry['ignore_pattern'] = $ignorePattern;
+            $groups[$eshop][] = $entry;
+            $flat[] = $entry;
         }
         return ['days'=>$days,'groups'=>$groups,'rows'=>$flat];
     }
@@ -457,7 +452,7 @@ final class ImportController
         );
     }
 
-    private function matchesIgnorePatterns(array $patterns, array $values): bool
+    private function matchesIgnorePatterns(array $patterns, array $values): ?string
     {
         foreach ($patterns as $pattern) {
             $pattern = trim((string)$pattern);
@@ -471,11 +466,11 @@ final class ImportController
                     continue;
                 }
                 if (preg_match($regex, mb_strtolower($value, 'UTF-8'))) {
-                    return true;
+                    return $pattern;
                 }
             }
         }
-        return false;
+        return null;
     }
 
     private function wildcardToRegex(string $pattern): string
