@@ -16,6 +16,7 @@ use App\Controller\ProductionController;
 use App\Controller\AnalyticsController;
 use App\Controller\SettingsController;
 use App\Controller\PlansController;
+use App\Controller\AdminController;
 
 session_start();
 
@@ -73,5 +74,8 @@ $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 // Plans page
 $router->get('/plany', [PlansController::class, 'index']);
 
-$router->dispatch();
+// Admin utilities (secured)
+$router->get('/admin/migrate', [AdminController::class, 'migrateForm']);
+$router->post('/admin/migrate', [AdminController::class, 'migrateRun']);
 
+$router->dispatch();
