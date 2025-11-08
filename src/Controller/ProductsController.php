@@ -21,8 +21,13 @@ final class ProductsController
         $fh = fopen('php://output','wb');
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="produkty.csv"');
-        fputcsv($fh, ['sku','nazev','typ','merna_jednotka','ean','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni']);
-        foreach ($rows as $r) { fputcsv($fh, $r); }
+        $delimiter = ',';
+        $enclosure = '"';
+        $escape = '\\';
+        fputcsv($fh, ['sku','nazev','typ','merna_jednotka','ean','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni'], $delimiter, $enclosure, $escape);
+        foreach ($rows as $r) {
+            fputcsv($fh, $r, $delimiter, $enclosure, $escape);
+        }
         exit;
     }
 

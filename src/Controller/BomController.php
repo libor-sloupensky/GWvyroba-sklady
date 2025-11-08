@@ -21,8 +21,13 @@ final class BomController
         $fh = fopen('php://output','wb');
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="bom.csv"');
-        fputcsv($fh, ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka','druh_vazby']);
-        foreach ($rows as $r) { fputcsv($fh, $r); }
+        $delimiter = ',';
+        $enclosure = '"';
+        $escape = '\\';
+        fputcsv($fh, ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka','druh_vazby'], $delimiter, $enclosure, $escape);
+        foreach ($rows as $r) {
+            fputcsv($fh, $r, $delimiter, $enclosure, $escape);
+        }
         exit;
     }
 
