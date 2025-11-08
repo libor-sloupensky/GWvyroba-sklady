@@ -1,4 +1,4 @@
-<h1>Nastavení</h1>
+﻿<h1>Nastavení</h1>
 
 <?php if (!empty($flashError)): ?>
   <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
@@ -14,14 +14,14 @@
 <h2>Fakturační řady</h2>
 <form method="post" action="/settings/series" id="series-form">
   <input type="hidden" name="id" value="" />
-  <label>E‑shop</label><input type="text" name="eshop_source" required />
+  <label>E-shop</label><input type="text" name="eshop_source" required />
   <label>Prefix</label><input type="text" name="prefix" />
   <label>Číslo od</label><input type="text" name="cislo_od" />
   <label>Číslo do</label><input type="text" name="cislo_do" />
   <button type="submit">Uložit</button>
 </form>
 <table>
-  <tr><th>E‑shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Akce</th></tr>
+  <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Akce</th></tr>
   <?php foreach (($series ?? []) as $s): ?>
   <tr>
     <td><?= htmlspecialchars((string)$s['eshop_source'],ENT_QUOTES,'UTF-8') ?></td>
@@ -92,9 +92,57 @@
   <?php endforeach; ?>
 </ul>
 
+<h2>Značky produktů</h2>
+<form method="post" action="/settings/brand">
+  <label>Název značky</label><input type="text" name="nazev" required />
+  <button type="submit">Přidat značku</button>
+</form>
+<table>
+  <tr><th>Značka</th><th>Akce</th></tr>
+  <?php foreach (($brands ?? []) as $b): ?>
+  <tr>
+    <td><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+    <td>
+      <?php if ((int)($b['used_count'] ?? 0) === 0): ?>
+        <form method="post" action="/settings/brand/delete" style="display:inline;">
+          <input type="hidden" name="id" value="<?= (int)$b['id'] ?>" />
+          <button type="submit" class="link-danger" title="Smazat značku" aria-label="Smazat značku">×</button>
+        </form>
+      <?php else: ?>
+        <span class="muted">nelze smazat (<?= (int)$b['used_count'] ?>)</span>
+      <?php endif; ?>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+
+<h2>Skupiny produktů</h2>
+<form method="post" action="/settings/group">
+  <label>Název skupiny</label><input type="text" name="nazev" required />
+  <button type="submit">Přidat skupinu</button>
+</form>
+<table>
+  <tr><th>Skupina</th><th>Akce</th></tr>
+  <?php foreach (($groups ?? []) as $g): ?>
+  <tr>
+    <td><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+    <td>
+      <?php if ((int)($g['used_count'] ?? 0) === 0): ?>
+        <form method="post" action="/settings/group/delete" style="display:inline;">
+          <input type="hidden" name="id" value="<?= (int)$g['id'] ?>" />
+          <button type="submit" class="link-danger" title="Smazat skupinu" aria-label="Smazat skupinu">×</button>
+        </form>
+      <?php else: ?>
+        <span class="muted">nelze smazat (<?= (int)$g['used_count'] ?>)</span>
+      <?php endif; ?>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+
 <h2>Globální nastavení</h2>
 <form method="post" action="/settings/global">
-  <label>Okno průměru (dní)</label><input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" />
+  <label>Okno průměru (dnů)</label><input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" />
   <button type="submit">Uložit</button>
   <span class="muted">Měna, zaokrouhlení a timezone jsou pevně dané v systému.</span>
 </form>

@@ -3,6 +3,32 @@
 <p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
 
+<h2>Nahrát další XML</h2>
+<?php
+  $eshopList = $eshops ?? [];
+  $hasEshops = !empty($eshopList);
+  $selectedEshop = (string)($selectedEshop ?? '');
+?>
+<form method="post" action="/import/pohoda" enctype="multipart/form-data">
+  <label>E-shop (eshop_source)</label><br>
+  <?php if ($hasEshops): ?>
+    <select name="eshop" required>
+      <option value="">-- vyberte --</option>
+      <?php foreach ($eshopList as $s): $value = (string)$s['eshop_source']; ?>
+        <option value="<?= htmlspecialchars($value,ENT_QUOTES,'UTF-8') ?>"<?= $selectedEshop === $value ? ' selected' : '' ?>><?= htmlspecialchars($value,ENT_QUOTES,'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+  <?php else: ?>
+    <p class="notice" style="border-color:#ffe0b2;background:#fff8e1;color:#8c6d1f;">Nejprve přidejte e-shop v Nastavení &gt; Fakturační řady.</p>
+  <?php endif; ?>
+  <br>
+  <label>XML soubor (Pohoda)</label><br>
+  <input type="file" name="xml" accept=".xml" required />
+  <br>
+  <button type="submit"<?= $hasEshops ? '' : ' disabled' ?>>Importovat</button>
+</form>
+<hr>
+
 <?php if (!empty($missingSku)): ?>
   <h3>Chybějící SKU (poslední import)</h3>
   <table>
@@ -41,29 +67,3 @@
 <?php else: ?>
   <p class="muted">Za poslední období nejsou neevidované SKU.</p>
 <?php endif; ?>
-
-<hr>
-<h2>Nahrát další XML</h2>
-<?php
-  $eshopList = $eshops ?? [];
-  $hasEshops = !empty($eshopList);
-  $selectedEshop = (string)($selectedEshop ?? '');
-?>
-<form method="post" action="/import/pohoda" enctype="multipart/form-data">
-  <label>E-shop (eshop_source)</label><br>
-  <?php if ($hasEshops): ?>
-    <select name="eshop" required>
-      <option value="">-- vyberte --</option>
-      <?php foreach ($eshopList as $s): $value = (string)$s['eshop_source']; ?>
-        <option value="<?= htmlspecialchars($value,ENT_QUOTES,'UTF-8') ?>"<?= $selectedEshop === $value ? ' selected' : '' ?>><?= htmlspecialchars($value,ENT_QUOTES,'UTF-8') ?></option>
-      <?php endforeach; ?>
-    </select>
-  <?php else: ?>
-    <p class="notice" style="border-color:#ffe0b2;background:#fff8e1;color:#8c6d1f;">Nejprve přidejte e-shop v Nastavení &gt; Fakturační řady.</p>
-  <?php endif; ?>
-  <br>
-  <label>XML soubor (Pohoda)</label><br>
-  <input type="file" name="xml" accept=".xml" required />
-  <br>
-  <button type="submit"<?= $hasEshops ? '' : ' disabled' ?>>Importovat</button>
-</form>

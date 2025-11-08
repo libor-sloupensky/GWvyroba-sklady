@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 namespace App\Controller;
 
 use App\Support\DB;
@@ -156,7 +156,6 @@ final class SettingsController
             return;
         }
         $pdo = DB::pdo();
-        $inUse = (int)$pdo->prepare('SELECT COUNT(*) FROM produkty WHERE znacka_id=?')->execute([$id]) || false;
         $stmt = $pdo->prepare('SELECT COUNT(*) FROM produkty WHERE znacka_id=?');
         $stmt->execute([$id]);
         if ((int)$stmt->fetchColumn() > 0) {
@@ -192,7 +191,7 @@ final class SettingsController
         $this->requireAdmin();
         $id = (int)($_POST['id'] ?? 0);
         if ($id <= 0) {
-            $_SESSION'settings_error'] = 'Neplatný požadavek na odstranění skupiny.';
+            $_SESSION['settings_error'] = 'Neplatný požadavek na odstranění skupiny.';
             header('Location: /settings');
             return;
         }

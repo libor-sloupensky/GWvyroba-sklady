@@ -78,6 +78,10 @@ $router->post('/settings/series', [SettingsController::class, 'saveSeries']);
 $router->post('/settings/series/delete', [SettingsController::class, 'deleteSeries']);
 $router->post('/settings/ignore', [SettingsController::class, 'saveIgnore']);
 $router->post('/settings/ignore/delete', [SettingsController::class, 'deleteIgnore']);
+$router->post('/settings/brand', [SettingsController::class, 'saveBrand']);
+$router->post('/settings/brand/delete', [SettingsController::class, 'deleteBrand']);
+$router->post('/settings/group', [SettingsController::class, 'saveGroup']);
+$router->post('/settings/group/delete', [SettingsController::class, 'deleteGroup']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 
 // Plans page

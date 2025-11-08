@@ -23,8 +23,28 @@
   <label>XML soubor (Pohoda)</label><br>
   <input type="file" name="xml" accept=".xml" required />
   <br>
-  <button type="submit"<?= $hasEshops ? '' : ' disabled' ?>>Importovat</button>
+<button type="submit"<?= $hasEshops ? '' : ' disabled' ?>>Importovat</button>
 </form>
+
+<?php if (!empty($outstandingMissing)): ?>
+  <hr>
+  <h2>Nespárované položky za posledních <?= (int)($outstandingDays ?? 30) ?> dní</h2>
+  <?php foreach (($outstandingMissing ?? []) as $eshopName => $items): if (empty($items)) continue; ?>
+    <h3><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h3>
+    <table>
+      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>Code</th></tr>
+      <?php foreach ($items as $item): ?>
+      <tr>
+        <td><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+  <?php endforeach; ?>
+<?php endif; ?>
 
 <hr>
 <h2>Smazat poslední import</h2>
