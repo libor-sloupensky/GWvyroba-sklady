@@ -19,7 +19,6 @@
   <label>Číslo od</label><input type="text" name="cislo_od" />
   <label>Číslo do</label><input type="text" name="cislo_do" />
   <button type="submit">Uložit</button>
-  <button type="button" id="series-form-clear">Nový záznam</button>
 </form>
 <table>
   <tr><th>E‑shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Akce</th></tr>
@@ -62,15 +61,6 @@
     to: form.querySelector('input[name="cislo_do"]')
   };
   const setValue = (input, value = '') => { if (input) { input.value = value; } };
-  const clearForm = () => {
-    setValue(fields.id);
-    setValue(fields.eshop);
-    setValue(fields.prefix);
-    setValue(fields.from);
-    setValue(fields.to);
-    fields.eshop?.focus();
-  };
-  document.getElementById('series-form-clear')?.addEventListener('click', clearForm);
   document.querySelectorAll('.js-edit-series').forEach((btn) => {
     btn.addEventListener('click', () => {
       setValue(fields.id, btn.dataset.id || '');
@@ -99,9 +89,6 @@
 <h2>Globální nastavení</h2>
 <form method="post" action="/settings/global">
   <label>Okno průměru (dní)</label><input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" />
-  <label>Měna</label><input type="text" name="mena_zakladni" value="<?= htmlspecialchars((string)($glob['mena_zakladni'] ?? 'CZK'),ENT_QUOTES,'UTF-8') ?>" />
-  <label>Zaokrouhlení</label><input type="text" name="zaokrouhleni" value="<?= htmlspecialchars((string)($glob['zaokrouhleni'] ?? 'half_up'),ENT_QUOTES,'UTF-8') ?>" />
-  <label>Timezone</label><input type="text" name="timezone" value="<?= htmlspecialchars((string)($glob['timezone'] ?? 'Europe/Prague'),ENT_QUOTES,'UTF-8') ?>" />
   <button type="submit">Uložit</button>
-  <span class="muted">Používej UTF‑8; importy mimo UTF‑8 převáděj na UTF‑8.</span>
+  <span class="muted">Měna, zaokrouhlení a timezone jsou pevně dané v systému.</span>
 </form>

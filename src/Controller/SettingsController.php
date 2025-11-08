@@ -106,10 +106,7 @@ final class SettingsController
     {
         $this->requireAdmin();
         $days = (int)($_POST['okno_pro_prumer_dni'] ?? 30);
-        $cur  = trim((string)($_POST['mena_zakladni'] ?? 'CZK'));
-        $round= trim((string)($_POST['zaokrouhleni'] ?? 'half_up'));
-        $tz   = trim((string)($_POST['timezone'] ?? 'Europe/Prague'));
-        DB::pdo()->prepare('UPDATE nastaveni_global SET okno_pro_prumer_dni=?, mena_zakladni=?, zaokrouhleni=?, timezone=? WHERE id=1')->execute([$days,$cur,$round,$tz]);
+        DB::pdo()->prepare('UPDATE nastaveni_global SET okno_pro_prumer_dni=? WHERE id=1')->execute([$days]);
         header('Location: /settings');
     }
 
