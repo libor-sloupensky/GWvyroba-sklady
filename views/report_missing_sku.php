@@ -1,10 +1,12 @@
-﻿<h1>Chybějící SKU</h1>
+<h1>Chybějící SKU</h1>
 <style>
 .status-matched { background:#e6f4ea; }
 .status-ignored { background:#fdecea; }
 .status-note { font-size:12px; color:#607d8b; display:block; }
+.cell-matched { background:#e6f4ea; }
+.cell-ignored { background:#fdecea; }
 </style>
-<p class="muted">Výpis za posledních <?= (int)($days ?? 30) ?> dní podle globálního nastavení. Zobrazuje všechny položky napříč importy a zvýrazňuje spárované (zeleně) / ignorované (červeně).</p>
+<p class="muted">Výpis za posledních <?= (int)($days ?? 30) ?> dní podle globálního nastavení. Zobrazuje všechny položky napříč importy a zvýrazňuje spárování (zeleně) či ignorace (červeně).</p>
 <?php
   $groupedRows = $grouped ?? [];
   if (empty($groupedRows) && !empty($rows)) {
@@ -32,22 +34,20 @@
       <?php foreach ($items as $r): ?>
       <?php
         $status = $r['status'] ?? 'unmatched';
-        $class = $status === 'matched' ? 'status-matched' : ($status === 'ignored' ? 'status-ignored' : '');
-        $note = '';
-        if ($status === 'matched') {
-            $note = 'Spárováno (SKU)';
-        } elseif ($status === 'ignored') {
-            $pattern = (string)($r['ignore_pattern'] ?? '');
-            $note = $pattern !== '' ? 'Ignorováno dle: ' . $pattern : 'Ignorováno';
-        }
+        $highlight = $r['highlight_field'] ?? '';
+        $note = $r['status_note'] ?? '';
+        $cellClass = function(string $field) use ($highlight,$status) {
+            if ($highlight !== $field) return '';
+            return $status === 'matched' ? 'cell-matched' : ($status === 'ignored' ? 'cell-ignored' : '');
+        };
       ?>
-      <tr class="<?= $class ?>">
-        <td><?= htmlspecialchars((string)$r['duzp'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$r['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+      <tr>
+        <td class="<?= $cellClass('duzp') ?>"><?= htmlspecialchars((string)$r['duzp'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('doklad') ?>"><?= htmlspecialchars((string)$r['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('nazev') ?>"><?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)($r['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$r['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('sku') ?>"><?= htmlspecialchars((string)($r['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+        <td class="<?= $cellClass('code') ?>"><?= htmlspecialchars((string)$r['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)($r['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
         <td><?php if ($note !== ''): ?><small class="status-note"><?= htmlspecialchars($note,ENT_QUOTES,'UTF-8') ?></small><?php endif; ?></td>
       </tr>
