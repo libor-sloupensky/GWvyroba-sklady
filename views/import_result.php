@@ -32,7 +32,7 @@
 <?php if (!empty($missingSku)): ?>
   <h3>Chybějící SKU (poslední import)</h3>
   <table>
-    <tr><th>DUZP</th><th>ESHOP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>Code</th></tr>
+    <tr><th>DUZP</th><th>ESHOP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th></tr>
     <?php foreach ($missingSku as $r): ?>
       <tr>
         <td><?= htmlspecialchars((string)$r['duzp'],ENT_QUOTES,'UTF-8') ?></td>
@@ -40,7 +40,9 @@
         <td><?= htmlspecialchars((string)$r['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($r['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($r['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
       </tr>
     <?php endforeach; ?>
   </table>
@@ -51,14 +53,16 @@
   <?php foreach ($outstandingMissing as $eshopName => $items): if (empty($items)) continue; ?>
     <h4><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h4>
     <table>
-      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>Code</th></tr>
+      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th></tr>
       <?php foreach ($items as $item): ?>
         <tr>
           <td><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
+          <td><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+          <td><?= htmlspecialchars((string)($item['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
         </tr>
       <?php endforeach; ?>
     </table>

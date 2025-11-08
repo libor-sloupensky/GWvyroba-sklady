@@ -35,7 +35,7 @@ final class ProductsController
         $fh = fopen('php://output','wb');
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="produkty.csv"');
-        $delimiter = ',';
+        $delimiter = ';';
         $enclosure = '"';
         $escape = '\\';
         fputcsv($fh, ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
@@ -74,7 +74,7 @@ final class ProductsController
         $pdo = DB::pdo();
         $pdo->beginTransaction();
         try {
-            $header = fgetcsv($fh);
+            $header = $this->readCsvRow($fh);
             $expected = ['sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
             if (!$header || array_map('strtolower',$header)!==$expected) {
                 throw new \RuntimeException('Neplatná hlavička CSV.');
@@ -91,19 +91,19 @@ final class ProductsController
                 'ON DUPLICATE KEY UPDATE nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
             );
             $ok=0;$err=[];$i=1;
-            while(($row=fgetcsv($fh))!==false){
+            while(($row=$this->readCsvRow($fh))!==false){
                 $i++;
                 if(count(array_filter($row,fn($v)=>trim((string)$v)!==''))===0)continue;
                 $row = array_pad($row, 13, '');
                 [$sku,$ean,$znackaName,$skupinaName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$poznamka]=$row;
-                $sku=trim((string)$sku);
-                $nazev=trim((string)$nazev);
-                $typ=trim((string)$typ);
-                $mj=trim((string)$mj);
-                $ean=trim((string)$ean);
-                $znackaName=trim((string)$znackaName);
-                $poznamka=trim((string)$poznamka);
-                $skupinaName=trim((string)$skupinaName);
+                $sku=$this->toUtf8($sku);
+                $nazev=$this->toUtf8($nazev);
+                $typ=$this->toUtf8($typ);
+                $mj=$this->toUtf8($mj);
+                $ean=$this->toUtf8($ean);
+                $znackaName=$this->toUtf8($znackaName);
+                $poznamka=$this->toUtf8($poznamka);
+                $skupinaName=$this->toUtf8($skupinaName);
                 if($sku===''){ $err[]="Řádek $i: chybí sku"; continue; }
                 if($nazev===''){ $err[]="Řádek $i: chybí nazev"; continue; }
                 if($typ===''||!in_array($typ,['produkt','obal','etiketa','surovina','baleni','karton'],true)){ $err[]="Řádek $i: neplatný typ"; continue; }
@@ -179,6 +179,22 @@ final class ProductsController
             $map[mb_strtolower($value,'UTF-8')] = $value;
         }
         return $map;
+    }
+
+    private function readCsvRow($handle)
+    {
+        return fgetcsv($handle, 0, ';', '"', '\\');
+    }
+
+    private function toUtf8(string $value): string
+    {
+        if ($value === '') {
+            return '';
+        }
+        if (mb_detect_encoding($value, 'UTF-8', true) === false) {
+            $value = mb_convert_encoding($value, 'UTF-8', 'WINDOWS-1250,ISO-8859-2,ISO-8859-1');
+        }
+        return trim($value);
     }
 
     private function requireAuth(): void {

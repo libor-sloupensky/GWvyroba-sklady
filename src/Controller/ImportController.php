@@ -183,9 +183,11 @@ final class ImportController
                         $batch,
                     ]);
                     $itemCount++;
-                    if ($code === '' && $stock === '') {
+                    $isMissingSku = ($sku === '' || $sku === null);
+                    if ($isMissingSku) {
                         if ($this->matchesIgnorePatterns($ignorePatterns, [
                             (string)($item['text'] ?? ''),
+                            (string)$code,
                             (string)$docNumber,
                         ])) {
                             continue;
@@ -197,6 +199,8 @@ final class ImportController
                             'nazev' => (string)($item['text'] ?? ''),
                             'mnozstvi' => (string)($item['quantity'] ?? ''),
                             'code_raw' => $code,
+                            'sku' => $sku !== '' ? $sku : null,
+                            'ean' => $item['ean'] ?? null,
                         ];
                     }
                 }
@@ -219,15 +223,16 @@ final class ImportController
         $days = max(1, (int)($glob['okno_pro_prumer_dni'] ?? 30));
         $since = (new \DateTimeImmutable("-{$days} days"))->format('Y-m-d');
         $patterns = $this->loadIgnorePatterns();
-        $stmt = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw FROM polozky_eshop WHERE duzp>=? AND ((code_raw IS NULL OR code_raw='') AND (stock_ids_raw IS NULL OR stock_ids_raw='')) ORDER BY eshop_source, duzp DESC");
+        $stmt = $pdo->prepare("SELECT duzp, eshop_source, cislo_dokladu, nazev, mnozstvi, code_raw, stock_ids_raw, sku, ean FROM polozky_eshop WHERE duzp>=? AND (sku IS NULL OR sku='') ORDER BY eshop_source, duzp DESC");
         $stmt->execute([$since]);
         $groups = [];
         $flat = [];
         $seen = [];
         foreach ($stmt as $r) {
             if ($this->matchesIgnorePatterns($patterns, [
-                (string)($r['code_raw'] ?? ''),
                 (string)($r['nazev'] ?? ''),
+                (string)($r['code_raw'] ?? ''),
+                (string)($r['sku'] ?? ''),
                 (string)($r['cislo_dokladu'] ?? ''),
             ])) {
                 continue;

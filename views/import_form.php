@@ -32,14 +32,16 @@
   <?php foreach (($outstandingMissing ?? []) as $eshopName => $items): if (empty($items)) continue; ?>
     <h3><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h3>
     <table>
-      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>Code</th></tr>
+      <tr><th>DUZP</th><th>Doklad</th><th>Název</th><th>Množství</th><th>SKU</th><th>Kód</th><th>EAN</th></tr>
       <?php foreach ($items as $item): ?>
       <tr>
         <td><?= htmlspecialchars((string)$item['duzp'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($item['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($item['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
       </tr>
       <?php endforeach; ?>
     </table>

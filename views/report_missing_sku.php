@@ -19,7 +19,9 @@
         <th>Doklad</th>
         <th>Název</th>
         <th>Množství</th>
-        <th>Kód (code)</th>
+        <th>SKU</th>
+        <th>Kód</th>
+        <th>EAN</th>
       </tr>
       <?php foreach ($items as $r): ?>
       <tr>
@@ -27,7 +29,9 @@
         <td><?= htmlspecialchars((string)$r['cislo_dokladu'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($r['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$r['code_raw'],ENT_QUOTES,'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($r['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
       </tr>
       <?php endforeach; ?>
     </table>
