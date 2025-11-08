@@ -3,7 +3,7 @@ name: Deploy via FTP (Webglobe)
 on:
   push:
     branches: [ main ]
-    workflow_dispatch: {}
+  workflow_dispatch: {}
 
 concurrency:
   group: deploy-gworm
@@ -12,7 +12,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,7 +19,7 @@ jobs:
       - name: FTP Deploy to Webglobe (FTPS 21)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
+          server: ${{ secrets.FTP_SERVER }}       # ftp.wormup.com
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
@@ -34,5 +33,5 @@ jobs:
             **/.DS_Store
             **/Thumbs.db
           state-name: .ftp-deploy-sync-state.json
-          dangerous-clean-slate: frue
+          dangerous-clean-slate: false
           log-level: verbose
