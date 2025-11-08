@@ -77,5 +77,7 @@ $router->get('/plany', [PlansController::class, 'index']);
 // Admin utilities (secured)
 $router->get('/admin/migrate', [AdminController::class, 'migrateForm']);
 $router->post('/admin/migrate', [AdminController::class, 'migrateRun']);
+$router->get('/admin/seed', [AdminController::class, 'seedForm']);
+$router->post('/admin/seed', [AdminController::class, 'seedRun']);
 
 $router->dispatch();

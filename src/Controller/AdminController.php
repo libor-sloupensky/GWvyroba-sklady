@@ -28,6 +28,29 @@ final class AdminController
         }
     }
 
+    public function seedForm(): void
+    {
+        $this->requireAdmin();
+        $this->render('admin_seed.php', ['title'=>'Admin – Seed admin účtu']);
+    }
+
+    public function seedRun(): void
+    {
+        $this->requireAdmin();
+        $email = trim((string)($_POST['email'] ?? 'admin@local'));
+        if ($email === '') {
+            $this->render('admin_seed.php', ['title'=>'Admin – Seed admin účtu', 'error'=>'Zadejte e-mail.']);
+            return;
+        }
+        $pdo = DB::pdo();
+        $hash = password_hash('dokola', PASSWORD_DEFAULT);
+        $sql = 'INSERT INTO users (email,role,active,password_hash) VALUES (:email,\'admin\',1,:hash)
+                ON DUPLICATE KEY UPDATE role=VALUES(role), active=VALUES(active), password_hash=VALUES(password_hash)';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':email'=>$email, ':hash'=>$hash]);
+        $this->render('admin_seed.php', ['title'=>'Admin – Seed admin účtu', 'message'=>'Admin účet vytvořen/aktualizován: '.$email]);
+    }
+
     private function requireAdmin(): void
     {
         $u = $_SESSION['user'] ?? null;
