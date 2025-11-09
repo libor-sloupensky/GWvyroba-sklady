@@ -181,11 +181,12 @@ document.addEventListener('DOMContentLoaded', function () {
     table.className = 'bom-tree-table';
     table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th></tr></thead>';
     const body = document.createElement('tbody');
-    flattenBomTree(tree).forEach(({ node, guides }) => {
+    flattenBomTree(tree).forEach(({ node, guides, depth }) => {
       const tr = document.createElement('tr');
 
       const first = document.createElement('td');
       first.className = 'bom-tree-cell';
+      first.style.paddingLeft = `${Math.max(0, depth - 1) * 1.2}rem`;
       const prefix = document.createElement('span');
       prefix.className = 'bom-tree-prefix';
       prefix.textContent = buildBranchPrefix(guides);
@@ -215,14 +216,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function flattenBomTree(root) {
     const rows = [];
-    const walk = (node, guides = []) => {
-      rows.push({ node, guides });
+    const walk = (node, guides = [], depth = 0) => {
+      rows.push({ node, guides, depth });
       const children = Array.isArray(node.children) ? node.children : [];
       children.forEach((child, index) => {
-        walk(child, guides.concat(index === children.length - 1));
+        walk(child, guides.concat(index === children.length - 1), depth + 1);
       });
     };
-    walk(root, []);
+    walk(root, [], 0);
     return rows;
   }
 
