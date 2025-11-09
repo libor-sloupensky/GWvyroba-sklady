@@ -15,50 +15,49 @@
   display: none;
 }
 .csv-help summary::after {
-  content: ' â–¾';
+  content: ' ?';
   font-weight: normal;
 }
 .csv-help[open] summary::after {
-  content: ' â–´';
+  content: ' ?';
 }
 .csv-help-body {
   margin-top: 0.5rem;
 }
 </style>
 <details class="csv-help" id="bom-help">
-  <summary>Napoveda - BOM import</summary>
+  <summary>Nápovìda – BOM import</summary>
   <div class="csv-help-body">
-    <p><strong>Popis sloupcu (oddelovac ;):</strong></p>
+    <p><strong>Popis sloupcù (oddìlovaè ;):</strong></p>
     <ul>
-      <li><code>rodic_sku</code> - finalni produkt nebo karton, pro ktery skladate recepturu.</li>
-      <li><code>potomek_sku</code> - komponenta, ktera do rodice vstupuje.</li>
-      <li><code>koeficient</code> - mnozstvi potomka na 1 jednotku rodice (ve stejne MJ jakou ma potomek).</li>
-      <li><code>merna_jednotka_potomka</code> - volitelne; pokud nechate prazdne, pouzije se MJ potomka z kmenovych produktu.</li>
-      <li><code>druh_vazby</code> - <code>karton</code> nebo <code>sada</code>. Karton pouzijte jen pokud je rodiÄ opravdu karton; ve vÅ¡ech ostatnÃ­ch pÅ™Ã­padech je vazba vÅ¾dy <em>sada</em>. PrÃ¡zdnÃ© pole systÃ©m dopoÄÃ­tÃ¡ stejnÄ› (karton â‡’ karton, jinak sada).</li>
+      <li><code>rodic_sku</code> – finální produkt nebo karton, pro kterı skládáte recepturu.</li>
+      <li><code>potomek_sku</code> – komponenta, která do rodièe vstupuje.</li>
+      <li><code>koeficient</code> – mnoství potomka na 1 jednotku rodièe (ve stejné MJ jako má potomek).</li>
+      <li><code>merna_jednotka_potomka</code> – volitelné; pokud ponecháte prázdné, vezme se MJ potomka z kmenovıch produktù.</li>
+      <li><code>druh_vazby</code> – <code>karton</code> pouze pro rodièe typu karton; ve všech ostatních pøípadech je vazba vdy <em>sada</em>. Prázdné pole systém doplní stejnì.</li>
     </ul>
-    <p>Desetinne hodnoty zadavejte s teckou. Kazdou vazbu lze nahrat kdykoliv - rodic i potomek jen musi existovat v tabulce produktu.</p>
+    <p>Desetinné hodnoty zadávejte s teèkou. Kadou vazbu lze nahrát kdykoliv – rodiè i potomek jen musí existovat v tabulce produktù.</p>
   </div>
 </details>
-
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php if (!empty($message)): ?><div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php if (!empty($errors)): ?><div class="notice">
   <strong>Chyby importu:</strong>
   <ul><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
 </div><?php endif; ?>
-<p><a href="/bom/export">StÃ¡hnout CSV (aktuÃ¡lnÃ­)</a></p>
+<p><a href="/bom/export">Stáhnout CSV (aktuální)</a></p>
 <form method="post" action="/bom/import" enctype="multipart/form-data">
-  <label>NahrÃ¡t CSV</label><br>
+  <label>Nahrát CSV</label><br>
   <input type="file" name="csv" accept=".csv" required />
   <br>
   <button type="submit">Importovat</button>
-  <span class="muted">Tip: pouÅ¾Ã­vejte UTFâ€‘8; oddÄ›lovaÄ stÅ™ednÃ­k.</span>
+  <span class="muted">Tip: pouívejte UTF-8 a støedník.</span>
 </form>
 
 <hr>
 <table>
   <tr>
-    <th>RodiÄ (SKU)</th><th>Potomek (SKU)</th><th>Koeficient</th><th>MJ potomka</th><th>Druh vazby</th>
+    <th>Rodiè (SKU)</th><th>Potomek (SKU)</th><th>Koeficient</th><th>MJ potomka</th><th>Druh vazby</th>
   </tr>
   <?php foreach (($items ?? []) as $it): ?>
   <tr>

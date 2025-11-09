@@ -8,6 +8,7 @@ final class ReservationsController
     public function index(): void
     {
         $this->requireAuth();
+        $this->ensureReservationSchema();
         $pdo = DB::pdo();
         $rows = $pdo->query('SELECT id,sku,typ,mnozstvi,platna_do,poznamka FROM rezervace ORDER BY platna_do DESC, id DESC')->fetchAll();
         $this->render('reservations.php', [
@@ -30,6 +31,7 @@ final class ReservationsController
         $to  = trim((string)($_POST['platna_do'] ?? ''));
         $note= trim((string)($_POST['poznamka'] ?? ''));
         if ($sku === '' || $qty <= 0 || $to === '') { $this->redirect('/reservations'); return; }
+        $this->ensureReservationSchema();
         $pdo = DB::pdo();
         if ($id > 0) {
             $st = $pdo->prepare('UPDATE rezervace SET sku=?, typ=?, mnozstvi=?, platna_do=?, poznamka=? WHERE id=?');
@@ -89,6 +91,21 @@ final class ReservationsController
     private function productTypes(): array
     {
         return ['produkt','obal','etiketa','surovina','baleni','karton'];
+    }
+
+    private function ensureReservationSchema(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+        $checked = true;
+        $pdo = DB::pdo();
+        $stmt = $pdo->query("SHOW COLUMNS FROM rezervace LIKE 'typ'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("ALTER TABLE `rezervace` ADD COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
+            try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (\Throwable $e) {}
+        }
     }
 
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }

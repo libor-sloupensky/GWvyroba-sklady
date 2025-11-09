@@ -1,4 +1,4 @@
-<h1>Import Pohoda XML</h1>
+<h1>Import XML</h1>
 <style>
 .status-matched { background:#e6f4ea; }
 .status-ignored { background:#fdecea; }
@@ -10,7 +10,7 @@
     $num = (float)$value;
     return number_format($num, 0, '', '');
 }; ?>
-<p class="muted">Postup: vyberte e-shop a XML (Stormware Pohoda). Pokud nejsou nastavené řady, import propustí všechny doklady. Při nesouladu řad import zastaví a nic neuloží.</p>
+<p class="muted">Postup: vyberte e-shop a XML soubor. Pokud nejsou nastavené řady, import propustí všechny doklady. Při nesouladu řad se import zastaví a nic se neuloží.</p>
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php if (!empty($message)): ?><div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php
@@ -31,7 +31,7 @@
     <p class="notice" style="border-color:#ffe0b2;background:#fff8e1;color:#8c6d1f;">Nejprve přidejte e-shop v Nastavení &gt; Fakturační řady.</p>
   <?php endif; ?>
   <br>
-  <label>XML soubor (Pohoda)</label><br>
+  <label>XML soubor</label><br>
   <input type="file" name="xml" accept=".xml" required />
   <br>
   <button type="submit"<?= $hasEshops ? '' : ' disabled' ?>>Importovat</button>

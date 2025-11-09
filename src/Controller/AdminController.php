@@ -23,6 +23,7 @@ final class AdminController
             $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_czech_ci");
             $pdo->exec($sql);
             $this->ensureProductSchema($pdo);
+            $this->ensureReservationsSchema($pdo);
             $this->render('admin_migrate.php', ['title'=>'Admin – Migrace DB', 'message'=>'Migrace proběhla úspěšně.']);
         } catch (\Throwable $e) {
             $this->render('admin_migrate.php', ['title'=>'Admin – Migrace DB', 'error'=>'Migrace selhala: '.$e->getMessage()]);
@@ -82,6 +83,15 @@ final class AdminController
         try { $pdo->exec('ALTER TABLE `produkty` ADD CONSTRAINT fk_produkty_znacka FOREIGN KEY (znacka_id) REFERENCES produkty_znacky(id) ON DELETE SET NULL'); } catch (\Throwable $e) {}
         try { $pdo->exec('ALTER TABLE `produkty` ADD CONSTRAINT fk_produkty_skupina FOREIGN KEY (skupina_id) REFERENCES produkty_skupiny(id) ON DELETE SET NULL'); } catch (\Throwable $e) {}
     }
+    private function ensureReservationsSchema(\PDO $pdo): void
+    {
+        if (!$this->columnExists($pdo, 'rezervace', 'typ')) {
+            $pdo->exec("ALTER TABLE `rezervace` ADD COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
+            try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (\Throwable $e) {}
+        }
+    }
+
+
 
     private function columnExists(\PDO $pdo, string $table, string $column): bool
     {

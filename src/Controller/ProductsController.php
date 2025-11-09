@@ -317,6 +317,23 @@ final class ProductsController
         echo json_encode(['ok'=>true]);
     }
 
+    public function bomTree(): void
+    {
+        $this->requireAuth();
+        $sku = trim((string)($_GET['sku'] ?? ''));
+        header('Content-Type: application/json');
+        if ($sku === '') {
+            echo json_encode(['ok'=>false,'error'=>'Chybí SKU.']);
+            return;
+        }
+        try {
+            $tree = $this->buildBomTree($sku);
+            echo json_encode(['ok'=>true,'tree'=>$tree]);
+        } catch (\Throwable $e) {
+            echo json_encode(['ok'=>false,'error'=>'Nepodařilo se načíst BOM strom.']);
+        }
+    }
+
     private function editableFields(): array
     {
         return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
@@ -467,6 +484,97 @@ final class ProductsController
     private function productTypes(): array
     {
         return ['produkt','obal','etiketa','surovina','baleni','karton'];
+    }
+
+    /**
+     * @return array{sku:string,nazev:string,typ:string,merna_jednotka:string,edge:mixed,children:array<int,array>}
+     */
+    private function buildBomTree(string $sku, array $visited = []): array
+    {
+        $key = mb_strtolower($sku, 'UTF-8');
+        $visited[$key] = true;
+        $product = $this->loadProductInfo($sku);
+        $product['edge'] = null;
+        $children = [];
+        foreach ($this->loadBomChildren($sku) as $child) {
+            $childKey = mb_strtolower($child['sku'], 'UTF-8');
+            if (isset($visited[$childKey])) {
+                $children[] = [
+                    'sku' => $child['sku'],
+                    'nazev' => $child['nazev'],
+                    'typ' => $child['typ'],
+                    'merna_jednotka' => $child['merna_jednotka'],
+                    'edge' => [
+                        'koeficient' => $child['koeficient'],
+                        'merna_jednotka' => $child['edge_mj'] ?: $child['merna_jednotka'],
+                        'druh_vazby' => $child['druh_vazby'],
+                    ],
+                    'cycle' => true,
+                    'children' => [],
+                ];
+                continue;
+            }
+            $subtree = $this->buildBomTree($child['sku'], $visited);
+            $subtree['edge'] = [
+                'koeficient' => $child['koeficient'],
+                'merna_jednotka' => $child['edge_mj'] ?: $subtree['merna_jednotka'],
+                'druh_vazby' => $child['druh_vazby'],
+            ];
+            $children[] = $subtree;
+        }
+        $product['children'] = $children;
+        return $product;
+    }
+
+    /**
+     * @return array{sku:string,nazev:string,typ:string,merna_jednotka:string}
+     */
+    private function loadProductInfo(string $sku): array
+    {
+        $stmt = DB::pdo()->prepare('SELECT sku,nazev,typ,merna_jednotka FROM produkty WHERE sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return [
+                'sku' => $sku,
+                'nazev' => '(neznámý produkt)',
+                'typ' => '',
+                'merna_jednotka' => '',
+            ];
+        }
+        return [
+            'sku' => (string)$row['sku'],
+            'nazev' => (string)$row['nazev'],
+            'typ' => (string)$row['typ'],
+            'merna_jednotka' => (string)$row['merna_jednotka'],
+        ];
+    }
+
+    /**
+     * @return array<int,array<string,string>>
+     */
+    private function loadBomChildren(string $sku): array
+    {
+        $stmt = DB::pdo()->prepare(
+            'SELECT b.potomek_sku AS sku, b.koeficient, COALESCE(NULLIF(b.merna_jednotka_potomka, \'\'), NULL) AS edge_mj, ' .
+            'b.druh_vazby, p.nazev, p.typ, p.merna_jednotka ' .
+            'FROM bom b LEFT JOIN produkty p ON p.sku = b.potomek_sku ' .
+            'WHERE b.rodic_sku=? ORDER BY b.potomek_sku'
+        );
+        $stmt->execute([$sku]);
+        $rows = [];
+        foreach ($stmt as $row) {
+            $rows[] = [
+                'sku' => (string)$row['sku'],
+                'koeficient' => (float)$row['koeficient'],
+                'edge_mj' => $row['edge_mj'] === null ? null : (string)$row['edge_mj'],
+                'druh_vazby' => (string)$row['druh_vazby'],
+                'nazev' => (string)($row['nazev'] ?? '(neznámý)'),
+                'typ' => (string)($row['typ'] ?? ''),
+                'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+            ];
+        }
+        return $rows;
     }
 
     private function productsSelectSql(): string
