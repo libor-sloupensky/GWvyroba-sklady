@@ -207,43 +207,43 @@
 
 <details class="collapsible" id="products-help">
 
-  <summary>NĂˇpovÄ›da â€“ CSV a pole produktu</summary>
+  <summary>Npovda  CSV a pole produktu</summary>
 
   <div class="collapsible-body">
 
-    <p><strong>Popis sloupcĹŻ CSV (oddÄ›lovaÄŤ ;):</strong></p>
+    <p><strong>Popis sloupc CSV (oddlova ;):</strong></p>
 
     <ul>
 
-      <li><code>sku</code> â€“ povinnĂ˝ internĂ­ kĂłd produktu.</li>
+      <li><code>sku</code>  povinn intern kd produktu.</li>
 
-      <li><code>alt_sku</code> â€“ volitelnĂ˝ alternativnĂ­ kĂłd (unikĂˇtnĂ­, nesmĂ­ bĂ˝t shodnĂ˝ se SKU).</li>
+      <li><code>alt_sku</code>  voliteln alternativn kd (uniktn, nesm bt shodn se SKU).</li>
 
-      <li><code>ean</code> â€“ volitelnĂ˝ EAN / ÄŤĂˇrovĂ˝ kĂłd.</li>
+      <li><code>ean</code>  voliteln EAN / rov kd.</li>
 
-      <li><code>znaÄŤka</code> / <code>skupina</code> â€“ nĂˇzvy definovanĂ© v NastavenĂ­.</li>
+      <li><code>znaka</code> / <code>skupina</code>  nzvy definovan v Nastaven.</li>
 
-      <li><code>typ</code> â€“ jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balenĂ­</code>, <code>karton</code>.</li>
+      <li><code>typ</code>  jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balen</code>, <code>karton</code>.</li>
 
-      <li><code>mÄ›rnĂˇ_jednotka</code> â€“ kĂłd jednotky z NastavenĂ­ (napĹ™. <code>ks</code>, <code>kg</code>).</li>
+      <li><code>mrn_jednotka</code>  kd jednotky z Nastaven (nap. <code>ks</code>, <code>kg</code>).</li>
 
-      <li><code>nĂˇzev</code> â€“ povinnĂ˝ nĂˇzev poloĹľky.</li>
+      <li><code>nzev</code>  povinn nzev poloky.</li>
 
-      <li><code>min_zĂˇsoba</code> â€“ bezpeÄŤnĂˇ zĂˇsoba; plĂˇnovĂˇnĂ­ se mĂˇ drĹľet alespoĹ tĂ©to hodnoty.</li>
+      <li><code>min_zsoba</code>  bezpen zsoba; plnovn se m dret alespo tto hodnoty.</li>
 
-      <li><code>min_dĂˇvka</code> â€“ minimĂˇlnĂ­ vyrĂˇbÄ›nĂˇ dĂˇvka. MenĹˇĂ­ mnoĹľstvĂ­ vĂ˝roba nespustĂ­.</li>
+      <li><code>min_dvka</code>  minimln vyrbn dvka. Men mnostv vroba nespust.</li>
 
-      <li><code>krok_vĂ˝roby</code> â€“ o kolik lze dĂˇvku navyĹˇovat nad minimum (napĹ™. krok 50 ? 200, 250, 300 â€¦).</li>
+      <li><code>krok_vroby</code>  o kolik lze dvku navyovat nad minimum (nap. krok 50 ? 200, 250, 300 ).</li>
 
-      <li><code>vĂ˝robnĂ­_doba_dnĂ­</code> â€“ dĂ©lka vĂ˝roby v kalendĂˇĹ™nĂ­ch dnech.</li>
+      <li><code>vrobn_doba_dn</code>  dlka vroby v kalendnch dnech.</li>
 
-      <li><code>aktivnĂ­</code> â€“ 1 = aktivnĂ­, 0 = skrytĂ˝ produkt.</li>
+      <li><code>aktivn</code>  1 = aktivn, 0 = skryt produkt.</li>
 
-      <li><code>poznĂˇmka</code> â€“ libovolnĂ˝ text.</li>
+      <li><code>poznmka</code>  libovoln text.</li>
 
     </ul>
 
-    <p>DesetinnĂ© hodnoty piĹˇte s teÄŤkou (napĹ™. <code>0.25</code>). CSV musĂ­ bĂ˝t v UTF-8.</p>
+    <p>Desetinn hodnoty pite s tekou (nap. <code>0.25</code>). CSV mus bt v UTF-8.</p>
 
   </div>
 
@@ -253,7 +253,7 @@
 
 <details class="collapsible" id="product-create-panel">
 
-  <summary>PĹ™idat produkt</summary>
+  <summary>Pidat produkt</summary>
 
   <div class="collapsible-body">
 
@@ -265,11 +265,11 @@
 
       <label>EAN</label><input type="text" name="ean" />
 
-      <label>ZnaÄŤka</label>
+      <label>Znaka</label>
 
       <select name="znacka_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($brands ?? []) as $b): ?>
 
@@ -283,7 +283,7 @@
 
       <select name="skupina_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($groups ?? []) as $g): ?>
 
@@ -305,7 +305,7 @@
 
       </select>
 
-      <label>MÄ›rnĂˇ jednotka*</label>
+      <label>Mrn jednotka*</label>
 
       <select name="merna_jednotka" required>
 
@@ -317,29 +317,29 @@
 
       </select>
 
-      <label>NĂˇzev*</label><input type="text" name="nazev" required />
+      <label>Nzev*</label><input type="text" name="nazev" required />
 
-      <label>Min. zĂˇsoba</label><input type="number" step="0.001" name="min_zasoba" />
+      <label>Min. zsoba</label><input type="number" step="0.001" name="min_zasoba" />
 
-      <label>Min. dĂˇvka</label><input type="number" step="0.001" name="min_davka" />
+      <label>Min. dvka</label><input type="number" step="0.001" name="min_davka" />
 
-      <label>Krok vĂ˝roby</label><input type="number" step="0.001" name="krok_vyroby" />
+      <label>Krok vroby</label><input type="number" step="0.001" name="krok_vyroby" />
 
-      <label>VĂ˝robnĂ­ doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
+      <label>Vrobn doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
 
-      <label>AktivnĂ­*</label>
+      <label>Aktivn*</label>
 
       <select name="aktivni">
 
-        <option value="1">AktivnĂ­</option>
+        <option value="1">Aktivn</option>
 
         <option value="0">Skryto</option>
 
       </select>
 
-      <label>PoznĂˇmka</label><textarea name="poznamka" rows="2"></textarea>
+      <label>Poznmka</label><textarea name="poznamka" rows="2"></textarea>
 
-      <button type="submit">UloĹľit produkt</button>
+      <button type="submit">Uloit produkt</button>
 
     </form>
 
@@ -351,11 +351,11 @@
 
 <details class="collapsible" id="product-import-panel">
 
-  <summary>Import a Ăşprava produktĹŻ</summary>
+  <summary>Import a prava produkt</summary>
 
   <div class="collapsible-body">
 
-    <p><a href="/products/export">StĂˇhnout CSV (aktuĂˇlnĂ­)</a></p>
+    <p><a href="/products/export">Sthnout CSV (aktuln)</a></p>
 
     <?php if (!empty($errors)): ?>
 
@@ -371,7 +371,7 @@
 
     <form method="post" action="/products/import" enctype="multipart/form-data">
 
-      <label>NahrĂˇt CSV</label><br>
+      <label>Nahrt CSV</label><br>
 
       <input type="file" name="csv" accept=".csv" required />
 
@@ -379,7 +379,7 @@
 
       <button type="submit">Importovat</button>
 
-      <span class="muted">PouĹľĂ­vejte UTF-8 a stĹ™ednĂ­k jako oddÄ›lovaÄŤ.</span>
+      <span class="muted">Pouvejte UTF-8 a stednk jako oddlova.</span>
 
     </form>
 
@@ -399,11 +399,11 @@
 
     <label>
 
-      <span>ZnaÄŤka</span>
+      <span>Znaka</span>
 
       <select name="znacka_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($brands ?? []) as $b): $id = (int)$b['id']; ?>
 
@@ -421,7 +421,7 @@
 
       <select name="skupina_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($groups ?? []) as $g): $id = (int)$g['id']; ?>
 
@@ -439,7 +439,7 @@
 
       <select name="typ">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($types ?? []) as $t): ?>
 
@@ -455,7 +455,7 @@
 
       <span>Hledat</span>
 
-      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / nĂˇzev / EAN" />
+      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / nzev / EAN" />
 
     </label>
 
@@ -463,7 +463,7 @@
 
       <button type="submit">Vyhledat</button>
 
-      <a href="/products" style="align-self:center;">ZruĹˇit filtr</a>
+      <a href="/products" style="align-self:center;">Zruit filtr</a>
 
     </div>
 
@@ -682,43 +682,43 @@ php
 
 <details class="collapsible" id="products-help">
 
-  <summary>NĂˇpovÄ›da â€“ CSV a pole produktu</summary>
+  <summary>Npovda  CSV a pole produktu</summary>
 
   <div class="collapsible-body">
 
-    <p><strong>Popis sloupcĹŻ CSV (oddÄ›lovaÄŤ ;):</strong></p>
+    <p><strong>Popis sloupc CSV (oddlova ;):</strong></p>
 
     <ul>
 
-      <li><code>sku</code> â€“ povinnĂ˝ internĂ­ kĂłd produktu.</li>
+      <li><code>sku</code>  povinn intern kd produktu.</li>
 
-      <li><code>alt_sku</code> â€“ volitelnĂ˝ alternativnĂ­ kĂłd (unikĂˇtnĂ­, nesmĂ­ bĂ˝t shodnĂ˝ se SKU).</li>
+      <li><code>alt_sku</code>  voliteln alternativn kd (uniktn, nesm bt shodn se SKU).</li>
 
-      <li><code>ean</code> â€“ volitelnĂ˝ EAN / ÄŤĂˇrovĂ˝ kĂłd.</li>
+      <li><code>ean</code>  voliteln EAN / rov kd.</li>
 
-      <li><code>znaÄŤka</code> / <code>skupina</code> â€“ nĂˇzvy definovanĂ© v NastavenĂ­.</li>
+      <li><code>znaka</code> / <code>skupina</code>  nzvy definovan v Nastaven.</li>
 
-      <li><code>typ</code> â€“ jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balenĂ­</code>, <code>karton</code>.</li>
+      <li><code>typ</code>  jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balen</code>, <code>karton</code>.</li>
 
-      <li><code>mÄ›rnĂˇ_jednotka</code> â€“ kĂłd jednotky z NastavenĂ­ (napĹ™. <code>ks</code>, <code>kg</code>).</li>
+      <li><code>mrn_jednotka</code>  kd jednotky z Nastaven (nap. <code>ks</code>, <code>kg</code>).</li>
 
-      <li><code>nĂˇzev</code> â€“ povinnĂ˝ nĂˇzev poloĹľky.</li>
+      <li><code>nzev</code>  povinn nzev poloky.</li>
 
-      <li><code>min_zĂˇsoba</code> â€“ bezpeÄŤnĂˇ zĂˇsoba; plĂˇnovĂˇnĂ­ se mĂˇ drĹľet alespoĹ tĂ©to hodnoty.</li>
+      <li><code>min_zsoba</code>  bezpen zsoba; plnovn se m dret alespo tto hodnoty.</li>
 
-      <li><code>min_dĂˇvka</code> â€“ minimĂˇlnĂ­ vyrĂˇbÄ›nĂˇ dĂˇvka. MenĹˇĂ­ mnoĹľstvĂ­ vĂ˝roba nespustĂ­.</li>
+      <li><code>min_dvka</code>  minimln vyrbn dvka. Men mnostv vroba nespust.</li>
 
-      <li><code>krok_vĂ˝roby</code> â€“ o kolik lze dĂˇvku navyĹˇovat nad minimum (napĹ™. krok 50 ? 200, 250, 300 â€¦).</li>
+      <li><code>krok_vroby</code>  o kolik lze dvku navyovat nad minimum (nap. krok 50 ? 200, 250, 300 ).</li>
 
-      <li><code>vĂ˝robnĂ­_doba_dnĂ­</code> â€“ dĂ©lka vĂ˝roby v kalendĂˇĹ™nĂ­ch dnech.</li>
+      <li><code>vrobn_doba_dn</code>  dlka vroby v kalendnch dnech.</li>
 
-      <li><code>aktivnĂ­</code> â€“ 1 = aktivnĂ­, 0 = skrytĂ˝ produkt.</li>
+      <li><code>aktivn</code>  1 = aktivn, 0 = skryt produkt.</li>
 
-      <li><code>poznĂˇmka</code> â€“ libovolnĂ˝ text.</li>
+      <li><code>poznmka</code>  libovoln text.</li>
 
     </ul>
 
-    <p>DesetinnĂ© hodnoty piĹˇte s teÄŤkou (napĹ™. <code>0.25</code>). CSV musĂ­ bĂ˝t v UTF-8.</p>
+    <p>Desetinn hodnoty pite s tekou (nap. <code>0.25</code>). CSV mus bt v UTF-8.</p>
 
   </div>
 
@@ -728,7 +728,7 @@ php
 
 <details class="collapsible" id="product-create-panel">
 
-  <summary>PĹ™idat produkt</summary>
+  <summary>Pidat produkt</summary>
 
   <div class="collapsible-body">
 
@@ -740,11 +740,11 @@ php
 
       <label>EAN</label><input type="text" name="ean" />
 
-      <label>ZnaÄŤka</label>
+      <label>Znaka</label>
 
       <select name="znacka_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($brands ?? []) as $b): ?>
 
@@ -758,7 +758,7 @@ php
 
       <select name="skupina_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($groups ?? []) as $g): ?>
 
@@ -780,7 +780,7 @@ php
 
       </select>
 
-      <label>MÄ›rnĂˇ jednotka*</label>
+      <label>Mrn jednotka*</label>
 
       <select name="merna_jednotka" required>
 
@@ -792,29 +792,29 @@ php
 
       </select>
 
-      <label>NĂˇzev*</label><input type="text" name="nazev" required />
+      <label>Nzev*</label><input type="text" name="nazev" required />
 
-      <label>Min. zĂˇsoba</label><input type="number" step="0.001" name="min_zasoba" />
+      <label>Min. zsoba</label><input type="number" step="0.001" name="min_zasoba" />
 
-      <label>Min. dĂˇvka</label><input type="number" step="0.001" name="min_davka" />
+      <label>Min. dvka</label><input type="number" step="0.001" name="min_davka" />
 
-      <label>Krok vĂ˝roby</label><input type="number" step="0.001" name="krok_vyroby" />
+      <label>Krok vroby</label><input type="number" step="0.001" name="krok_vyroby" />
 
-      <label>VĂ˝robnĂ­ doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
+      <label>Vrobn doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
 
-      <label>AktivnĂ­*</label>
+      <label>Aktivn*</label>
 
       <select name="aktivni">
 
-        <option value="1">AktivnĂ­</option>
+        <option value="1">Aktivn</option>
 
         <option value="0">Skryto</option>
 
       </select>
 
-      <label>PoznĂˇmka</label><textarea name="poznamka" rows="2"></textarea>
+      <label>Poznmka</label><textarea name="poznamka" rows="2"></textarea>
 
-      <button type="submit">UloĹľit produkt</button>
+      <button type="submit">Uloit produkt</button>
 
     </form>
 
@@ -826,11 +826,11 @@ php
 
 <details class="collapsible" id="product-import-panel">
 
-  <summary>Import a Ăşprava produktĹŻ</summary>
+  <summary>Import a prava produkt</summary>
 
   <div class="collapsible-body">
 
-    <p><a href="/products/export">StĂˇhnout CSV (aktuĂˇlnĂ­)</a></p>
+    <p><a href="/products/export">Sthnout CSV (aktuln)</a></p>
 
     <?php if (!empty($errors)): ?>
 
@@ -846,7 +846,7 @@ php
 
     <form method="post" action="/products/import" enctype="multipart/form-data">
 
-      <label>NahrĂˇt CSV</label><br>
+      <label>Nahrt CSV</label><br>
 
       <input type="file" name="csv" accept=".csv" required />
 
@@ -854,7 +854,7 @@ php
 
       <button type="submit">Importovat</button>
 
-      <span class="muted">PouĹľĂ­vejte UTF-8 a stĹ™ednĂ­k jako oddÄ›lovaÄŤ.</span>
+      <span class="muted">Pouvejte UTF-8 a stednk jako oddlova.</span>
 
     </form>
 
@@ -874,11 +874,11 @@ php
 
     <label>
 
-      <span>ZnaÄŤka</span>
+      <span>Znaka</span>
 
       <select name="znacka_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($brands ?? []) as $b): $id = (int)$b['id']; ?>
 
@@ -896,7 +896,7 @@ php
 
       <select name="skupina_id">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($groups ?? []) as $g): $id = (int)$g['id']; ?>
 
@@ -914,7 +914,7 @@ php
 
       <select name="typ">
 
-        <option value="">VĹˇechny</option>
+        <option value="">Vechny</option>
 
         <?php foreach (($types ?? []) as $t): ?>
 
@@ -930,7 +930,7 @@ php
 
       <span>Hledat</span>
 
-      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / nĂˇzev / EAN" />
+      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / nzev / EAN" />
 
     </label>
 
@@ -938,7 +938,7 @@ php
 
       <button type="submit">Vyhledat</button>
 
-      <a href="/products" style="align-self:center;">ZruĹˇit filtr</a>
+      <a href="/products" style="align-self:center;">Zruit filtr</a>
 
     </div>
 
@@ -954,7 +954,7 @@ php
 
     <strong>BOM strom pro <span id="bom-tree-sku"></span></strong>
 
-    <button type="button" id="bom-tree-close">ZavĹ™Ă­t</button>
+    <button type="button" id="bom-tree-close">Zavt</button>
 
   </div>
 
@@ -966,11 +966,11 @@ php
 
 <?php if (!$hasSearchActive): ?>
 
-  <p class="muted">Zadejte parametry vyhledĂˇvĂˇnĂ­ a potvrÄŹte tlaÄŤĂ­tkem â€žVyhledatâ€ś. Seznam produktĹŻ se zobrazĂ­ aĹľ po vyhledĂˇnĂ­.</p>
+  <p class="muted">Zadejte parametry vyhledvn a potvrte tlaĭtkem Vyhledat. Seznam produkt se zobraz a po vyhledn.</p>
 
 <?php elseif (empty($items)): ?>
 
-  <p class="muted">Ĺ˝ĂˇdnĂ© produkty neodpovĂ­dajĂ­ zadanĂ˝m filtrĹŻm.</p>
+  <p class="muted">dn produkty neodpovdaj zadanm filtrm.</p>
 
 <?php else: ?>
 
@@ -984,7 +984,7 @@ php
 
     <th>EAN</th>
 
-    <th>ZnaÄŤka</th>
+    <th>Znaka</th>
 
     <th>Skupina</th>
 
@@ -992,19 +992,19 @@ php
 
     <th>MJ</th>
 
-    <th>NĂˇzev</th>
+    <th>Nzev</th>
 
-    <th>Min. zĂˇsoba</th>
+    <th>Min. zsoba</th>
 
-    <th>Min. dĂˇvka</th>
+    <th>Min. dvka</th>
 
-    <th>Krok vĂ˝roby</th>
+    <th>Krok vroby</th>
 
-    <th>VĂ˝robnĂ­ doba</th>
+    <th>Vrobn doba</th>
 
-    <th>AktivnĂ­</th>
+    <th>Aktivn</th>
 
-    <th>PoznĂˇmka</th>
+    <th>Poznmka</th>
 
   </tr>
 
@@ -1013,25 +1013,25 @@ php
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
 
     <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-      <span class="sku-toggle">▸</span>
+      <span class="sku-toggle"></span>
       <span class="sku-text"><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
     </td>
 
     <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
 
-      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : 'â€“' ?>
+      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '' ?>
 
     </td>
 
     <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
 
-      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : 'â€“' ?>
+      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '' ?>
 
     </td>
 
-    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? 'â€“'),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
 
-    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? 'â€“'),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
 
     <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
 
@@ -1047,7 +1047,7 @@ php
 
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
 
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '?' : 'â€“' ?></td>
+    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '?' : '' ?></td>
 
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
 
@@ -1068,7 +1068,7 @@ php
     groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
     units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
     types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
+    active: [{value:'1',label:''},{value:'0',label:''}]
   };
 
   const table = document.querySelector('.products-table');
@@ -1101,13 +1101,13 @@ php
     }
     closeBomRow();
     const toggle = cell.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▾';
+    if (toggle) toggle.textContent = '';
     row.classList.add('bom-open');
     const detailRow = document.createElement('tr');
     detailRow.className = 'bom-tree-row';
     const detailCell = document.createElement('td');
     detailCell.colSpan = row.children.length;
-    detailCell.textContent = 'Načítám…';
+    detailCell.textContent = 'Natm';
     detailRow.appendChild(detailCell);
     row.parentNode.insertBefore(detailRow, row.nextSibling);
     bomState = { row, detail: detailRow };
@@ -1118,7 +1118,7 @@ php
     if (!bomState.row) return;
     bomState.row.classList.remove('bom-open');
     const toggle = bomState.row.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▸';
+    if (toggle) toggle.textContent = '';
     if (bomState.detail) { bomState.detail.remove(); }
     bomState = { row: null, detail: null };
   }
@@ -1131,7 +1131,7 @@ php
           return;
         }
         if (!data.ok) {
-          targetCell.textContent = data.error || 'BOM strom se nepodařilo načíst.';
+          targetCell.textContent = data.error || 'BOM strom se nepodailo nast.';
           return;
         }
         const text = formatBomText(data.tree);
@@ -1142,7 +1142,7 @@ php
       })
       .catch(() => {
         if (targetCell.isConnected) {
-          targetCell.textContent = 'BOM strom se nepodařilo načíst.';
+          targetCell.textContent = 'BOM strom se nepodailo nast.';
         }
       });
   }
@@ -1153,23 +1153,23 @@ php
     const metaParts = [];
     if (node.typ) metaParts.push(node.typ);
     if (node.merna_jednotka) metaParts.push('MJ ' + node.merna_jednotka);
-    let line = ${indent} – ;
+    let line = ${indent}  ;
     if (metaParts.length) {
       line +=  [];
     }
     if (node.edge) {
       const edgeMj = node.edge.merna_jednotka || node.merna_jednotka || '';
-      line +=   ←   ();
+      line +=      ();
     }
     let text = line + '\n';
     const children = node.children || [];
     if (!children.length && depth === 0) {
-      text += indent + '  (bez navázaných položek)\n';
+      text += indent + '  (bez navzanch poloek)\n';
     }
     children.forEach((child) => {
       text += formatBomText(child, depth + 1);
       if (child.cycle) {
-        text += ${'  '.repeat(depth + 1)}↺ cyklická vazba (zkráceno)\n;
+        text += ${'  '.repeat(depth + 1)} cyklick vazba (zkrceno)\n;
       }
     });
     return text;
@@ -1245,13 +1245,13 @@ php
 
   function appendOptions(select, options) {
     select.innerHTML = '';
-    select.appendChild(new Option('Všechny', ''));
+    select.appendChild(new Option('Vechny', ''));
     options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
   }
 
   function formatDisplay(field, value) {
-    if (!value) return '–';
-    if (field === 'aktivni') return value === '1' ? '✓' : '–';
+    if (!value) return '';
+    if (field === 'aktivni') return value === '1' ? '' : '';
     if (field === 'znacka_id') return lookupLabel(meta.brands, value);
     if (field === 'skupina_id') return lookupLabel(meta.groups, value);
     if (field === 'merna_jednotka') return value;
@@ -1261,7 +1261,7 @@ php
 
   function lookupLabel(list, value) {
     const found = list.find((item) => item.value === String(value));
-    return found ? found.label : '–';
+    return found ? found.label : '';
   }
 
   async function saveChange(sku, field, value) {
@@ -1273,12 +1273,12 @@ php
       });
       const data = await response.json();
       if (!data.ok) {
-        alert(data.error || 'Uložení se nezdařilo.');
+        alert(data.error || 'Uloen se nezdailo.');
         return false;
       }
       return true;
     } catch (err) {
-      alert('Nastala chyba při ukládání.');
+      alert('Nastala chyba pi ukldn.');
       return false;
     }
   }
