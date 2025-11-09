@@ -60,13 +60,17 @@ final class ReservationsController
             echo json_encode(['items' => []]);
             return;
         }
-        $like = '%' . $term . '%';
-        $stmt = DB::pdo()->prepare(
-            'SELECT sku, alt_sku, nazev, ean, merna_jednotka FROM produkty ' .
-            'WHERE sku LIKE ? OR alt_sku LIKE ? OR nazev LIKE ? OR ean LIKE ? ' .
-            'ORDER BY nazev LIMIT 20'
+        [$searchCondition, $params] = $this->buildSearchClauses(
+            $term,
+            ['sku','alt_sku','nazev','ean']
         );
-        $stmt->execute([$like,$like,$like,$like]);
+        $sql = 'SELECT sku, alt_sku, nazev, ean, merna_jednotka FROM produkty';
+        if ($searchCondition !== '') {
+            $sql .= ' WHERE ' . $searchCondition;
+        }
+        $sql .= ' ORDER BY nazev LIMIT 20';
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
         $items = [];
         foreach ($stmt as $row) {
             $items[] = [
@@ -106,6 +110,31 @@ final class ReservationsController
             $pdo->exec("ALTER TABLE `rezervace` ADD COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
             try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (\Throwable $e) {}
         }
+    }
+
+    /**
+     * @param array<int,string> $fields
+     * @return array{0:string,1:array<int,string>}
+     */
+    private function buildSearchClauses(string $term, array $fields): array
+    {
+        $words = preg_split('/\s+/u', trim($term)) ?: [];
+        $words = array_values(array_filter($words, static fn($w) => $w !== ''));
+        if (empty($words)) {
+            return ['', []];
+        }
+        $clauses = [];
+        $params = [];
+        foreach ($words as $word) {
+            $like = '%' . $word . '%';
+            $inner = [];
+            foreach ($fields as $field) {
+                $inner[] = "{$field} LIKE ?";
+                $params[] = $like;
+            }
+            $clauses[] = '(' . implode(' OR ', $inner) . ')';
+        }
+        return [implode(' AND ', $clauses), $params];
     }
 
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }

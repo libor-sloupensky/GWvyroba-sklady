@@ -125,6 +125,8 @@ final class ImportController
         $itemInsert = $pdo->prepare('INSERT INTO polozky_eshop (eshop_source,cislo_dokladu,code_raw,stock_ids_raw,sku,ean,nazev,mnozstvi,merna_jednotka,cena_jedn_mena,cena_jedn_czk,mena_puvodni,sazba_dph_hint,plati_dph,sleva_procento,duzp,import_batch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $deleteItems = $pdo->prepare('DELETE FROM polozky_eshop WHERE eshop_source=? AND cislo_dokladu=?');
         $deleteDoc = $pdo->prepare('DELETE FROM doklady_eshop WHERE eshop_source=? AND cislo_dokladu=?');
+        $deleteMovement = $pdo->prepare('DELETE FROM polozky_pohyby WHERE ref_id=?');
+        $movementInsert = $pdo->prepare('INSERT INTO polozky_pohyby (datum,sku,mnozstvi,merna_jednotka,typ_pohybu,poznamka,ref_id) VALUES (?,?,?,?,?,?,?)');
         $docCount = 0;
         $itemCount = 0;
         $missingSku = [];
@@ -206,6 +208,22 @@ final class ImportController
                             'sku' => $sku !== '' ? $sku : null,
                             'ean' => $item['ean'] ?? null,
                         ];
+                    }
+                    if (!$isMissingSku) {
+                        $ref = $this->buildMovementRef($eshop, $docNumber, (string)$sku);
+                        $deleteMovement->execute([$ref]);
+                        $movementQty = -1 * $this->toFloat($quantity);
+                        if ($movementQty !== 0.0) {
+                            $movementInsert->execute([
+                                $duzp,
+                                $sku,
+                                $movementQty,
+                                $this->emptyToNull($item['unit'] ?? null),
+                                'odpis',
+                                sprintf('Doklad %s / %s', $eshop, $docNumber),
+                                $ref,
+                            ]);
+                        }
                     }
                 }
             }
@@ -664,6 +682,11 @@ final class ImportController
     {
         $formatted = number_format($value, 3, '.', '');
         return rtrim(rtrim($formatted, '0'), '.') ?: '0';
+    }
+
+    private function buildMovementRef(string $eshop, string $docNumber, string $sku): string
+    {
+        return sprintf('doc:%s:%s:%s', mb_strtolower($eshop, 'UTF-8'), $docNumber, $sku);
     }
 
     private function isKnownEshop(string $eshop): bool

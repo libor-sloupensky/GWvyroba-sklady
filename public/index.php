@@ -63,7 +63,9 @@ $router->post('/bom/import', [BomController::class, 'importCsv']);
 
 // Inventory
 $router->get('/inventory', [InventoryController::class, 'index']);
-$router->post('/inventory/move', [InventoryController::class, 'addMove']);
+$router->post('/inventory/start', [InventoryController::class, 'start']);
+$router->post('/inventory/close', [InventoryController::class, 'close']);
+$router->post('/inventory/entry', [InventoryController::class, 'addEntry']);
 
 // Reservations
 $router->get('/reservations', [ReservationsController::class, 'index']);

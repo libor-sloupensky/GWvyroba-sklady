@@ -137,6 +137,36 @@ CREATE TABLE IF NOT EXISTS polozky_pohyby (
   KEY idx_pohyby_datum (datum)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
+CREATE TABLE IF NOT EXISTS inventury (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  opened_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  closed_at DATETIME NULL,
+  baseline_inventory_id INT NULL,
+  poznamka VARCHAR(255) NULL,
+  KEY idx_inventury_closed (closed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS inventura_polozky (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  inventura_id INT NOT NULL,
+  sku VARCHAR(128) NOT NULL,
+  mnozstvi DECIMAL(18,6) NOT NULL,
+  poznamka VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_invpol_inventura (inventura_id),
+  KEY idx_invpol_sku (sku),
+  CONSTRAINT fk_invpol_inventura FOREIGN KEY (inventura_id) REFERENCES inventury(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS inventura_stavy (
+  inventura_id INT NOT NULL,
+  sku VARCHAR(128) NOT NULL,
+  stav DECIMAL(18,6) NOT NULL,
+  PRIMARY KEY (inventura_id, sku),
+  KEY idx_invstav_sku (sku),
+  CONSTRAINT fk_invstav_inv FOREIGN KEY (inventura_id) REFERENCES inventury(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
 CREATE TABLE IF NOT EXISTS rezervace (
   id INT AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(128) NOT NULL,
