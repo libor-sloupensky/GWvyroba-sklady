@@ -186,10 +186,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const first = document.createElement('td');
       first.className = 'bom-tree-cell';
-      first.style.paddingLeft = `${Math.max(0, depth - 1) * 1.2}rem`;
+      first.style.paddingLeft = `${Math.max(0, depth) * 1.2}rem`;
       const prefix = document.createElement('span');
       prefix.className = 'bom-tree-prefix';
       prefix.textContent = buildBranchPrefix(guides);
+      if (!prefix.textContent) prefix.style.display = 'none';
       const label = document.createElement('span');
       label.className = 'bom-tree-label';
       label.textContent = formatNodeLabel(node);
