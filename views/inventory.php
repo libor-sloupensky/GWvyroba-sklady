@@ -249,7 +249,10 @@
           const message = data && data.error ? data.error : (text || `HTTP ${response.status}`);
           throw new Error(message);
         }
-        if (!data) throw new Error('Neplatná odpověď ze serveru.');
+        if (!data) {
+          const snippet = text ? text.slice(0, 200) : '(žádná data)';
+          throw new Error('Neplatná odpověď: ' + snippet);
+        }
         return data;
       }))
       .then((data) => {
