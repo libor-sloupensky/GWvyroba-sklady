@@ -83,10 +83,11 @@
 .bom-tree-table th,
 .bom-tree-table td { border:1px solid #e0e0e0; padding:0.35rem 0.5rem; vertical-align:top; }
 .bom-tree-table th { background:#f7f9fb; text-align:left; font-weight:600; }
-.bom-tree-cell { white-space:nowrap; }
+.bom-tree-cell { white-space:nowrap; display:flex; align-items:flex-start; gap:0.2rem; }
 .bom-tree-prefix { display:inline-block; min-width:1.8rem; color:#90a4ae; }
 .bom-tree-label { font-weight:600; }
 .bom-tree-note { margin-left:0.5rem; font-size:0.8rem; color:#b00020; }
+.bom-tree-indent { display:inline-block; }
 .bom-tree-actions { text-align:right; white-space:nowrap; }
 .bom-action-btn {
   border: 1px solid #cfd8dc;
@@ -280,18 +281,21 @@ document.addEventListener('DOMContentLoaded', function () {
       rows.forEach((rowData) => {
         const tr = document.createElement('tr');
 
-        const first = document.createElement('td');
-        first.className = 'bom-tree-cell';
-        first.style.paddingLeft = `${Math.max(0, rowData.depth) * 1.2}rem`;
-        const prefix = document.createElement('span');
-        prefix.className = 'bom-tree-prefix';
-        prefix.textContent = buildBranchPrefix(rowData.guides);
-        if (!prefix.textContent) prefix.style.display = 'none';
-        const label = document.createElement('span');
-        label.className = 'bom-tree-label';
-        label.textContent = formatNodeLabel(rowData.node);
-        first.appendChild(prefix);
-        first.appendChild(label);
+      const first = document.createElement('td');
+      first.className = 'bom-tree-cell';
+      const indent = document.createElement('span');
+      indent.className = 'bom-tree-indent';
+      indent.style.width = `${Math.max(0, rowData.depth) * 1.2}rem`;
+      const prefix = document.createElement('span');
+      prefix.className = 'bom-tree-prefix';
+      prefix.textContent = buildBranchPrefix(rowData.guides);
+      if (!prefix.textContent) prefix.style.display = 'none';
+      const label = document.createElement('span');
+      label.className = 'bom-tree-label';
+      label.textContent = formatNodeLabel(rowData.node);
+      first.appendChild(indent);
+      first.appendChild(prefix);
+      first.appendChild(label);
         if (rowData.node.cycle) {
           const badge = document.createElement('span');
           badge.className = 'bom-tree-note';
