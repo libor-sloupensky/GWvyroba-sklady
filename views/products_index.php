@@ -1,313 +1,1065 @@
-<?php
+﻿ď»ż<?php
+
   $activeFilters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
+
   $filterBrand = (int)($activeFilters['brand'] ?? 0);
+
   $filterGroup = (int)($activeFilters['group'] ?? 0);
+
   $filterType  = (string)($activeFilters['type'] ?? '');
+
   $filterSearch= (string)($activeFilters['search'] ?? '');
+
   $hasSearchActive = (bool)($hasSearch ?? false);
+
 ?>
+
 <h1>Produkty</h1>
+
 <style>
+
 .collapsible {
+
   border: 1px solid #ddd;
+
   border-radius: 4px;
+
   padding: 0.65rem 0.9rem;
+
   margin-bottom: 1rem;
+
 }
+
 .collapsible summary {
+
   cursor: pointer;
+
   font-weight: 600;
+
   list-style: none;
+
   display: flex;
+
   align-items: center;
+
 }
+
 .collapsible summary::-webkit-details-marker {
+
   display: none;
+
 }
+
 .collapsible summary::after {
+
   content: '\25BC';
+
   font-size: 1.4rem;
+
   margin-left: 0.5rem;
+
   color: #455a64;
+
 }
+
 .collapsible[open] summary::after {
+
   content: '\25B2';
+
 }
+
 .collapsible-body {
+
   margin-top: 0.75rem;
+
 }
+
 .product-filter-form {
+
   border: 1px solid #ddd;
+
   border-radius: 4px;
+
   padding: 0.9rem;
+
   display: flex;
+
   flex-wrap: wrap;
+
   gap: 1rem;
+
   margin-bottom: 1rem;
+
   background: #fafafa;
+
 }
+
 .product-filter-form label {
+
   display: flex;
+
   flex-direction: column;
+
   gap: 0.3rem;
+
   font-weight: 600;
+
   min-width: 200px;
+
 }
+
 .section-title {
+
   font-size: 1.1rem;
+
   font-weight: 600;
+
   margin: 1rem 0 0.4rem;
+
 }
+
 .muted {
+
   color: #607d8b;
+
 }
+
 .products-table {
+
   width: 100%;
+
   border-collapse: collapse;
+
   margin-top: 1rem;
+
 }
+
 .products-table th,
+
 .products-table td {
+
   border: 1px solid #ddd;
+
   padding: 0.4rem 0.5rem;
+
   vertical-align: top;
+
 }
+
 .products-table th {
+
   background: #f3f6f9;
+
 }
+
 .sku-cell {
   cursor: pointer;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+.sku-toggle {
+  font-size: 0.9rem;
+  color: #455a64;
 }
 .inline-input {
   width: 100%;
   box-sizing: border-box;
 }
-.bom-tree-panel {
-  border: 1px solid #cfd8dc;
-  border-radius: 4px;
-  padding: 0.75rem;
-  background: #f6fbff;
-  margin-bottom: 1rem;
+.bom-tree-row td {
+  background: #fdfdfd;
+  padding: 0.6rem;
+  border-top: none;
 }
-.bom-tree-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.4rem;
-}
-.bom-tree-panel button {
-  border: 1px solid #90a4ae;
-  background: #fff;
-  padding: 0.15rem 0.6rem;
-  cursor: pointer;
-}
-#bom-tree-content {
-  max-height: 320px;
-  overflow-y: auto;
-  background: #fff;
-  padding: 0.5rem;
+.bom-tree-row pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "Fira Mono","Consolas",monospace;
+  font-size: 0.9rem;
 }
 </style>
 
+
+
 <?php if (!empty($error)): ?>
+
   <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
+
     <?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?>
+
   </div>
+
 <?php endif; ?>
+
 <?php if (!empty($message)): ?>
+
   <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;">
+
     <?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?>
+
   </div>
+
 <?php endif; ?>
+
+
 
 <details class="collapsible" id="products-help">
-  <summary>N�pov�da � CSV a pole produktu</summary>
+
+  <summary>NĂˇpovÄ›da â€“ CSV a pole produktu</summary>
+
   <div class="collapsible-body">
-    <p><strong>Popis sloupc� CSV (odd�lova� ;):</strong></p>
+
+    <p><strong>Popis sloupcĹŻ CSV (oddÄ›lovaÄŤ ;):</strong></p>
+
     <ul>
-      <li><code>sku</code> � povinn� intern� k�d produktu.</li>
-      <li><code>alt_sku</code> � voliteln� alternativn� k�d (unik�tn�, nesm� b�t shodn� se SKU).</li>
-      <li><code>ean</code> � voliteln� EAN / ��rov� k�d.</li>
-      <li><code>zna�ka</code> / <code>skupina</code> � n�zvy definovan� v Nastaven�.</li>
-      <li><code>typ</code> � jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balen�</code>, <code>karton</code>.</li>
-      <li><code>m�rn�_jednotka</code> � k�d jednotky z Nastaven� (nap�. <code>ks</code>, <code>kg</code>).</li>
-      <li><code>n�zev</code> � povinn� n�zev polo�ky.</li>
-      <li><code>min_z�soba</code> � bezpe�n� z�soba; pl�nov�n� se m� dr�et alespo� t�to hodnoty.</li>
-      <li><code>min_d�vka</code> � minim�ln� vyr�b�n� d�vka. Men�� mno�stv� v�roba nespust�.</li>
-      <li><code>krok_v�roby</code> � o kolik lze d�vku navy�ovat nad minimum (nap�. krok 50 ? 200, 250, 300 �).</li>
-      <li><code>v�robn�_doba_dn�</code> � d�lka v�roby v kalend��n�ch dnech.</li>
-      <li><code>aktivn�</code> � 1 = aktivn�, 0 = skryt� produkt.</li>
-      <li><code>pozn�mka</code> � libovoln� text.</li>
+
+      <li><code>sku</code> â€“ povinnĂ˝ internĂ­ kĂłd produktu.</li>
+
+      <li><code>alt_sku</code> â€“ volitelnĂ˝ alternativnĂ­ kĂłd (unikĂˇtnĂ­, nesmĂ­ bĂ˝t shodnĂ˝ se SKU).</li>
+
+      <li><code>ean</code> â€“ volitelnĂ˝ EAN / ÄŤĂˇrovĂ˝ kĂłd.</li>
+
+      <li><code>znaÄŤka</code> / <code>skupina</code> â€“ nĂˇzvy definovanĂ© v NastavenĂ­.</li>
+
+      <li><code>typ</code> â€“ jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balenĂ­</code>, <code>karton</code>.</li>
+
+      <li><code>mÄ›rnĂˇ_jednotka</code> â€“ kĂłd jednotky z NastavenĂ­ (napĹ™. <code>ks</code>, <code>kg</code>).</li>
+
+      <li><code>nĂˇzev</code> â€“ povinnĂ˝ nĂˇzev poloĹľky.</li>
+
+      <li><code>min_zĂˇsoba</code> â€“ bezpeÄŤnĂˇ zĂˇsoba; plĂˇnovĂˇnĂ­ se mĂˇ drĹľet alespoĹ tĂ©to hodnoty.</li>
+
+      <li><code>min_dĂˇvka</code> â€“ minimĂˇlnĂ­ vyrĂˇbÄ›nĂˇ dĂˇvka. MenĹˇĂ­ mnoĹľstvĂ­ vĂ˝roba nespustĂ­.</li>
+
+      <li><code>krok_vĂ˝roby</code> â€“ o kolik lze dĂˇvku navyĹˇovat nad minimum (napĹ™. krok 50 ? 200, 250, 300 â€¦).</li>
+
+      <li><code>vĂ˝robnĂ­_doba_dnĂ­</code> â€“ dĂ©lka vĂ˝roby v kalendĂˇĹ™nĂ­ch dnech.</li>
+
+      <li><code>aktivnĂ­</code> â€“ 1 = aktivnĂ­, 0 = skrytĂ˝ produkt.</li>
+
+      <li><code>poznĂˇmka</code> â€“ libovolnĂ˝ text.</li>
+
     </ul>
-    <p>Desetinn� hodnoty pi�te s te�kou (nap�. <code>0.25</code>). CSV mus� b�t v UTF-8.</p>
+
+    <p>DesetinnĂ© hodnoty piĹˇte s teÄŤkou (napĹ™. <code>0.25</code>). CSV musĂ­ bĂ˝t v UTF-8.</p>
+
   </div>
+
 </details>
+
+
 
 <details class="collapsible" id="product-create-panel">
-  <summary>P�idat produkt</summary>
+
+  <summary>PĹ™idat produkt</summary>
+
   <div class="collapsible-body">
+
     <form method="post" action="/products/create" class="product-create-form">
+
       <label>SKU*</label><input type="text" name="sku" required />
+
       <label>Alt SKU</label><input type="text" name="alt_sku" />
+
       <label>EAN</label><input type="text" name="ean" />
-      <label>Zna�ka</label>
+
+      <label>ZnaÄŤka</label>
+
       <select name="znacka_id">
-        <option value="">V�echny</option>
+
+        <option value="">VĹˇechny</option>
+
         <?php foreach (($brands ?? []) as $b): ?>
+
           <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
+
       <label>Skupina</label>
+
       <select name="skupina_id">
-        <option value="">V�echny</option>
+
+        <option value="">VĹˇechny</option>
+
         <?php foreach (($groups ?? []) as $g): ?>
+
           <option value="<?= (int)$g['id'] ?>"><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
+
       <label>Typ*</label>
+
       <select name="typ" required>
+
         <?php foreach (($types ?? []) as $t): ?>
+
           <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
-      <label>M�rn� jednotka*</label>
+
+      <label>MÄ›rnĂˇ jednotka*</label>
+
       <select name="merna_jednotka" required>
+
         <?php foreach (($units ?? []) as $u): ?>
+
           <option value="<?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
-      <label>N�zev*</label><input type="text" name="nazev" required />
-      <label>Min. z�soba</label><input type="number" step="0.001" name="min_zasoba" />
-      <label>Min. d�vka</label><input type="number" step="0.001" name="min_davka" />
-      <label>Krok v�roby</label><input type="number" step="0.001" name="krok_vyroby" />
-      <label>V�robn� doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
-      <label>Aktivn�*</label>
+
+      <label>NĂˇzev*</label><input type="text" name="nazev" required />
+
+      <label>Min. zĂˇsoba</label><input type="number" step="0.001" name="min_zasoba" />
+
+      <label>Min. dĂˇvka</label><input type="number" step="0.001" name="min_davka" />
+
+      <label>Krok vĂ˝roby</label><input type="number" step="0.001" name="krok_vyroby" />
+
+      <label>VĂ˝robnĂ­ doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
+
+      <label>AktivnĂ­*</label>
+
       <select name="aktivni">
-        <option value="1">Aktivn�</option>
+
+        <option value="1">AktivnĂ­</option>
+
         <option value="0">Skryto</option>
+
       </select>
-      <label>Pozn�mka</label><textarea name="poznamka" rows="2"></textarea>
-      <button type="submit">Ulo�it produkt</button>
+
+      <label>PoznĂˇmka</label><textarea name="poznamka" rows="2"></textarea>
+
+      <button type="submit">UloĹľit produkt</button>
+
     </form>
+
   </div>
+
 </details>
+
+
 
 <details class="collapsible" id="product-import-panel">
-  <summary>Import a �prava produkt�</summary>
+
+  <summary>Import a Ăşprava produktĹŻ</summary>
+
   <div class="collapsible-body">
-    <p><a href="/products/export">St�hnout CSV (aktu�ln�)</a></p>
+
+    <p><a href="/products/export">StĂˇhnout CSV (aktuĂˇlnĂ­)</a></p>
+
     <?php if (!empty($errors)): ?>
+
       <div class="notice">
+
         <strong>Chyby importu:</strong>
+
         <ul><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
+
       </div>
+
     <?php endif; ?>
+
     <form method="post" action="/products/import" enctype="multipart/form-data">
-      <label>Nahr�t CSV</label><br>
+
+      <label>NahrĂˇt CSV</label><br>
+
       <input type="file" name="csv" accept=".csv" required />
+
       <br>
+
       <button type="submit">Importovat</button>
-      <span class="muted">Pou��vejte UTF-8 a st�edn�k jako odd�lova�.</span>
+
+      <span class="muted">PouĹľĂ­vejte UTF-8 a stĹ™ednĂ­k jako oddÄ›lovaÄŤ.</span>
+
     </form>
+
   </div>
+
 </details>
 
+
+
 <div class="product-search-panel">
+
   <div class="section-title">Vyhledej produkt</div>
+
   <form method="get" action="/products" class="product-filter-form">
+
+    <input type="hidden" name="search" value="1" />
+
     <label>
-      <span>Zna�ka</span>
+
+      <span>ZnaÄŤka</span>
+
       <select name="znacka_id">
-        <option value="">V�echny</option>
+
+        <option value="">VĹˇechny</option>
+
         <?php foreach (($brands ?? []) as $b): $id = (int)$b['id']; ?>
+
           <option value="<?= $id ?>"<?= $filterBrand === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
+
     </label>
+
     <label>
+
       <span>Skupina</span>
+
       <select name="skupina_id">
-        <option value="">V�echny</option>
+
+        <option value="">VĹˇechny</option>
+
         <?php foreach (($groups ?? []) as $g): $id = (int)$g['id']; ?>
+
           <option value="<?= $id ?>"<?= $filterGroup === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
+
     </label>
+
     <label>
+
       <span>Typ</span>
+
       <select name="typ">
-        <option value="">V�echny</option>
+
+        <option value="">VĹˇechny</option>
+
         <?php foreach (($types ?? []) as $t): ?>
+
           <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $filterType === $t ? ' selected' : '' ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+
         <?php endforeach; ?>
+
       </select>
+
     </label>
+
     <label>
+
       <span>Hledat</span>
-      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / n�zev / EAN" />
+
+      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / nĂˇzev / EAN" />
+
     </label>
+
     <div style="align-self:flex-end;display:flex;gap:0.5rem;">
+
       <button type="submit">Vyhledat</button>
-      <a href="/products" style="align-self:center;">Zru�it filtr</a>
+
+      <a href="/products" style="align-self:center;">ZruĹˇit filtr</a>
+
     </div>
+
   </form>
+
 </div>
+
+
+
+php
+
+  $activeFilters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
+
+  $filterBrand = (int)($activeFilters['brand'] ?? 0);
+
+  $filterGroup = (int)($activeFilters['group'] ?? 0);
+
+  $filterType  = (string)($activeFilters['type'] ?? '');
+
+  $filterSearch= (string)($activeFilters['search'] ?? '');
+
+  $hasSearchActive = (bool)($hasSearch ?? false);
+
+?>
+
+<h1>Produkty</h1>
+
+<style>
+
+.collapsible {
+
+  border: 1px solid #ddd;
+
+  border-radius: 4px;
+
+  padding: 0.65rem 0.9rem;
+
+  margin-bottom: 1rem;
+
+}
+
+.collapsible summary {
+
+  cursor: pointer;
+
+  font-weight: 600;
+
+  list-style: none;
+
+  display: flex;
+
+  align-items: center;
+
+}
+
+.collapsible summary::-webkit-details-marker {
+
+  display: none;
+
+}
+
+.collapsible summary::after {
+
+  content: '\25BC';
+
+  font-size: 1.4rem;
+
+  margin-left: 0.5rem;
+
+  color: #455a64;
+
+}
+
+.collapsible[open] summary::after {
+
+  content: '\25B2';
+
+}
+
+.collapsible-body {
+
+  margin-top: 0.75rem;
+
+}
+
+.product-filter-form {
+
+  border: 1px solid #ddd;
+
+  border-radius: 4px;
+
+  padding: 0.9rem;
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 1rem;
+
+  margin-bottom: 1rem;
+
+  background: #fafafa;
+
+}
+
+.product-filter-form label {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 0.3rem;
+
+  font-weight: 600;
+
+  min-width: 200px;
+
+}
+
+.section-title {
+
+  font-size: 1.1rem;
+
+  font-weight: 600;
+
+  margin: 1rem 0 0.4rem;
+
+}
+
+.muted {
+
+  color: #607d8b;
+
+}
+
+.products-table {
+
+  width: 100%;
+
+  border-collapse: collapse;
+
+  margin-top: 1rem;
+
+}
+
+.products-table th,
+
+.products-table td {
+
+  border: 1px solid #ddd;
+
+  padding: 0.4rem 0.5rem;
+
+  vertical-align: top;
+
+}
+
+.products-table th {
+
+  background: #f3f6f9;
+
+}
+
+.sku-cell {
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+.sku-toggle {
+  font-size: 0.9rem;
+  color: #455a64;
+}
+.inline-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.bom-tree-row td {
+  background: #fdfdfd;
+  padding: 0.6rem;
+  border-top: none;
+}
+.bom-tree-row pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "Fira Mono","Consolas",monospace;
+  font-size: 0.9rem;
+}
+</style>
+
+
+
+<?php if (!empty($error)): ?>
+
+  <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
+
+    <?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?>
+
+  </div>
+
+<?php endif; ?>
+
+<?php if (!empty($message)): ?>
+
+  <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;">
+
+    <?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?>
+
+  </div>
+
+<?php endif; ?>
+
+
+
+<details class="collapsible" id="products-help">
+
+  <summary>NĂˇpovÄ›da â€“ CSV a pole produktu</summary>
+
+  <div class="collapsible-body">
+
+    <p><strong>Popis sloupcĹŻ CSV (oddÄ›lovaÄŤ ;):</strong></p>
+
+    <ul>
+
+      <li><code>sku</code> â€“ povinnĂ˝ internĂ­ kĂłd produktu.</li>
+
+      <li><code>alt_sku</code> â€“ volitelnĂ˝ alternativnĂ­ kĂłd (unikĂˇtnĂ­, nesmĂ­ bĂ˝t shodnĂ˝ se SKU).</li>
+
+      <li><code>ean</code> â€“ volitelnĂ˝ EAN / ÄŤĂˇrovĂ˝ kĂłd.</li>
+
+      <li><code>znaÄŤka</code> / <code>skupina</code> â€“ nĂˇzvy definovanĂ© v NastavenĂ­.</li>
+
+      <li><code>typ</code> â€“ jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balenĂ­</code>, <code>karton</code>.</li>
+
+      <li><code>mÄ›rnĂˇ_jednotka</code> â€“ kĂłd jednotky z NastavenĂ­ (napĹ™. <code>ks</code>, <code>kg</code>).</li>
+
+      <li><code>nĂˇzev</code> â€“ povinnĂ˝ nĂˇzev poloĹľky.</li>
+
+      <li><code>min_zĂˇsoba</code> â€“ bezpeÄŤnĂˇ zĂˇsoba; plĂˇnovĂˇnĂ­ se mĂˇ drĹľet alespoĹ tĂ©to hodnoty.</li>
+
+      <li><code>min_dĂˇvka</code> â€“ minimĂˇlnĂ­ vyrĂˇbÄ›nĂˇ dĂˇvka. MenĹˇĂ­ mnoĹľstvĂ­ vĂ˝roba nespustĂ­.</li>
+
+      <li><code>krok_vĂ˝roby</code> â€“ o kolik lze dĂˇvku navyĹˇovat nad minimum (napĹ™. krok 50 ? 200, 250, 300 â€¦).</li>
+
+      <li><code>vĂ˝robnĂ­_doba_dnĂ­</code> â€“ dĂ©lka vĂ˝roby v kalendĂˇĹ™nĂ­ch dnech.</li>
+
+      <li><code>aktivnĂ­</code> â€“ 1 = aktivnĂ­, 0 = skrytĂ˝ produkt.</li>
+
+      <li><code>poznĂˇmka</code> â€“ libovolnĂ˝ text.</li>
+
+    </ul>
+
+    <p>DesetinnĂ© hodnoty piĹˇte s teÄŤkou (napĹ™. <code>0.25</code>). CSV musĂ­ bĂ˝t v UTF-8.</p>
+
+  </div>
+
+</details>
+
+
+
+<details class="collapsible" id="product-create-panel">
+
+  <summary>PĹ™idat produkt</summary>
+
+  <div class="collapsible-body">
+
+    <form method="post" action="/products/create" class="product-create-form">
+
+      <label>SKU*</label><input type="text" name="sku" required />
+
+      <label>Alt SKU</label><input type="text" name="alt_sku" />
+
+      <label>EAN</label><input type="text" name="ean" />
+
+      <label>ZnaÄŤka</label>
+
+      <select name="znacka_id">
+
+        <option value="">VĹˇechny</option>
+
+        <?php foreach (($brands ?? []) as $b): ?>
+
+          <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+      <label>Skupina</label>
+
+      <select name="skupina_id">
+
+        <option value="">VĹˇechny</option>
+
+        <?php foreach (($groups ?? []) as $g): ?>
+
+          <option value="<?= (int)$g['id'] ?>"><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+      <label>Typ*</label>
+
+      <select name="typ" required>
+
+        <?php foreach (($types ?? []) as $t): ?>
+
+          <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+      <label>MÄ›rnĂˇ jednotka*</label>
+
+      <select name="merna_jednotka" required>
+
+        <?php foreach (($units ?? []) as $u): ?>
+
+          <option value="<?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+      <label>NĂˇzev*</label><input type="text" name="nazev" required />
+
+      <label>Min. zĂˇsoba</label><input type="number" step="0.001" name="min_zasoba" />
+
+      <label>Min. dĂˇvka</label><input type="number" step="0.001" name="min_davka" />
+
+      <label>Krok vĂ˝roby</label><input type="number" step="0.001" name="krok_vyroby" />
+
+      <label>VĂ˝robnĂ­ doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
+
+      <label>AktivnĂ­*</label>
+
+      <select name="aktivni">
+
+        <option value="1">AktivnĂ­</option>
+
+        <option value="0">Skryto</option>
+
+      </select>
+
+      <label>PoznĂˇmka</label><textarea name="poznamka" rows="2"></textarea>
+
+      <button type="submit">UloĹľit produkt</button>
+
+    </form>
+
+  </div>
+
+</details>
+
+
+
+<details class="collapsible" id="product-import-panel">
+
+  <summary>Import a Ăşprava produktĹŻ</summary>
+
+  <div class="collapsible-body">
+
+    <p><a href="/products/export">StĂˇhnout CSV (aktuĂˇlnĂ­)</a></p>
+
+    <?php if (!empty($errors)): ?>
+
+      <div class="notice">
+
+        <strong>Chyby importu:</strong>
+
+        <ul><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
+
+      </div>
+
+    <?php endif; ?>
+
+    <form method="post" action="/products/import" enctype="multipart/form-data">
+
+      <label>NahrĂˇt CSV</label><br>
+
+      <input type="file" name="csv" accept=".csv" required />
+
+      <br>
+
+      <button type="submit">Importovat</button>
+
+      <span class="muted">PouĹľĂ­vejte UTF-8 a stĹ™ednĂ­k jako oddÄ›lovaÄŤ.</span>
+
+    </form>
+
+  </div>
+
+</details>
+
+
+
+<div class="product-search-panel">
+
+  <div class="section-title">Vyhledej produkt</div>
+
+  <form method="get" action="/products" class="product-filter-form">
+
+    <input type="hidden" name="search" value="1" />
+
+    <label>
+
+      <span>ZnaÄŤka</span>
+
+      <select name="znacka_id">
+
+        <option value="">VĹˇechny</option>
+
+        <?php foreach (($brands ?? []) as $b): $id = (int)$b['id']; ?>
+
+          <option value="<?= $id ?>"<?= $filterBrand === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+    </label>
+
+    <label>
+
+      <span>Skupina</span>
+
+      <select name="skupina_id">
+
+        <option value="">VĹˇechny</option>
+
+        <?php foreach (($groups ?? []) as $g): $id = (int)$g['id']; ?>
+
+          <option value="<?= $id ?>"<?= $filterGroup === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+    </label>
+
+    <label>
+
+      <span>Typ</span>
+
+      <select name="typ">
+
+        <option value="">VĹˇechny</option>
+
+        <?php foreach (($types ?? []) as $t): ?>
+
+          <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $filterType === $t ? ' selected' : '' ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+
+        <?php endforeach; ?>
+
+      </select>
+
+    </label>
+
+    <label>
+
+      <span>Hledat</span>
+
+      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / nĂˇzev / EAN" />
+
+    </label>
+
+    <div style="align-self:flex-end;display:flex;gap:0.5rem;">
+
+      <button type="submit">Vyhledat</button>
+
+      <a href="/products" style="align-self:center;">ZruĹˇit filtr</a>
+
+    </div>
+
+  </form>
+
+</div>
+
+
 
 <div id="bom-tree-panel" class="bom-tree-panel" hidden>
+
   <div class="bom-tree-panel-header">
+
     <strong>BOM strom pro <span id="bom-tree-sku"></span></strong>
-    <button type="button" id="bom-tree-close">Zav��t</button>
+
+    <button type="button" id="bom-tree-close">ZavĹ™Ă­t</button>
+
   </div>
+
   <pre id="bom-tree-content"></pre>
+
 </div>
 
+
+
 <?php if (!$hasSearchActive): ?>
-  <p class="muted">Zadejte parametry vyhled�v�n� a potvr�te tla��tkem �Vyhledat�. Seznam produkt� se zobraz� a� po vyhled�n�.</p>
+
+  <p class="muted">Zadejte parametry vyhledĂˇvĂˇnĂ­ a potvrÄŹte tlaÄŤĂ­tkem â€žVyhledatâ€ś. Seznam produktĹŻ se zobrazĂ­ aĹľ po vyhledĂˇnĂ­.</p>
+
 <?php elseif (empty($items)): ?>
-  <p class="muted">��dn� produkty neodpov�daj� zadan�m filtr�m.</p>
+
+  <p class="muted">Ĺ˝ĂˇdnĂ© produkty neodpovĂ­dajĂ­ zadanĂ˝m filtrĹŻm.</p>
+
 <?php else: ?>
+
 <table class="products-table">
+
   <tr>
+
     <th>SKU</th>
+
     <th>Alt SKU</th>
+
     <th>EAN</th>
-    <th>Zna�ka</th>
+
+    <th>ZnaÄŤka</th>
+
     <th>Skupina</th>
+
     <th>Typ</th>
+
     <th>MJ</th>
-    <th>N�zev</th>
-    <th>Min. z�soba</th>
-    <th>Min. d�vka</th>
-    <th>Krok v�roby</th>
-    <th>V�robn� doba</th>
-    <th>Aktivn�</th>
-    <th>Pozn�mka</th>
+
+    <th>NĂˇzev</th>
+
+    <th>Min. zĂˇsoba</th>
+
+    <th>Min. dĂˇvka</th>
+
+    <th>Krok vĂ˝roby</th>
+
+    <th>VĂ˝robnĂ­ doba</th>
+
+    <th>AktivnĂ­</th>
+
+    <th>PoznĂˇmka</th>
+
   </tr>
+
   <?php foreach (($items ?? []) as $it): ?>
+
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-    <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></td>
+
+    <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
+      <span class="sku-toggle">▸</span>
+      <span class="sku-text"><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
+    </td>
+
     <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '�' ?>
+
+      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : 'â€“' ?>
+
     </td>
+
     <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '�' ?>
+
+      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : 'â€“' ?>
+
     </td>
-    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? '�'),ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? '�'),ENT_QUOTES,'UTF-8') ?></td>
+
+    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? 'â€“'),ENT_QUOTES,'UTF-8') ?></td>
+
+    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? 'â€“'),ENT_QUOTES,'UTF-8') ?></td>
+
     <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
+
     <td class="editable" data-field="merna_jednotka" data-type="select" data-options="units" data-value="<?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
+
     <td class="editable" data-field="nazev" data-type="text" data-value="<?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+
     <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_zasoba'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_zasoba'] ?></td>
+
     <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_davka'] ?></td>
+
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>
+
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '?' : '�' ?></td>
+
+    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '?' : 'â€“' ?></td>
+
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+
   </tr>
+
   <?php endforeach; ?>
+
 </table>
+
 <?php endif; ?>
+
+
 
 <script>
 (function () {
@@ -316,74 +1068,108 @@
     groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
     units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
     types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    active: [{value:'1',label:'?'},{value:'0',label:'�'}]
+    active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
   };
 
   const table = document.querySelector('.products-table');
   const updateUrl = '/products/update';
-  const bomPanel = document.getElementById('bom-tree-panel');
-  const bomContent = document.getElementById('bom-tree-content');
-  const bomSkuLabel = document.getElementById('bom-tree-sku');
-  const bomClose = document.getElementById('bom-tree-close');
+  let bomState = { row: null, detail: null };
 
-  bomClose?.addEventListener('click', () => {
-    bomPanel.hidden = true;
-    bomContent.textContent = '';
-  });
+  if (table) {
+    table.addEventListener('click', (event) => {
+      const skuCell = event.target.closest('.sku-cell');
+      if (skuCell && skuCell.dataset.sku) {
+        event.preventDefault();
+        toggleBomRow(skuCell);
+      }
+    });
 
-  if (!table) {
-    return;
+    table.addEventListener('dblclick', (event) => {
+      const cell = event.target.closest('.editable');
+      if (!cell || cell.dataset.editing === '1') return;
+      const row = cell.closest('tr');\n      if (!row) return;\n      const sku = row.dataset.sku;\n      if (!sku) return;
+      startEdit(cell, sku);
+    });
   }
 
-  table.addEventListener('dblclick', (event) => {
-    const skuCell = event.target.closest('.sku-cell');
-    if (skuCell) {
-      const skuValue = skuCell.dataset.sku;
-      if (skuValue) {
-        loadBomTree(skuValue);
-      }
-      event.stopPropagation();
+  function toggleBomRow(cell) {
+    const row = cell.closest('tr');
+    if (!row) return;
+    if (bomState.row === row) {
+      closeBomRow();
       return;
     }
-    const cell = event.target.closest('.editable');
-    if (!cell || cell.dataset.editing === '1') return;
-    const row = cell.closest('tr');
-    const sku = row?.dataset.sku;
-    if (!sku) return;
-    startEdit(cell, sku);
-  });
-
-  function loadBomTree(sku) {
-    fetch('/products/bom-tree?sku=' + encodeURIComponent(sku), {headers:{'Accept':'application/json'}})
-      .then((res) => res.ok ? res.json() : Promise.reject())
-      .then((data) => {
-        if (!data.ok) {
-          alert(data.error || 'BOM strom se nepoda�ilo na��st.');
-          return;
-        }
-        bomPanel.hidden = false;
-        bomSkuLabel.textContent = sku;
-        bomContent.textContent = renderBomText(data.tree);
-      })
-      .catch(() => alert('Nepoda�ilo se na��st BOM strom.'));
+    closeBomRow();
+    const toggle = cell.querySelector('.sku-toggle');
+    if (toggle) toggle.textContent = '▾';
+    row.classList.add('bom-open');
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'bom-tree-row';
+    const detailCell = document.createElement('td');
+    detailCell.colSpan = row.children.length;
+    detailCell.textContent = 'Načítám…';
+    detailRow.appendChild(detailCell);
+    row.parentNode.insertBefore(detailRow, row.nextSibling);
+    bomState = { row, detail: detailRow };
+    loadBomTree(cell.dataset.sku, detailCell);
   }
 
-  function renderBomText(node, depth = 0) {
+  function closeBomRow() {
+    if (!bomState.row) return;
+    bomState.row.classList.remove('bom-open');
+    const toggle = bomState.row.querySelector('.sku-toggle');
+    if (toggle) toggle.textContent = '▸';
+    if (bomState.detail) { bomState.detail.remove(); }
+    bomState = { row: null, detail: null };
+  }
+
+  function loadBomTree(sku, targetCell) {
+    fetch('/products/bom-tree?sku=' + encodeURIComponent(sku), { headers: { 'Accept': 'application/json' } })
+      .then((res) => res.ok ? res.json() : Promise.reject())
+      .then((data) => {
+        if (!bomState.detail || !targetCell.isConnected) {
+          return;
+        }
+        if (!data.ok) {
+          targetCell.textContent = data.error || 'BOM strom se nepodařilo načíst.';
+          return;
+        }
+        const text = formatBomText(data.tree);
+        targetCell.innerHTML = '';
+        const pre = document.createElement('pre');
+        pre.textContent = text;
+        targetCell.appendChild(pre);
+      })
+      .catch(() => {
+        if (targetCell.isConnected) {
+          targetCell.textContent = 'BOM strom se nepodařilo načíst.';
+        }
+      });
+  }
+
+  function formatBomText(node, depth = 0) {
     if (!node) return '';
     const indent = '  '.repeat(depth);
-    const edge = node.edge;
-    let line = `${indent}${node.sku} � ${node.nazev}`;
-    if (node.typ) {
-      line += ` [${node.typ}${node.merna_jednotka ? ', MJ ' + node.merna_jednotka : ''}]`;
+    const metaParts = [];
+    if (node.typ) metaParts.push(node.typ);
+    if (node.merna_jednotka) metaParts.push('MJ ' + node.merna_jednotka);
+    let line = ${indent} – ;
+    if (metaParts.length) {
+      line +=  [];
     }
-    if (edge) {
-      line += `  � ${edge.koeficient} ${edge.merna_jednotka || node.merna_jednotka} (${edge.druh_vazby})`;
+    if (node.edge) {
+      const edgeMj = node.edge.merna_jednotka || node.merna_jednotka || '';
+      line +=   ←   ();
     }
     let text = line + '\n';
-    (node.children || []).forEach((child) => {
-      text += renderBomText(child, depth + 1);
+    const children = node.children || [];
+    if (!children.length && depth === 0) {
+      text += indent + '  (bez navázaných položek)\n';
+    }
+    children.forEach((child) => {
+      text += formatBomText(child, depth + 1);
       if (child.cycle) {
-        text += indent + '  ? cyklick� vazba' + '\n';
+        text += ${'  '.repeat(depth + 1)}↺ cyklická vazba (zkráceno)\n;
       }
     });
     return text;
@@ -459,13 +1245,13 @@
 
   function appendOptions(select, options) {
     select.innerHTML = '';
-    select.appendChild(new Option('V�echny', ''));
+    select.appendChild(new Option('Všechny', ''));
     options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
   }
 
   function formatDisplay(field, value) {
-    if (!value) return '�';
-    if (field === 'aktivni') return value === '1' ? '?' : '�';
+    if (!value) return '–';
+    if (field === 'aktivni') return value === '1' ? '✓' : '–';
     if (field === 'znacka_id') return lookupLabel(meta.brands, value);
     if (field === 'skupina_id') return lookupLabel(meta.groups, value);
     if (field === 'merna_jednotka') return value;
@@ -475,7 +1261,7 @@
 
   function lookupLabel(list, value) {
     const found = list.find((item) => item.value === String(value));
-    return found ? found.label : '�';
+    return found ? found.label : '–';
   }
 
   async function saveChange(sku, field, value) {
@@ -487,14 +1273,22 @@
       });
       const data = await response.json();
       if (!data.ok) {
-        alert(data.error || 'Ulo�en� se nezda�ilo.');
+        alert(data.error || 'Uložení se nezdařilo.');
         return false;
       }
       return true;
     } catch (err) {
-      alert('Nastala chyba p�i ukl�d�n�.');
+      alert('Nastala chyba při ukládání.');
       return false;
     }
   }
 })();
 </script>
+
+
+
+
+
+
+
+

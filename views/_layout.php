@@ -1,17 +1,31 @@
-<?php
-// base layout with footer: last modified (mtime) + version
+﻿<?php
 $title = $title ?? 'App';
-$version = (include __DIR__ . '/../config/config.php')['app']['version'] ?? 'dev';
+$config = include __DIR__ . '/../config/config.php';
+$version = $config['app']['version'] ?? 'dev';
+
 function app_footer_info(): array {
-  $root = dirname(__DIR__,1);
-  $files = [ $root.'/public/index.php', $root.'/src', $root.'/views', $root.'/db/schema.sql' ];
-  $max = 0; $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
-  foreach ($it as $f) { $p = $f->getPathname(); if (strpos($p,'/vendor/')!==false) continue; $t = @filemtime($p); if ($t && $t>$max) $max=$t; }
-  if ($max<=0) $max = time();
-  return ['mtime'=>$max];
+    $root = dirname(__DIR__, 1);
+    $max = 0;
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+    foreach ($iterator as $file) {
+        $path = $file->getPathname();
+        if (strpos($path, '/vendor/') !== false) {
+            continue;
+        }
+        $mtime = @filemtime($path);
+        if ($mtime && $mtime > $max) {
+            $max = $mtime;
+        }
+    }
+    if ($max <= 0) {
+        $max = time();
+    }
+    return ['mtime' => $max];
 }
+
 $fi = app_footer_info();
-?><!doctype html>
+?>
+<!doctype html>
 <html lang="cs">
 <head>
   <meta charset="utf-8" />
@@ -35,20 +49,20 @@ $fi = app_footer_info();
   <header>
     <nav>
       <a href="/">Domů</a>
-      <a href="/import" title="Nahrát Pohoda XML a spustit import">Import</a>
+      <a href="/import" title="Nahrát XML a spustit import">Import</a>
       <a href="/products" title="Kmenová karta produktů, CSV import/export">Produkty</a>
       <a href="/bom" title="Vazby BOM: karton/sada">BOM</a>
       <a href="/inventory" title="Záznam inventury a korekcí">Inventura</a>
       <a href="/reservations" title="Rezervace hotových produktů">Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného">Výroba</a>
       <a href="/analytics/revenue" title="Přehled obratu (všechny položky)">Analýza</a>
-      <a href="/settings" title="Řady, ignor vzory, globální nastavení">Nastavení</a>
+      <a href="/settings" title="Řady, ignorované vzory, globální nastavení">Nastavení</a>
       <a href="/plany" title="Seznam naplánovaných funkcí">Plány</a>
       <span style="float:right;" class="muted">Režim: otevřený (login vypnut)</span>
     </nav>
   </header>
   <main class="container">
-    <?php require __DIR__ . '/' . basename($view ?? ($view ?? 'home.php')); ?>
+    <?php require __DIR__ . '/' . basename($view ?? 'home.php'); ?>
   </main>
   <div class="footer">
     <div><strong>Poslední úprava:</strong> <?= date('Y-m-d H:i:s', (int)$fi['mtime']) ?></div>

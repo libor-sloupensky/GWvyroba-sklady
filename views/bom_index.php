@@ -1,4 +1,4 @@
-<h1>BOM (karton / sada)</h1>
+ï»¿<h1>BOM (karton / sada)</h1>
 <style>
 .csv-help {
   border: 1px solid #ddd;
@@ -15,57 +15,59 @@
   display: none;
 }
 .csv-help summary::after {
-  content: ' ?';
-  font-weight: normal;
+  content: '\25BC';
+  font-size: 1.4rem;
+  margin-left: 0.5rem;
+  color: #455a64;
 }
 .csv-help[open] summary::after {
-  content: ' ?';
+  content: '\25B2';
 }
 .csv-help-body {
   margin-top: 0.5rem;
 }
 </style>
 <details class="csv-help" id="bom-help">
-  <summary>Nápovìda – BOM import</summary>
+  <summary>NÃ¡povÄ›da â€“ BOM import</summary>
   <div class="csv-help-body">
-    <p><strong>Popis sloupcù (oddìlovaè ;):</strong></p>
+    <p><strong>Popis sloupcÅ¯ (oddÄ›lovaÄ ;):</strong></p>
     <ul>
-      <li><code>rodic_sku</code> – finální produkt nebo karton, pro kterı skládáte recepturu.</li>
-      <li><code>potomek_sku</code> – komponenta, která do rodièe vstupuje.</li>
-      <li><code>koeficient</code> – mnoství potomka na 1 jednotku rodièe (ve stejné MJ jako má potomek).</li>
-      <li><code>merna_jednotka_potomka</code> – volitelné; pokud ponecháte prázdné, vezme se MJ potomka z kmenovıch produktù.</li>
-      <li><code>druh_vazby</code> – <code>karton</code> pouze pro rodièe typu karton; ve všech ostatních pøípadech je vazba vdy <em>sada</em>. Prázdné pole systém doplní stejnì.</li>
+      <li><code>rodic_sku</code> â€“ finÃ¡lnÃ­ produkt nebo karton, pro kterÃ½ sklÃ¡dÃ¡te recepturu.</li>
+      <li><code>potomek_sku</code> â€“ komponenta, kterÃ¡ do rodiÄe vstupuje.</li>
+      <li><code>koeficient</code> â€“ mnoÅ¾stvÃ­ potomka na 1 jednotku rodiÄe (ve stejnÃ© MJ jako mÃ¡ potomek).</li>
+      <li><code>merna_jednotka_potomka</code> â€“ volitelnÃ©; pokud ponechÃ¡te prÃ¡zdnÃ©, pouÅ¾ije se MJ potomka z kmenovÃ½ch produktÅ¯.</li>
+      <li><code>druh_vazby</code> â€“ <code>karton</code> pouze pro rodiÄe typu karton; ve vÅ¡ech ostatnÃ­ch pÅ™Ã­padech je vazba vÅ¾dy <em>sada</em>. PrÃ¡zdnÃ© pole systÃ©m dopoÄÃ­tÃ¡ stejnÄ›.</li>
     </ul>
-    <p>Desetinné hodnoty zadávejte s teèkou. Kadou vazbu lze nahrát kdykoliv – rodiè i potomek jen musí existovat v tabulce produktù.</p>
+    <p>DesetinnÃ© hodnoty zadÃ¡vejte s teÄkou. KaÅ¾dou vazbu lze nahrÃ¡t kdykoliv â€“ rodiÄ i potomek jen musÃ­ existovat v tabulce produktÅ¯.</p>
   </div>
 </details>
-<?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
-<?php if (!empty($message)): ?><div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
-<?php if (!empty($errors)): ?><div class="notice">
+<?php if (!empty()): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string),ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
+<?php if (!empty()): ?><div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string),ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
+<?php if (!empty()): ?><div class="notice">
   <strong>Chyby importu:</strong>
-  <ul><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
+  <ul><?php foreach ( as ): ?><li><?= htmlspecialchars((string),ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
 </div><?php endif; ?>
-<p><a href="/bom/export">Stáhnout CSV (aktuální)</a></p>
+<p><a href="/bom/export">StÃ¡hnout CSV (aktuÃ¡lnÃ­)</a></p>
 <form method="post" action="/bom/import" enctype="multipart/form-data">
-  <label>Nahrát CSV</label><br>
+  <label>NahrÃ¡t CSV</label><br>
   <input type="file" name="csv" accept=".csv" required />
   <br>
   <button type="submit">Importovat</button>
-  <span class="muted">Tip: pouívejte UTF-8 a støedník.</span>
+  <span class="muted">Tip: pouÅ¾Ã­vejte UTFâ€‘8 a stÅ™ednÃ­k jako oddÄ›lovaÄ.</span>
 </form>
 
 <hr>
 <table>
   <tr>
-    <th>Rodiè (SKU)</th><th>Potomek (SKU)</th><th>Koeficient</th><th>MJ potomka</th><th>Druh vazby</th>
+    <th>RodiÄ (SKU)</th><th>Potomek (SKU)</th><th>Koeficient</th><th>MJ potomka</th><th>Druh vazby</th>
   </tr>
-  <?php foreach (($items ?? []) as $it): ?>
+  <?php foreach (( ?? []) as ): ?>
   <tr>
-    <td><?= htmlspecialchars((string)$it['rodic_sku'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)$it['potomek_sku'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)$it['koeficient'],ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)($it['merna_jednotka_potomka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)$it['druh_vazby'],ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)['rodic_sku'],ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)['potomek_sku'],ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)['koeficient'],ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)(['merna_jednotka_potomka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)['druh_vazby'],ENT_QUOTES,'UTF-8') ?></td>
   </tr>
   <?php endforeach; ?>
 </table>

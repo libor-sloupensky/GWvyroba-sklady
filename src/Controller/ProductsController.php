@@ -9,7 +9,7 @@ final class ProductsController
     {
         $this->requireAuth();
         $filters = $this->currentFilters();
-        $hasSearch = $this->filtersActive($filters);
+        $hasSearch = $this->searchTriggered();
         $message = $_SESSION['products_message'] ?? null;
         $errorMessage = $_SESSION['products_error'] ?? null;
         unset($_SESSION['products_message'], $_SESSION['products_error']);
@@ -189,7 +189,7 @@ final class ProductsController
             }
             $pdo->commit();
             $filters = $this->currentFilters();
-            $hasSearch = $this->filtersActive($filters);
+            $hasSearch = $this->searchTriggered();
             $this->render('products_index.php', [
                 'title'  => 'Produkty',
                 'items'  => $this->fetchProducts($filters),
@@ -424,7 +424,7 @@ final class ProductsController
     private function fetchProducts(?array $filters = null): array
     {
         $filters ??= $this->currentFilters();
-        if (!$this->filtersActive($filters)) {
+        if (!$this->searchTriggered()) {
             return [];
         }
         $sql = $this->productsSelectSql();
@@ -688,7 +688,7 @@ final class ProductsController
             'types'  => $this->productTypes(),
             'error'  => $message,
             'filters'=> $filters,
-            'hasSearch' => $this->filtersActive($filters),
+            'hasSearch' => $this->searchTriggered(),
         ]);
     }
 
@@ -726,18 +726,9 @@ final class ProductsController
         ];
     }
 
-    private function filtersActive(array $filters): bool
+    private function searchTriggered(): bool
     {
-        if (($filters['brand'] ?? 0) > 0) {
-            return true;
-        }
-        if (($filters['group'] ?? 0) > 0) {
-            return true;
-        }
-        if (($filters['type'] ?? '') !== '') {
-            return true;
-        }
-        return trim((string)($filters['search'] ?? '')) !== '';
+        return isset($_GET['search']);
     }
 
     private function render(string $view, array $vars = []): void
