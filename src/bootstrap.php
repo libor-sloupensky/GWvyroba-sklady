@@ -3,6 +3,10 @@ declare(strict_types=1);
 // UTF-8 bootstrap & autoload
 
 mb_internal_encoding('UTF-8');
+mb_http_output('UTF-8');
+if (function_exists('mb_regex_encoding')) {
+    mb_regex_encoding('UTF-8');
+}
 date_default_timezone_set('Europe/Prague');
 ini_set('default_charset', 'UTF-8');
 header_register_callback(function(){
@@ -29,4 +33,3 @@ if (!is_file($cfgPath)) {
     @mkdir(dirname($cfgPath), 0775, true);
     file_put_contents($cfgPath, "<?php\nreturn [\n  'db'=>[\n    'dsn'=>'mysql:host=127.0.0.1;dbname=app;charset=utf8mb4',\n    'user'=>'root',\n    'pass'=>'',\n  ],\n  'app'=>[\n    'version'=>'0.1.0',\n  ],\n];\n");
 }
-

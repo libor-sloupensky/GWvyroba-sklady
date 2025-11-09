@@ -1,4 +1,4 @@
-<h1>Import XML – vısledek</h1>
+<h1>Import XML â€“ vÃ½sledek</h1>
 <style>
 .status-matched { background:#e6f4ea; }
 .status-ignored { background:#fdecea; }
@@ -12,12 +12,12 @@
 }; ?>
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
-<p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Poloky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
+<p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>PoloÅ¾ky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
 <?php if (!empty($viewModes ?? []) && isset($viewMode)): ?>
-  <p class="muted">Zobrazení: <?= htmlspecialchars((string)($viewModes[$viewMode] ?? ''),ENT_QUOTES,'UTF-8') ?></p>
+  <p class="muted">ZobrazenÃ­: <?= htmlspecialchars((string)($viewModes[$viewMode] ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <?php endif; ?>
 
-<h2>Nahrát další XML</h2>
+<h2>NahrÃ¡t dalÅ¡Ã­ XML</h2>
 <?php
   $eshopList = $eshops ?? [];
   $hasEshops = !empty($eshopList);
@@ -33,7 +33,7 @@
       <?php endforeach; ?>
     </select>
   <?php else: ?>
-    <p class="notice" style="border-color:#ffe0b2;background:#fff8e1;color:#8c6d1f;">Nejprve pøidejte e-shop v Nastavení &gt; Fakturaèní øady.</p>
+    <p class="notice" style="border-color:#ffe0b2;background:#fff8e1;color:#8c6d1f;">Nejprve pÅ™idejte e-shop v NastavenÃ­ &gt; FakturaÄnÃ­ Å™ady.</p>
   <?php endif; ?>
   <br>
   <label>XML soubor</label><br>
@@ -44,9 +44,9 @@
 <hr>
 
 <?php if (!empty($missingSku)): ?>
-  <h3>Chybìjící SKU (poslední import)</h3>
+  <h3>ChybÄ›jÃ­cÃ­ SKU (poslednÃ­ import)</h3>
   <table>
-    <tr><th>DUZP</th><th>ESHOP</th><th>Doklad</th><th>SKU</th><th>Název</th><th>Mnoství</th></tr>
+    <tr><th>DUZP</th><th>ESHOP</th><th>Doklad</th><th>SKU</th><th>NÃ¡zev</th><th>MnoÅ¾stvÃ­</th></tr>
     <?php foreach ($missingSku as $r): ?>
       <tr>
         <td><?= htmlspecialchars((string)$r['duzp'],ENT_QUOTES,'UTF-8') ?></td>
@@ -61,11 +61,11 @@
 <?php endif; ?>
 
 <?php if (!empty($outstandingMissing)): ?>
-  <h3>Nespárované poloky za posledních <?= (int)($outstandingDays ?? 30) ?> dní</h3>
+  <h3>NespÃ¡rovanÃ© poloÅ¾ky za poslednÃ­ch <?= (int)($outstandingDays ?? 30) ?> dnÃ­</h3>
   <?php foreach ($outstandingMissing as $eshopName => $items): if (empty($items)) continue; ?>
     <h4><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h4>
     <table>
-      <tr><th>DUZP</th><th>Doklad</th><th>SKU</th><th>Název</th><th>Mnoství</th></tr>
+      <tr><th>DUZP</th><th>Doklad</th><th>SKU</th><th>NÃ¡zev</th><th>MnoÅ¾stvÃ­</th></tr>
       <?php foreach ($items as $item): ?>
       <?php
         $status = $item['status'] ?? 'unmatched';
@@ -86,7 +86,7 @@
       <?php endforeach; ?>
     </table>
   <?php endforeach; ?>
-  <p class="muted">Úplnı pøehled najdete v sekci <a href="/report/missing-sku">Chybìjící SKU</a>.</p>
+  <p class="muted">ÃšplnÃ½ pÅ™ehled najdete v sekci <a href="/report/missing-sku">ChybÄ›jÃ­cÃ­ SKU</a>.</p>
 <?php else: ?>
-  <p class="muted">Za poslední období nejsou neevidované poloky.</p>
+  <p class="muted">Za poslednÃ­ obdobÃ­ nejsou neevidovanÃ© poloÅ¾ky.</p>
 <?php endif; ?>
