@@ -67,12 +67,14 @@
 .sku-toggle { font-size:0.9rem; color:#455a64; }
 .inline-input { width:100%; box-sizing:border-box; }
 .bom-tree-row td { background:#fdfdfd; padding:0.65rem; border-top:none; }
-.bom-tree-row pre {
-  margin:0;
-  white-space:pre-wrap;
-  font-family:"Fira Mono","Consolas",monospace;
-  font-size:0.9rem;
-}
+.bom-tree-table { width:100%; border-collapse:collapse; font-family:"Fira Mono","Consolas",monospace; font-size:0.9rem; }
+.bom-tree-table th,
+.bom-tree-table td { border:1px solid #e0e0e0; padding:0.35rem 0.5rem; vertical-align:top; }
+.bom-tree-table th { background:#f7f9fb; text-align:left; font-weight:600; }
+.bom-tree-cell { white-space:nowrap; }
+.bom-tree-prefix { display:inline-block; min-width:1.8rem; color:#90a4ae; }
+.bom-tree-label { font-weight:600; }
+.bom-tree-note { margin-left:0.5rem; font-size:0.8rem; color:#b00020; }
 </style>
 
 <?php if (!empty($error)): ?>
@@ -168,53 +170,92 @@ document.addEventListener('DOMContentLoaded', function () {
       const data = await response.json();
       if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst BOM strom.');
       container.innerHTML = '';
-      const pre = document.createElement('pre');
-      pre.textContent = renderBomTree(data.tree);
-      container.appendChild(pre);
+      container.appendChild(buildBomTable(data.tree));
     } catch (err) {
       container.textContent = `Chyba: ${err.message || err}`;
     }
   }
 
-  function renderBomTree(tree) {
-    const lines = [];
-    const walk = (node, prefix = '', marker = '') => {
-      lines.push(`${prefix}${marker}${formatNodeLine(node)}`);
-      const children = Array.isArray(node.children) ? node.children : [];
-      const childPrefix = prefix + (marker ? (marker === '└─ ' ? '   ' : '│  ') : '');
-      children.forEach((child, index) => {
-        const childMarker = index === children.length - 1 ? '└─ ' : '├─ ';
-        walk(child, childPrefix, childMarker);
-      });
-    };
-    walk(tree, '', '');
-    return lines.join('\n');
+  function buildBomTable(tree) {
+    const table = document.createElement('table');
+    table.className = 'bom-tree-table';
+    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th></tr></thead>';
+    const body = document.createElement('tbody');
+    flattenBomTree(tree).forEach(({ node, guides }) => {
+      const tr = document.createElement('tr');
+
+      const first = document.createElement('td');
+      first.className = 'bom-tree-cell';
+      const prefix = document.createElement('span');
+      prefix.className = 'bom-tree-prefix';
+      prefix.textContent = buildBranchPrefix(guides);
+      const label = document.createElement('span');
+      label.className = 'bom-tree-label';
+      label.textContent = formatNodeLabel(node);
+      first.appendChild(prefix);
+      first.appendChild(label);
+      if (node.cycle) {
+        const badge = document.createElement('span');
+        badge.className = 'bom-tree-note';
+        badge.textContent = '⟳ cyklus';
+        first.appendChild(badge);
+      }
+      tr.appendChild(first);
+
+      const edge = node.edge || {};
+      tr.appendChild(createValueCell(formatNumber(edge.koeficient)));
+      tr.appendChild(createValueCell(displayValue(edge.merna_jednotka || node.merna_jednotka)));
+      tr.appendChild(createValueCell(displayValue(edge.druh_vazby)));
+      tr.appendChild(createValueCell(displayValue(node.typ)));
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    return table;
   }
 
-  function formatNodeLine(node) {
-    const main = `${node.sku || '(bez SKU)'} – ${node.nazev || ''}`.trim();
-    const detailParts = [];
-    if (node.edge) {
-      if (node.edge.koeficient !== undefined && node.edge.koeficient !== null) {
-        detailParts.push(`koef ${formatNumber(node.edge.koeficient)}`);
-      }
-      if (node.edge.merna_jednotka) {
-        detailParts.push(node.edge.merna_jednotka);
-      }
-      if (node.edge.druh_vazby) {
-        detailParts.push(`vazba ${node.edge.druh_vazby}`);
-      }
-    } else if (node.merna_jednotka) {
-      detailParts.push(`MJ ${node.merna_jednotka}`);
+  function flattenBomTree(root) {
+    const rows = [];
+    const walk = (node, guides = []) => {
+      rows.push({ node, guides });
+      const children = Array.isArray(node.children) ? node.children : [];
+      children.forEach((child, index) => {
+        walk(child, guides.concat(index === children.length - 1));
+      });
+    };
+    walk(root, []);
+    return rows;
+  }
+
+  function buildBranchPrefix(guides) {
+    if (!guides.length) return '';
+    let out = '';
+    for (let i = 0; i < guides.length - 1; i++) {
+      out += guides[i] ? '   ' : '│  ';
     }
-    if (node.typ) detailParts.push(`typ ${node.typ}`);
-    if (node.cycle) detailParts.push('⟳ cyklus');
-    return detailParts.length ? `${main}  [${detailParts.join(' | ')}]` : main;
+    out += guides[guides.length - 1] ? '└─ ' : '├─ ';
+    return out;
+  }
+
+  function formatNodeLabel(node) {
+    const sku = node.sku || '(bez SKU)';
+    return node.nazev ? `${sku} – ${node.nazev}` : sku;
+  }
+
+  function createValueCell(value) {
+    const td = document.createElement('td');
+    td.textContent = value === undefined || value === null || value === '' ? '–' : value;
+    return td;
+  }
+
+  function displayValue(value) {
+    if (value === undefined || value === null || value === '') return '–';
+    return String(value);
   }
 
   function formatNumber(value) {
+    if (value === undefined || value === null || value === '') return '–';
     const num = Number(value);
-    if (Number.isNaN(num)) return String(value ?? '');
+    if (Number.isNaN(num)) return String(value);
     return Number.isInteger(num) ? String(num) : num.toString().replace('.', ',');
   }
 
