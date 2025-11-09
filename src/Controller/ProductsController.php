@@ -9,6 +9,7 @@ final class ProductsController
     {
         $this->requireAuth();
         $filters = $this->currentFilters();
+        $hasSearch = $this->filtersActive($filters);
         $message = $_SESSION['products_message'] ?? null;
         $errorMessage = $_SESSION['products_error'] ?? null;
         unset($_SESSION['products_message'], $_SESSION['products_error']);
@@ -23,6 +24,7 @@ final class ProductsController
             'message'=> $message,
             'error'  => $errorMessage,
             'filters'=> $filters,
+            'hasSearch' => $hasSearch,
         ]);
     }
 
@@ -187,6 +189,7 @@ final class ProductsController
             }
             $pdo->commit();
             $filters = $this->currentFilters();
+            $hasSearch = $this->filtersActive($filters);
             $this->render('products_index.php', [
                 'title'  => 'Produkty',
                 'items'  => $this->fetchProducts($filters),
@@ -197,6 +200,7 @@ final class ProductsController
                 'message'=> "Import OK: {$ok}",
                 'errors' => $errors,
                 'filters'=> $filters,
+                'hasSearch' => $hasSearch,
             ]);
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -403,6 +407,9 @@ final class ProductsController
     private function fetchProducts(?array $filters = null): array
     {
         $filters ??= $this->currentFilters();
+        if (!$this->filtersActive($filters)) {
+            return [];
+        }
         $sql = $this->productsSelectSql();
         $conditions = [];
         $params = [];
@@ -573,6 +580,7 @@ final class ProductsController
             'types'  => $this->productTypes(),
             'error'  => $message,
             'filters'=> $filters,
+            'hasSearch' => $this->filtersActive($filters),
         ]);
     }
 
@@ -608,6 +616,20 @@ final class ProductsController
             'type'  => $type,
             'search'=> $search,
         ];
+    }
+
+    private function filtersActive(array $filters): bool
+    {
+        if (($filters['brand'] ?? 0) > 0) {
+            return true;
+        }
+        if (($filters['group'] ?? 0) > 0) {
+            return true;
+        }
+        if (($filters['type'] ?? '') !== '') {
+            return true;
+        }
+        return trim((string)($filters['search'] ?? '')) !== '';
     }
 
     private function render(string $view, array $vars = []): void
