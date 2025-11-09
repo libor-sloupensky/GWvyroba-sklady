@@ -371,7 +371,7 @@ final class InventoryController
 
     private function loadProduct(string $sku): ?array
     {
-        $stmt = DB::pdo()->prepare('SELECT sku,nazev,merna_jednotka,ean,typ,COALESCE(z.nazev,"") AS znacka, COALESCE(g.nazev,"") AS skupina FROM produkty p LEFT JOIN produkty_znacky z ON z.id=p.znacka_id LEFT JOIN produkty_skupiny g ON g.id=p.skupina_id WHERE sku=? LIMIT 1');
+        $stmt = DB::pdo()->prepare('SELECT p.sku,p.nazev,p.merna_jednotka,p.ean,p.typ,COALESCE(z.nazev,"") AS znacka, COALESCE(g.nazev,"") AS skupina FROM produkty p LEFT JOIN produkty_znacky z ON z.id=p.znacka_id LEFT JOIN produkty_skupiny g ON g.id=p.skupina_id WHERE p.sku=? LIMIT 1');
         $stmt->execute([$sku]);
         $row = $stmt->fetch();
         return $row ? [
