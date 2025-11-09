@@ -12,11 +12,14 @@ final class ProductsController
         $hasSearch = $this->searchTriggered();
         $message = $_SESSION['products_message'] ?? null;
         $errorMessage = $_SESSION['products_error'] ?? null;
-        unset($_SESSION['products_message'], $_SESSION['products_error']);
+        $formOld = $_SESSION['products_old'] ?? null;
+        unset($_SESSION['products_message'], $_SESSION['products_error'], $_SESSION['products_old']);
+
+        $items = $this->fetchProducts($filters);
 
         $this->render('products_index.php', [
             'title'  => 'Produkty',
-            'items'  => $this->fetchProducts($filters),
+            'items'  => $items,
             'brands' => $this->fetchBrands(),
             'groups' => $this->fetchGroups(),
             'units'  => $this->fetchUnits(),
@@ -25,6 +28,8 @@ final class ProductsController
             'error'  => $errorMessage,
             'filters'=> $filters,
             'hasSearch' => $hasSearch,
+            'resultCount' => count($items),
+            'formOld' => $formOld,
         ]);
     }
 
@@ -228,6 +233,23 @@ final class ProductsController
         $groupId = (int)($_POST['skupina_id'] ?? 0);
         $note  = trim((string)($_POST['poznamka'] ?? ''));
 
+        $oldInput = [
+            'sku' => $sku,
+            'alt_sku' => $altSku,
+            'ean' => $ean,
+            'znacka_id' => $brandId,
+            'skupina_id' => $groupId,
+            'typ' => $type,
+            'merna_jednotka' => $unit,
+            'nazev' => $name,
+            'min_zasoba' => $min,
+            'min_davka' => $batch,
+            'krok_vyroby' => $step,
+            'vyrobni_doba_dni' => $lead,
+            'aktivni' => $active,
+            'poznamka' => $note,
+        ];
+
         $errors = [];
         if ($sku === '') $errors[] = 'Zadejte SKU.';
         if ($name === '') $errors[] = 'Zadejte název.';
@@ -247,6 +269,7 @@ final class ProductsController
 
         if ($errors) {
             $_SESSION['products_error'] = implode(' ', $errors);
+            $_SESSION['products_old'] = $oldInput;
             header('Location: /products');
             return;
         }
@@ -271,8 +294,10 @@ final class ProductsController
                 $note === '' ? null : $note,
             ]);
             $_SESSION['products_message'] = 'Produkt byl přidán.';
+            unset($_SESSION['products_old']);
         } catch (\Throwable $e) {
             $_SESSION['products_error'] = 'Uložení selhalo: ' . $e->getMessage();
+            $_SESSION['products_old'] = $oldInput;
         }
         header('Location: /products');
     }

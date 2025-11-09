@@ -5,6 +5,11 @@
   $filterType  = (string)($activeFilters['type'] ?? '');
   $filterSearch= (string)($activeFilters['search'] ?? '');
   $hasSearchActive = (bool)($hasSearch ?? false);
+  $resultCount = (int)($resultCount ?? 0);
+  $formOld = $formOld ?? [];
+  if (!array_key_exists('aktivni', $formOld)) {
+      $formOld['aktivni'] = '1';
+  }
 ?>
 
 <h1>Produkty</h1>
@@ -141,6 +146,24 @@
   padding:0.35rem 0.5rem;
   color:#90a4ae;
 }
+.search-actions {
+  align-self:flex-end;
+  display:flex;
+  align-items:center;
+  gap:0.4rem;
+}
+.search-result-pill {
+  font-size:0.9rem;
+  color:#607d8b;
+}
+.search-reset {
+  text-decoration:none;
+  font-size:1.2rem;
+  color:#b00020;
+  padding:0 0.2rem;
+  line-height:1;
+}
+.search-reset:hover { color:#d32f2f; }
 </style>
 
 <?php if (!empty($error)): ?>
@@ -663,46 +686,46 @@ document.addEventListener('DOMContentLoaded', function () {
   <summary>Přidat produkt</summary>
   <div class="collapsible-body">
     <form method="post" action="/products/create" class="product-create-form">
-      <label>SKU*</label><input type="text" name="sku" required />
-      <label>Alt SKU</label><input type="text" name="alt_sku" />
-      <label>EAN</label><input type="text" name="ean" />
+      <label>SKU*</label><input type="text" name="sku" value="<?= htmlspecialchars((string)($formOld['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
+      <label>Alt SKU</label><input type="text" name="alt_sku" value="<?= htmlspecialchars((string)($formOld['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+      <label>EAN</label><input type="text" name="ean" value="<?= htmlspecialchars((string)($formOld['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
       <label>Značka</label>
       <select name="znacka_id">
-        <option value="">Všechny</option>
-        <?php foreach (($brands ?? []) as $b): ?>
-          <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+        <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
+        <?php foreach (($brands ?? []) as $b): $id=(int)$b['id']; ?>
+          <option value="<?= $id ?>"<?= (int)($formOld['znacka_id'] ?? 0) === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
       </select>
       <label>Skupina</label>
       <select name="skupina_id">
-        <option value="">Všechny</option>
-        <?php foreach (($groups ?? []) as $g): ?>
-          <option value="<?= (int)$g['id'] ?>"><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+        <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
+        <?php foreach (($groups ?? []) as $g): $gid=(int)$g['id']; ?>
+          <option value="<?= $gid ?>"<?= (int)($formOld['skupina_id'] ?? 0) === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
       </select>
       <label>Typ*</label>
       <select name="typ" required>
-        <?php foreach (($types ?? []) as $t): ?>
-          <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+        <?php foreach (($types ?? []) as $t): $selected = ((string)($formOld['typ'] ?? '') === (string)$t) ? ' selected' : ''; ?>
+          <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $selected ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
       </select>
       <label>Měrná jednotka*</label>
       <select name="merna_jednotka" required>
-        <?php foreach (($units ?? []) as $u): ?>
-          <option value="<?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$u['kod'],ENT_QUOTES,'UTF-8') ?></option>
+        <?php foreach (($units ?? []) as $u): $code = (string)$u['kod']; ?>
+          <option value="<?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?>"<?= ((string)($formOld['merna_jednotka'] ?? '') === $code) ? ' selected' : '' ?>><?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
       </select>
-      <label>Název*</label><input type="text" name="nazev" required />
-      <label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" />
-      <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" />
-      <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" />
-      <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" />
+      <label>Název*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
+      <label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+      <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+      <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+      <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
       <label>Aktivní*</label>
       <select name="aktivni">
-        <option value="1">Aktivní</option>
-        <option value="0">Skryto</option>
+        <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
+        <option value="0"<?= (string)($formOld['aktivni'] ?? '1') === '0' ? ' selected' : '' ?>>Skryto</option>
       </select>
-      <label>Poznámka</label><textarea name="poznamka" rows="2"></textarea>
+      <label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea>
       <button type="submit">Uložit produkt</button>
     </form>
   </div>
@@ -763,9 +786,12 @@ document.addEventListener('DOMContentLoaded', function () {
       <span>Hledat</span>
       <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / název / EAN" />
     </label>
-    <div style="align-self:flex-end;display:flex;gap:0.5rem;">
+    <div class="search-actions">
       <button type="submit">Vyhledat</button>
-      <a href="/products" style="align-self:center;">Zrušit filtr</a>
+      <?php if ($hasSearchActive): ?>
+        <span class="search-result-pill">Zobrazeno <?= $resultCount ?></span>
+        <a href="/products" class="search-reset" title="Zrušit filtr" aria-label="Zrušit filtr">×</a>
+      <?php endif; ?>
     </div>
   </form>
 </div>
