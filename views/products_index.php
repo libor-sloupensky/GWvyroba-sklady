@@ -82,7 +82,8 @@
 <?php endif; ?>
 
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
+  (function () {
   const meta = {
     brands: <?= json_encode(array_map(fn($b) => ['value'=>(string)$b['id'],'label'=>$b['nazev']], $brands ?? []), JSON_UNESCAPED_UNICODE) ?>,
     groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
@@ -319,7 +320,8 @@
       return false;
     }
   }
-})();
+  })();
+});
 </script>
 <?php if (!empty($message)): ?>
   <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;">
