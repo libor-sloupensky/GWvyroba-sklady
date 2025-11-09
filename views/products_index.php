@@ -61,10 +61,17 @@
   font-weight: 600;
   display:flex;
   align-items:center;
-  gap:0.35rem;
+  gap:0.25rem;
   white-space:nowrap;
+  padding:0.45rem 0.55rem;
 }
-.sku-toggle { font-size:0.9rem; color:#455a64; }
+.sku-toggle {
+  font-size:0.9rem;
+  color:#455a64;
+  width:1rem;
+  text-align:center;
+  flex-shrink:0;
+}
 .inline-input { width:100%; box-sizing:border-box; }
 .bom-tree-row td { background:#fdfdfd; padding:0.65rem; border-top:none; }
 .bom-tree-table { width:100%; border-collapse:collapse; font-family:"Fira Mono","Consolas",monospace; font-size:0.9rem; }

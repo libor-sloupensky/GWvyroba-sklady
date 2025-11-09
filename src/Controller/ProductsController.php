@@ -343,13 +343,17 @@ final class ProductsController
             echo json_encode(['items' => []]);
             return;
         }
-        $like = '%' . $term . '%';
-        $stmt = DB::pdo()->prepare(
-            'SELECT sku, alt_sku, nazev, ean, merna_jednotka, typ FROM produkty ' .
-            'WHERE sku LIKE ? OR alt_sku LIKE ? OR nazev LIKE ? OR ean LIKE ? ' .
-            'ORDER BY nazev LIMIT 20'
+        [$searchCondition, $searchParams] = $this->buildSearchClauses(
+            $term,
+            ['sku','alt_sku','nazev','ean']
         );
-        $stmt->execute([$like, $like, $like, $like]);
+        $sql = 'SELECT sku, alt_sku, nazev, ean, merna_jednotka, typ FROM produkty';
+        if ($searchCondition !== '') {
+            $sql .= ' WHERE ' . $searchCondition;
+        }
+        $sql .= ' ORDER BY nazev LIMIT 20';
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($searchParams);
         $items = [];
         foreach ($stmt as $row) {
             $items[] = [
@@ -560,9 +564,14 @@ final class ProductsController
 
         $search = trim((string)($filters['search'] ?? ''));
         if ($search !== '') {
-            $like = '%' . $search . '%';
-            $conditions[] = '(p.sku LIKE ? OR p.alt_sku LIKE ? OR p.nazev LIKE ? OR p.ean LIKE ?)';
-            array_push($params, $like, $like, $like, $like);
+            [$searchCondition, $searchParams] = $this->buildSearchClauses(
+                $search,
+                ['p.sku','p.alt_sku','p.nazev','p.ean']
+            );
+            if ($searchCondition !== '') {
+                $conditions[] = $searchCondition;
+                $params = array_merge($params, $searchParams);
+            }
         }
 
         if ($conditions) {
@@ -593,6 +602,31 @@ final class ProductsController
     private function productTypes(): array
     {
         return ['produkt','obal','etiketa','surovina','baleni','karton'];
+    }
+
+    /**
+     * @param array<int,string> $fields
+     * @return array{0:string,1:array<int,string>}
+     */
+    private function buildSearchClauses(string $search, array $fields): array
+    {
+        $terms = preg_split('/\s+/u', trim($search)) ?: [];
+        $terms = array_values(array_filter($terms, static fn($t) => $t !== ''));
+        if (empty($terms)) {
+            return ['', []];
+        }
+        $clauses = [];
+        $params = [];
+        foreach ($terms as $term) {
+            $like = '%' . $term . '%';
+            $inner = [];
+            foreach ($fields as $field) {
+                $inner[] = "{$field} LIKE ?";
+                $params[] = $like;
+            }
+            $clauses[] = '(' . implode(' OR ', $inner) . ')';
+        }
+        return [implode(' AND ', $clauses), $params];
     }
 
     /**
