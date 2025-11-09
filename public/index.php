@@ -77,6 +77,7 @@ $router->get('/reservations/search-products', [ReservationsController::class, 's
 $router->get('/production/plans', [ProductionController::class, 'plans']);
 $router->post('/production/produce', [ProductionController::class, 'produce']);
 $router->post('/production/delete', [ProductionController::class, 'deleteRecord']);
+$router->post('/production/check', [ProductionController::class, 'check']);
 
 // Analytics
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
