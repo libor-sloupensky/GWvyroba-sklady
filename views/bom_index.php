@@ -50,9 +50,9 @@
   <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div>
 <?php endif; ?>
 <?php if (!empty($errors)): ?>
-  <div class="notice">
+  <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
     <strong>Chyby importu:</strong>
-    <ul><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
+    <ul style="margin:0.4rem 0 0 1rem;"><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
   </div>
 <?php endif; ?>
 

@@ -406,9 +406,9 @@ document.addEventListener('DOMContentLoaded', function () {
   <div class="collapsible-body">
     <p><a href="/products/export">Stáhnout CSV (aktuální)</a></p>
     <?php if (!empty($errors)): ?>
-      <div class="notice">
+      <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
         <strong>Chyby importu:</strong>
-        <ul><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
+        <ul style="margin:0.4rem 0 0 1rem;"><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
       </div>
     <?php endif; ?>
     <form method="post" action="/products/import" enctype="multipart/form-data">
