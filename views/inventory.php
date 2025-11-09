@@ -226,10 +226,17 @@
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
+        input.dataset.skipBlur = '1';
         submitValue(input);
       }
     });
-    input.addEventListener('blur', () => submitValue(input));
+    input.addEventListener('blur', () => {
+      if (input.dataset.skipBlur === '1') {
+        delete input.dataset.skipBlur;
+        return;
+      }
+      submitValue(input);
+    });
   });
 
   function submitValue(input) {
@@ -264,7 +271,7 @@
         input.value = '';
       })
       .catch((err) => alert('Nelze uložit inventuru: ' + (err.message || err)))
-      .finally(() => { input.disabled = false; });
+      .finally(() => { input.disabled = false; delete input.dataset.skipBlur; });
   }
 
   function updateRow(row) {

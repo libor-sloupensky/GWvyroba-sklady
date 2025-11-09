@@ -155,8 +155,8 @@ final class InventoryController
             $sku = $product['sku'];
             $entryInfo = $entries[$sku] ?? ['total' => 0.0, 'parts' => []];
             $expected = $expectedMap[$sku] ?? 0.0;
-            $difference = $expected - $entryInfo['total'];
-            $rows[] = $this->formatInventoryRow($product, $entryInfo, $difference);
+            $difference = $entryInfo['total'] - $expected;
+            $rows[] = $this->formatInventoryRow($product, $entryInfo, $expected, $difference);
         }
         return $rows;
     }
@@ -165,11 +165,11 @@ final class InventoryController
     {
         $entryInfo = $this->loadInventoryEntries($inventory['id'], [$product['sku']])[$product['sku']] ?? ['total'=>0.0,'parts'=>[]];
         $expected = ($this->calculateExpectedStock($inventory, [$product['sku']], true)[$product['sku']] ?? 0.0);
-        $difference = $expected - $entryInfo['total'];
-        return $this->formatInventoryRow($product, $entryInfo, $difference);
+        $difference = $entryInfo['total'] - $expected;
+        return $this->formatInventoryRow($product, $entryInfo, $expected, $difference);
     }
 
-    private function formatInventoryRow(array $product, array $entryInfo, float $difference): array
+    private function formatInventoryRow(array $product, array $entryInfo, float $expected, float $difference): array
     {
         $expression = $this->formatInventoryExpression($entryInfo['total'], $entryInfo['parts']);
         return [
@@ -184,6 +184,7 @@ final class InventoryController
             'inventarizovano_total' => $this->formatQty($entryInfo['total']),
             'rozdil' => $this->formatQty($difference),
             'parts' => $entryInfo['parts'],
+            'expected' => $this->formatQty($expected),
         ];
     }
 
