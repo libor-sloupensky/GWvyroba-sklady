@@ -85,7 +85,7 @@
 .bom-tree-table th { background:#f7f9fb; text-align:left; font-weight:600; }
 .bom-tree-cell { white-space:nowrap; display:flex; align-items:flex-start; gap:0.2rem; }
 .bom-tree-prefix { display:inline-block; min-width:1.8rem; color:#90a4ae; }
-.bom-tree-label { font-weight:600; }
+.bom-tree-label { font-weight:600; display:inline-flex; flex-wrap:wrap; }
 .bom-tree-note { margin-left:0.5rem; font-size:0.8rem; color:#b00020; }
 .bom-tree-indent { display:inline-block; }
 .bom-tree-actions { text-align:right; white-space:nowrap; }
@@ -288,8 +288,14 @@ document.addEventListener('DOMContentLoaded', function () {
       indent.style.width = `${Math.max(0, rowData.depth) * 1.2}rem`;
       const prefix = document.createElement('span');
       prefix.className = 'bom-tree-prefix';
-      prefix.textContent = buildBranchPrefix(rowData.guides);
-      if (!prefix.textContent) prefix.style.display = 'none';
+      prefix.textContent = '';
+      const prefixParts = buildBranchParts(rowData.guides);
+      prefixParts.forEach(part => {
+        const span = document.createElement('span');
+        span.textContent = part;
+        prefix.appendChild(span);
+      });
+      if (!prefix.textContent.trim()) prefix.style.display = 'none';
       const label = document.createElement('span');
       label.className = 'bom-tree-label';
       label.textContent = formatNodeLabel(rowData.node);
@@ -349,15 +355,17 @@ document.addEventListener('DOMContentLoaded', function () {
       return rows;
     }
 
-    function buildBranchPrefix(guides) {
-      if (!guides.length) return '';
-      let out = '';
-      for (let i = 0; i < guides.length - 1; i++) {
-        out += guides[i] ? '   ' : '│  ';
-      }
-      out += guides[guides.length - 1] ? '└─ ' : '├─ ';
-      return out;
+  function buildBranchParts(guides) {
+    if (!Array.isArray(guides) || !guides.length) {
+      return [];
     }
+    const parts = [];
+    for (let i = 0; i < guides.length - 1; i++) {
+      parts.push(guides[i] ? ' ' : '│');
+    }
+    parts.push(guides[guides.length - 1] ? '└─' : '├─');
+    return parts;
+  }
 
     function formatNodeLabel(node) {
       const sku = node.sku || '(bez SKU)';
