@@ -80,6 +80,247 @@
     <?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?>
   </div>
 <?php endif; ?>
+
+<script>
+(function () {
+  const meta = {
+    brands: <?= json_encode(array_map(fn($b) => ['value'=>(string)$b['id'],'label'=>$b['nazev']], $brands ?? []), JSON_UNESCAPED_UNICODE) ?>,
+    groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
+    units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
+    types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
+    active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
+  };
+
+  const table = document.querySelector('.products-table');
+  if (!table) return;
+
+  const updateUrl = '/products/update';
+  const bomUrl = '/products/bom-tree';
+  let bomState = { row: null, detail: null };
+
+  table.addEventListener('click', (event) => {
+    const cell = event.target.closest('.sku-cell');
+    if (!cell || !table.contains(cell) || event.detail > 1) return;
+    event.preventDefault();
+    toggleBomRow(cell);
+  });
+
+  table.addEventListener('dblclick', (event) => {
+    const skuCell = event.target.closest('.sku-cell');
+    if (skuCell && table.contains(skuCell)) {
+      event.preventDefault();
+      return;
+    }
+    const cell = event.target.closest('.editable');
+    if (!cell || cell.dataset.editing === '1') return;
+    const row = cell.closest('tr');
+    const sku = row?.dataset.sku;
+    if (!sku) return;
+    startEdit(cell, sku);
+  });
+
+  table.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && bomState.row) {
+      closeBomRow();
+    }
+  });
+
+  function toggleBomRow(cell) {
+    const row = cell.closest('tr');
+    if (!row) return;
+    if (bomState.row === row) {
+      closeBomRow();
+      return;
+    }
+    closeBomRow();
+    const toggle = cell.querySelector('.sku-toggle');
+    if (toggle) toggle.textContent = '▾';
+    row.classList.add('bom-open');
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'bom-tree-row';
+    const detailCell = document.createElement('td');
+    detailCell.colSpan = row.children.length;
+    detailCell.textContent = 'Načítám…';
+    detailRow.appendChild(detailCell);
+    row.parentNode.insertBefore(detailRow, row.nextSibling);
+    bomState = { row, detail: detailRow };
+    loadBomTree(cell.dataset.sku || row.dataset.sku, detailCell);
+  }
+
+  function closeBomRow() {
+    if (!bomState.row) return;
+    const toggle = bomState.row.querySelector('.sku-toggle');
+    if (toggle) toggle.textContent = '▸';
+    bomState.row.classList.remove('bom-open');
+    if (bomState.detail) bomState.detail.remove();
+    bomState = { row: null, detail: null };
+  }
+
+  async function loadBomTree(sku, container) {
+    if (!sku) {
+      container.textContent = 'Chybí SKU.';
+      return;
+    }
+    try {
+      const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst BOM strom.');
+      container.innerHTML = '';
+      const pre = document.createElement('pre');
+      pre.textContent = renderBomTree(data.tree);
+      container.appendChild(pre);
+    } catch (err) {
+      container.textContent = `Chyba: ${err.message || err}`;
+    }
+  }
+
+  function renderBomTree(tree) {
+    const lines = [];
+    const walk = (node, prefix = '', marker = '') => {
+      lines.push(`${prefix}${marker}${formatNodeLine(node)}`);
+      const children = Array.isArray(node.children) ? node.children : [];
+      const childPrefix = prefix + (marker ? (marker === '└─ ' ? '   ' : '│  ') : '');
+      children.forEach((child, index) => {
+        const childMarker = index === children.length - 1 ? '└─ ' : '├─ ';
+        walk(child, childPrefix, childMarker);
+      });
+    };
+    walk(tree, '', '');
+    return lines.join('\n');
+  }
+
+  function formatNodeLine(node) {
+    const main = `${node.sku || '(bez SKU)'} – ${node.nazev || ''}`.trim();
+    const detailParts = [];
+    if (node.edge) {
+      if (node.edge.koeficient !== undefined && node.edge.koeficient !== null) {
+        detailParts.push(`koef ${formatNumber(node.edge.koeficient)}`);
+      }
+      if (node.edge.merna_jednotka) {
+        detailParts.push(node.edge.merna_jednotka);
+      }
+      if (node.edge.druh_vazby) {
+        detailParts.push(`vazba ${node.edge.druh_vazby}`);
+      }
+    } else if (node.merna_jednotka) {
+      detailParts.push(`MJ ${node.merna_jednotka}`);
+    }
+    if (node.typ) detailParts.push(`typ ${node.typ}`);
+    if (node.cycle) detailParts.push('⟳ cyklus');
+    return detailParts.length ? `${main}  [${detailParts.join(' | ')}]` : main;
+  }
+
+  function formatNumber(value) {
+    const num = Number(value);
+    if (Number.isNaN(num)) return String(value ?? '');
+    return Number.isInteger(num) ? String(num) : num.toString().replace('.', ',');
+  }
+
+  function startEdit(cell, sku) {
+    cell.dataset.editing = '1';
+    const field = cell.dataset.field;
+    const type = cell.dataset.type || 'text';
+    const currentValue = cell.dataset.value ?? cell.textContent.trim();
+    let input;
+    if (type === 'select') {
+      const optionsKey = cell.dataset.options;
+      input = document.createElement('select');
+      appendOptions(input, meta[optionsKey] ?? []);
+      input.value = currentValue;
+    } else if (type === 'textarea') {
+      input = document.createElement('textarea');
+      input.rows = 3;
+      input.value = currentValue;
+    } else {
+      input = document.createElement('input');
+      input.type = type === 'number' ? 'number' : 'text';
+      if (type === 'number' && cell.dataset.step) {
+        input.step = cell.dataset.step;
+      }
+      input.value = currentValue;
+    }
+    input.className = 'inline-input';
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    input.focus();
+    if (input.select) input.select();
+
+    const finish = (commit) => {
+      cell.dataset.editing = '0';
+      input.removeEventListener('blur', onBlur);
+      input.removeEventListener('keydown', onKey);
+      if (!commit) {
+        cell.textContent = formatDisplay(field, currentValue);
+        cell.dataset.value = currentValue;
+        return;
+      }
+      const newValue = input.value.trim();
+      if (newValue === currentValue) {
+        cell.textContent = formatDisplay(field, currentValue);
+        return;
+      }
+      saveChange(sku, field, newValue)
+        .then((ok) => {
+          const valueToShow = ok ? newValue : currentValue;
+          if (ok) cell.dataset.value = newValue;
+          cell.textContent = formatDisplay(field, valueToShow);
+        });
+    };
+
+    const onBlur = () => finish(true);
+    const onKey = (e) => {
+      if (e.key === 'Enter' && type !== 'textarea') {
+        e.preventDefault();
+        finish(true);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        finish(false);
+      }
+    };
+    input.addEventListener('blur', onBlur);
+    input.addEventListener('keydown', onKey);
+  }
+
+  function appendOptions(select, options) {
+    select.innerHTML = '';
+    select.appendChild(new Option('–', ''));
+    options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
+  }
+
+  function formatDisplay(field, value) {
+    if (!value) return '–';
+    if (field === 'aktivni') return value === '1' ? '✓' : '–';
+    if (field === 'znacka_id') return lookupLabel(meta.brands, value);
+    if (field === 'skupina_id') return lookupLabel(meta.groups, value);
+    return value;
+  }
+
+  function lookupLabel(list, value) {
+    const found = list.find((item) => item.value === String(value));
+    return found ? found.label : '–';
+  }
+
+  async function saveChange(sku, field, value) {
+    try {
+      const response = await fetch(updateUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({sku, field, value})
+      });
+      const data = await response.json();
+      if (!data.ok) {
+        alert(data.error || 'Uložení se nezdařilo.');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      alert('Chyba při ukládání.');
+      return false;
+    }
+  }
+})();
+</script>
 <?php if (!empty($message)): ?>
   <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;">
     <?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?>
@@ -269,56 +510,3 @@
   <?php endforeach; ?>
 </table>
 <?php endif; ?>
-
-<script>
-(function () {
-  const meta = {
-    brands: <?= json_encode(array_map(fn($b) => ['value'=>(string)$b['id'],'label'=>$b['nazev']], $brands ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
-  };
-
-  const table = document.querySelector('.products-table');
-  if (!table) return;
-
-  const updateUrl = '/products/update';
-  let bomState = { row: null, detail: null };
-
-  table.addEventListener('dblclick', (event) => {
-    const skuCell = event.target.closest('.sku-cell');
-    if (skuCell && skuCell.dataset.sku) {
-      event.preventDefault();
-      toggleBomRow(skuCell);
-      return;
-    }
-    const cell = event.target.closest('.editable');
-    if (!cell || cell.dataset.editing === '1') return;
-    const row = cell.closest('tr');
-    if (!row) return;
-    const sku = row.dataset.sku;
-    if (!sku) return;
-    startEdit(cell, sku);
-  });
-
-  function toggleBomRow(cell) {
-    const row = cell.closest('tr');
-    if (!row) return;
-    if (bomState.row === row) {
-      closeBomRow();
-      return;
-    }
-    closeBomRow();
-    const toggle = cell.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▾';
-    row.classList.add('bom-open');
-    const detailRow = document.createElement('tr');
-    detailRow.className = 'bom-tree-row';
-    const detailCell = document.createElement('td');
-    detailCell.colSpan = row.children.length;
-    detailCell.textContent = 'Načítám…';
-    detailRow.appendChild(detailCell);
-    row.parentNode.insertBefore(detailRow, row.nextSibling);
-    bomState = { row, detail: detailRow };
-    loadBomTree(cell.***
