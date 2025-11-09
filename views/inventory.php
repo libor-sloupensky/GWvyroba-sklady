@@ -100,9 +100,13 @@
 <?php if (!$inventory): ?>
   <div class="inventory-empty">
     <p><strong>Aktuálně neprobíhá žádná inventura.</strong></p>
-    <form method="post" action="/inventory/start">
-      <button type="submit">Zahájit inventuru</button>
-    </form>
+    <?php if (!empty($isAdmin)): ?>
+      <form method="post" action="/inventory/start">
+        <button type="submit">Zahájit inventuru</button>
+      </form>
+    <?php else: ?>
+      <p class="muted">Kontaktujte administrátora pro zahájení inventury.</p>
+    <?php endif; ?>
     <?php if (!empty($lastClosed['closed_at'] ?? null)): ?>
       <p class="muted">Poslední inventura byla uzavřena <?= htmlspecialchars((string)$lastClosed['closed_at'],ENT_QUOTES,'UTF-8') ?>.</p>
     <?php endif; ?>
@@ -116,11 +120,13 @@
         Poznámka: <?= htmlspecialchars((string)$inventory['poznamka'],ENT_QUOTES,'UTF-8') ?>
       <?php endif; ?>
     </div>
-    <div class="inventory-actions">
-      <form method="post" action="/inventory/close" onsubmit="return confirm('Uzavřít aktuální inventuru?')">
-        <button type="submit">Uzavřít inventuru</button>
-      </form>
-    </div>
+    <?php if (!empty($isAdmin)): ?>
+      <div class="inventory-actions">
+        <form method="post" action="/inventory/close" onsubmit="return confirm('Uzavřít aktuální inventuru?')">
+          <button type="submit">Uzavřít inventuru</button>
+        </form>
+      </div>
+    <?php endif; ?>
   </div>
 
   <form method="get" action="/inventory" class="inventory-search">

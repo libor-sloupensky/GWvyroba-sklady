@@ -32,6 +32,7 @@ final class InventoryController
             'types' => $this->productTypes(),
             'message' => $message,
             'error' => $error,
+            'isAdmin' => $this->isAdmin(),
         ]);
     }
 
@@ -89,7 +90,12 @@ final class InventoryController
 
     public function addEntry(): void
     {
-        $this->requireAdmin();
+        $this->requireAuth();
+        if (!$this->isAdmin() && !$this->canEditInventory()) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'Nemáte oprávnění zapisovat inventuru.']);
+            return;
+        }
         header('Content-Type: application/json');
         $inventory = $this->getActiveInventory();
         if (!$inventory) {
@@ -484,7 +490,7 @@ final class InventoryController
     private function requireAdmin(): void
     {
         $this->requireAuth();
-        if (($_SESSION['user']['role'] ?? 'user') !== 'admin') {
+        if (!$this->isAdmin()) {
             http_response_code(403);
             echo 'Přístup jen pro admina.';
             exit;
@@ -501,5 +507,15 @@ final class InventoryController
     {
         header('Location: ' . $path, true, 302);
         exit;
+    }
+
+    private function isAdmin(): bool
+    {
+        return (($_SESSION['user']['role'] ?? 'user') === 'admin');
+    }
+
+    private function canEditInventory(): bool
+    {
+        return true;
     }
 }
