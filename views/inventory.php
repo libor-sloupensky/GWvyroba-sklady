@@ -7,6 +7,12 @@
   $hasSearchActive = (bool)($hasSearch ?? false);
   $resultCount = isset($items) ? count($items) : 0;
   $inventory = $inventory ?? null;
+  $performedDefault = '';
+  if ($inventory) {
+      $source = $inventory['opened_at'] ?? date('Y-m-d H:i:s');
+      $timestamp = strtotime((string)$source);
+      $performedDefault = $timestamp ? date('Y-m-d\TH:i', $timestamp) : '';
+  }
 ?>
 
 <h1>Inventura</h1>
@@ -25,6 +31,29 @@
 .inventory-meta strong { font-size:1.1rem; }
 .inventory-actions form { display:inline; margin-right:0.5rem; }
 .inventory-actions button { padding:0.35rem 0.8rem; }
+.inventory-date-label {
+  font-weight:600;
+  display:flex;
+  flex-direction:column;
+  gap:0.3rem;
+  margin-bottom:0.4rem;
+}
+.help-badge {
+  display:inline-block;
+  margin-left:0.3rem;
+  font-size:0.85rem;
+  background:#eceff1;
+  border-radius:50%;
+  width:1.3rem;
+  height:1.3rem;
+  line-height:1.3rem;
+  text-align:center;
+  cursor:default;
+}
+.inventory-actions input[type="datetime-local"] {
+  padding:0.35rem 0.45rem;
+  width:220px;
+}
 .inventory-search {
   border:1px solid #ddd;
   border-radius:4px;
@@ -123,6 +152,11 @@
     <?php if (!empty($isAdmin)): ?>
       <div class="inventory-actions">
         <form method="post" action="/inventory/close" onsubmit="return confirm('Uzavřít aktuální inventuru?')">
+          <label class="inventory-date-label">
+            Datum provedení inventury
+            <span class="help-badge" title="Datum provedení inventury určuje, ke kterému okamžiku se inventura vztahuje. Pohyby (doklady, výroba, korekce) s pozdějším datem se započtou až do další inventury.">i</span>
+            <input type="datetime-local" name="performed_at" value="<?= htmlspecialchars($performedDefault,ENT_QUOTES,'UTF-8') ?>" required />
+          </label>
           <button type="submit">Uzavřít inventuru</button>
         </form>
       </div>

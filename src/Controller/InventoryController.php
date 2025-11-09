@@ -64,7 +64,8 @@ final class InventoryController
         $pdo = DB::pdo();
         $pdo->beginTransaction();
         try {
-            $closedAt = date('Y-m-d H:i:s');
+            $performedAtRaw = $this->normalizeDateTimeInput($_POST['performed_at'] ?? '') ?? date('Y-m-d H:i:s');
+            $closedAt = $performedAtRaw;
             $baselineId = (int)($inventory['baseline_inventory_id'] ?? 0);
             $baselineMap = $this->loadSnapshotMap($baselineId);
             $baselineClosedAt = $this->getInventoryClosedAt($baselineId);
@@ -439,6 +440,29 @@ final class InventoryController
             }
         }
         return $data ?? [];
+    }
+
+    private function normalizeDateTimeInput($value): ?string
+    {
+        if (!isset($value)) {
+            return null;
+        }
+        $string = trim((string)$value);
+        if ($string === '') {
+            return null;
+        }
+        $formats = ['Y-m-d\TH:i', 'Y-m-d\TH:i:s', 'Y-m-d H:i', 'Y-m-d H:i:s'];
+        foreach ($formats as $fmt) {
+            $dt = \DateTimeImmutable::createFromFormat($fmt, $string);
+            if ($dt !== false) {
+                return $dt->format('Y-m-d H:i:s');
+            }
+        }
+        $timestamp = strtotime($string);
+        if ($timestamp !== false) {
+            return date('Y-m-d H:i:s', $timestamp);
+        }
+        return null;
     }
 
     private function formatQty(float $value): string
