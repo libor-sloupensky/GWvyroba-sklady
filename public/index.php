@@ -52,6 +52,9 @@ $router->post('/products/import', [ProductsController::class, 'importCsv']);
 $router->post('/products/create', [ProductsController::class, 'create']);
 $router->post('/products/update', [ProductsController::class, 'inlineUpdate']);
 $router->get('/products/bom-tree', [ProductsController::class, 'bomTree']);
+$router->get('/products/search', [ProductsController::class, 'search']);
+$router->post('/products/bom/add', [ProductsController::class, 'bomAdd']);
+$router->post('/products/bom/delete', [ProductsController::class, 'bomDelete']);
 
 // BOM
 $router->get('/bom', [BomController::class, 'index']);

@@ -75,6 +75,65 @@
 .bom-tree-prefix { display:inline-block; min-width:1.8rem; color:#90a4ae; }
 .bom-tree-label { font-weight:600; }
 .bom-tree-note { margin-left:0.5rem; font-size:0.8rem; color:#b00020; }
+.bom-tree-actions { text-align:right; white-space:nowrap; }
+.bom-action-btn {
+  border: 1px solid #cfd8dc;
+  background: #fff;
+  color: #37474f;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+  margin-left: 0.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.bom-action-btn:hover { background:#eceff1; }
+.bom-action-btn--danger { color:#b00020; border-color:#f8bbd0; }
+.bom-action-btn--danger:hover { background:#ffe5ec; }
+.bom-add-row td { background:#f4fbff; }
+.bom-add-form { display:flex; flex-direction:column; gap:0.5rem; }
+.bom-add-fields {
+  display:flex;
+  flex-wrap:wrap;
+  gap:0.75rem;
+}
+.bom-add-fields label { font-weight:600; display:block; margin-bottom:0.2rem; }
+.bom-add-fields .field { flex:1 1 220px; }
+.bom-add-fields input,
+.bom-add-fields select {
+  width:100%;
+  box-sizing:border-box;
+  padding:0.35rem 0.45rem;
+}
+.bom-add-actions {
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+}
+.bom-add-error { color:#b00020; font-size:0.9rem; flex:1; }
+.bom-search-results {
+  border:1px solid #e0e0e0;
+  border-radius:4px;
+  margin-top:0.3rem;
+  max-height:180px;
+  overflow:auto;
+  background:#fff;
+}
+.bom-search-option {
+  display:block;
+  width:100%;
+  text-align:left;
+  border:none;
+  background:none;
+  padding:0.35rem 0.5rem;
+  cursor:pointer;
+}
+.bom-search-option:hover { background:#f1f8ff; }
+.bom-search-empty {
+  display:block;
+  padding:0.35rem 0.5rem;
+  color:#90a4ae;
+}
 </style>
 
 <?php if (!empty($error)): ?>
@@ -86,283 +145,481 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   (function () {
-  const meta = {
-    brands: <?= json_encode(array_map(fn($b) => ['value'=>(string)$b['id'],'label'=>$b['nazev']], $brands ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-    active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
-  };
+    const meta = {
+      brands: <?= json_encode(array_map(fn($b) => ['value'=>(string)$b['id'],'label'=>$b['nazev']], $brands ?? []), JSON_UNESCAPED_UNICODE) ?>,
+      groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
+      units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
+      types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
+      active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
+    };
 
-  const table = document.querySelector('.products-table');
-  if (!table) return;
+    const table = document.querySelector('.products-table');
+    if (!table) return;
 
-  const updateUrl = '/products/update';
-  const bomUrl = '/products/bom-tree';
-  let bomState = { row: null, detail: null };
+    const updateUrl = '/products/update';
+    const bomUrl = '/products/bom-tree';
+    const bomAddUrl = '/products/bom/add';
+    const bomDeleteUrl = '/products/bom/delete';
+    const productSearchUrl = '/products/search';
+    let bomState = { row: null, detail: null };
+    let bomAddState = { row: null };
 
-  table.addEventListener('click', (event) => {
-    const cell = event.target.closest('.sku-cell');
-    if (!cell || !table.contains(cell) || event.detail > 1) return;
-    event.preventDefault();
-    toggleBomRow(cell);
-  });
-
-  table.addEventListener('dblclick', (event) => {
-    const skuCell = event.target.closest('.sku-cell');
-    if (skuCell && table.contains(skuCell)) {
+    table.addEventListener('click', (event) => {
+      const cell = event.target.closest('.sku-cell');
+      if (!cell || !table.contains(cell) || event.detail > 1) return;
       event.preventDefault();
-      return;
-    }
-    const cell = event.target.closest('.editable');
-    if (!cell || cell.dataset.editing === '1') return;
-    const row = cell.closest('tr');
-    const sku = row?.dataset.sku;
-    if (!sku) return;
-    startEdit(cell, sku);
-  });
-
-  table.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && bomState.row) {
-      closeBomRow();
-    }
-  });
-
-  function toggleBomRow(cell) {
-    const row = cell.closest('tr');
-    if (!row) return;
-    if (bomState.row === row) {
-      closeBomRow();
-      return;
-    }
-    closeBomRow();
-    const toggle = cell.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▾';
-    row.classList.add('bom-open');
-    const detailRow = document.createElement('tr');
-    detailRow.className = 'bom-tree-row';
-    const detailCell = document.createElement('td');
-    detailCell.colSpan = row.children.length;
-    detailCell.textContent = 'Načítám…';
-    detailRow.appendChild(detailCell);
-    row.parentNode.insertBefore(detailRow, row.nextSibling);
-    bomState = { row, detail: detailRow };
-    loadBomTree(cell.dataset.sku || row.dataset.sku, detailCell);
-  }
-
-  function closeBomRow() {
-    if (!bomState.row) return;
-    const toggle = bomState.row.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▸';
-    bomState.row.classList.remove('bom-open');
-    if (bomState.detail) bomState.detail.remove();
-    bomState = { row: null, detail: null };
-  }
-
-  async function loadBomTree(sku, container) {
-    if (!sku) {
-      container.textContent = 'Chybí SKU.';
-      return;
-    }
-    try {
-      const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst BOM strom.');
-      container.innerHTML = '';
-      container.appendChild(buildBomTable(data.tree));
-    } catch (err) {
-      container.textContent = `Chyba: ${err.message || err}`;
-    }
-  }
-
-  function buildBomTable(tree) {
-    const table = document.createElement('table');
-    table.className = 'bom-tree-table';
-    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th></tr></thead>';
-    const body = document.createElement('tbody');
-    flattenBomTree(tree).forEach(({ node, guides, depth }) => {
-      const tr = document.createElement('tr');
-
-      const first = document.createElement('td');
-      first.className = 'bom-tree-cell';
-      first.style.paddingLeft = `${Math.max(0, depth) * 1.2}rem`;
-      const prefix = document.createElement('span');
-      prefix.className = 'bom-tree-prefix';
-      prefix.textContent = buildBranchPrefix(guides);
-      if (!prefix.textContent) prefix.style.display = 'none';
-      const label = document.createElement('span');
-      label.className = 'bom-tree-label';
-      label.textContent = formatNodeLabel(node);
-      first.appendChild(prefix);
-      first.appendChild(label);
-      if (node.cycle) {
-        const badge = document.createElement('span');
-        badge.className = 'bom-tree-note';
-        badge.textContent = '⟳ cyklus';
-        first.appendChild(badge);
-      }
-      tr.appendChild(first);
-
-      const edge = node.edge || {};
-      tr.appendChild(createValueCell(formatNumber(edge.koeficient)));
-      tr.appendChild(createValueCell(displayValue(edge.merna_jednotka || node.merna_jednotka)));
-      tr.appendChild(createValueCell(displayValue(edge.druh_vazby)));
-      tr.appendChild(createValueCell(displayValue(node.typ)));
-      body.appendChild(tr);
+      toggleBomRow(cell);
     });
-    table.appendChild(body);
-    return table;
-  }
 
-  function flattenBomTree(root) {
-    const rows = [];
-    const walk = (node, guides = [], depth = 0) => {
-      rows.push({ node, guides, depth });
-      const children = Array.isArray(node.children) ? node.children : [];
-      children.forEach((child, index) => {
-        walk(child, guides.concat(index === children.length - 1), depth + 1);
+    table.addEventListener('dblclick', (event) => {
+      const skuCell = event.target.closest('.sku-cell');
+      if (skuCell && table.contains(skuCell)) {
+        event.preventDefault();
+        return;
+      }
+      const cell = event.target.closest('.editable');
+      if (!cell || cell.dataset.editing === '1') return;
+      const row = cell.closest('tr');
+      const sku = row?.dataset.sku;
+      if (!sku) return;
+      startEdit(cell, sku);
+    });
+
+    table.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && bomState.row) {
+        closeBomRow();
+      }
+    });
+
+    function toggleBomRow(cell) {
+      const row = cell.closest('tr');
+      if (!row) return;
+      if (bomState.row === row) {
+        closeBomRow();
+        return;
+      }
+      closeBomRow();
+      const toggle = cell.querySelector('.sku-toggle');
+      if (toggle) toggle.textContent = '▾';
+      row.classList.add('bom-open');
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'bom-tree-row';
+      const detailCell = document.createElement('td');
+      detailCell.colSpan = row.children.length;
+      detailCell.textContent = 'Načítám…';
+      detailRow.appendChild(detailCell);
+      row.parentNode.insertBefore(detailRow, row.nextSibling);
+      bomState = { row, detail: detailRow };
+      loadBomTree(cell.dataset.sku || row.dataset.sku, detailCell);
+    }
+
+    function closeBomRow() {
+      if (!bomState.row) return;
+      const toggle = bomState.row.querySelector('.sku-toggle');
+      if (toggle) toggle.textContent = '▸';
+      bomState.row.classList.remove('bom-open');
+      if (bomState.detail) bomState.detail.remove();
+      bomState = { row: null, detail: null };
+      closeBomAddForm();
+    }
+
+    async function loadBomTree(sku, container) {
+      if (!sku) {
+        container.textContent = 'Chybí SKU.';
+        return;
+      }
+      try {
+        const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst BOM strom.');
+        container.innerHTML = '';
+        const refresh = () => loadBomTree(sku, container);
+        container.appendChild(buildBomTable(data.tree, refresh));
+      } catch (err) {
+        container.textContent = `Chyba: ${err.message || err}`;
+      }
+    }
+
+    function buildBomTable(tree, refresh) {
+      const table = document.createElement('table');
+      table.className = 'bom-tree-table';
+      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th><th>Akce</th></tr></thead>';
+      const body = document.createElement('tbody');
+      const rows = flattenBomTree(tree);
+      rows.forEach((rowData) => {
+        const tr = document.createElement('tr');
+
+        const first = document.createElement('td');
+        first.className = 'bom-tree-cell';
+        first.style.paddingLeft = `${Math.max(0, rowData.depth) * 1.2}rem`;
+        const prefix = document.createElement('span');
+        prefix.className = 'bom-tree-prefix';
+        prefix.textContent = buildBranchPrefix(rowData.guides);
+        if (!prefix.textContent) prefix.style.display = 'none';
+        const label = document.createElement('span');
+        label.className = 'bom-tree-label';
+        label.textContent = formatNodeLabel(rowData.node);
+        first.appendChild(prefix);
+        first.appendChild(label);
+        if (rowData.node.cycle) {
+          const badge = document.createElement('span');
+          badge.className = 'bom-tree-note';
+          badge.textContent = '⟳ cyklus';
+          first.appendChild(badge);
+        }
+        tr.appendChild(first);
+
+        const edge = rowData.node.edge || {};
+        tr.appendChild(createValueCell(formatNumber(edge.koeficient)));
+        tr.appendChild(createValueCell(displayValue(edge.merna_jednotka || rowData.node.merna_jednotka)));
+        tr.appendChild(createValueCell(displayValue(edge.druh_vazby)));
+        tr.appendChild(createValueCell(displayValue(rowData.node.typ)));
+
+        const actions = document.createElement('td');
+        actions.className = 'bom-tree-actions';
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'bom-action-btn';
+        addBtn.textContent = '+';
+        addBtn.title = 'Přidat potomka';
+        addBtn.addEventListener('click', () => openBomAddForm(tr, rowData, refresh));
+        actions.appendChild(addBtn);
+        if (rowData.parentSku) {
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'bom-action-btn bom-action-btn--danger';
+          delBtn.textContent = '×';
+          delBtn.title = 'Smazat vazbu';
+          delBtn.addEventListener('click', () => deleteBomLink(rowData.parentSku, rowData.node.sku, refresh));
+          actions.appendChild(delBtn);
+        }
+        tr.appendChild(actions);
+
+        body.appendChild(tr);
       });
-    };
-    walk(root, [], 0);
-    return rows;
-  }
-
-  function buildBranchPrefix(guides) {
-    if (!guides.length) return '';
-    let out = '';
-    for (let i = 0; i < guides.length - 1; i++) {
-      out += guides[i] ? '   ' : '│  ';
+      table.appendChild(body);
+      return table;
     }
-    out += guides[guides.length - 1] ? '└─ ' : '├─ ';
-    return out;
-  }
 
-  function formatNodeLabel(node) {
-    const sku = node.sku || '(bez SKU)';
-    return node.nazev ? `${sku} – ${node.nazev}` : sku;
-  }
-
-  function createValueCell(value) {
-    const td = document.createElement('td');
-    td.textContent = value === undefined || value === null || value === '' ? '–' : value;
-    return td;
-  }
-
-  function displayValue(value) {
-    if (value === undefined || value === null || value === '') return '–';
-    return String(value);
-  }
-
-  function formatNumber(value) {
-    if (value === undefined || value === null || value === '') return '–';
-    const num = Number(value);
-    if (Number.isNaN(num)) return String(value);
-    return Number.isInteger(num) ? String(num) : num.toString().replace('.', ',');
-  }
-
-  function startEdit(cell, sku) {
-    cell.dataset.editing = '1';
-    const field = cell.dataset.field;
-    const type = cell.dataset.type || 'text';
-    const currentValue = cell.dataset.value ?? cell.textContent.trim();
-    let input;
-    if (type === 'select') {
-      const optionsKey = cell.dataset.options;
-      input = document.createElement('select');
-      appendOptions(input, meta[optionsKey] ?? []);
-      input.value = currentValue;
-    } else if (type === 'textarea') {
-      input = document.createElement('textarea');
-      input.rows = 3;
-      input.value = currentValue;
-    } else {
-      input = document.createElement('input');
-      input.type = type === 'number' ? 'number' : 'text';
-      if (type === 'number' && cell.dataset.step) {
-        input.step = cell.dataset.step;
-      }
-      input.value = currentValue;
-    }
-    input.className = 'inline-input';
-    cell.innerHTML = '';
-    cell.appendChild(input);
-    input.focus();
-    if (input.select) input.select();
-
-    const finish = (commit) => {
-      cell.dataset.editing = '0';
-      input.removeEventListener('blur', onBlur);
-      input.removeEventListener('keydown', onKey);
-      if (!commit) {
-        cell.textContent = formatDisplay(field, currentValue);
-        cell.dataset.value = currentValue;
-        return;
-      }
-      const newValue = input.value.trim();
-      if (newValue === currentValue) {
-        cell.textContent = formatDisplay(field, currentValue);
-        return;
-      }
-      saveChange(sku, field, newValue)
-        .then((ok) => {
-          const valueToShow = ok ? newValue : currentValue;
-          if (ok) cell.dataset.value = newValue;
-          cell.textContent = formatDisplay(field, valueToShow);
+    function flattenBomTree(root) {
+      const rows = [];
+      const walk = (node, guides = [], depth = 0, parentSku = null) => {
+        rows.push({ node, guides, depth, parentSku });
+        const children = Array.isArray(node.children) ? node.children : [];
+        children.forEach((child, index) => {
+          walk(child, guides.concat(index === children.length - 1), depth + 1, node.sku || parentSku);
         });
-    };
+      };
+      walk(root, [], 0, null);
+      return rows;
+    }
 
-    const onBlur = () => finish(true);
-    const onKey = (e) => {
-      if (e.key === 'Enter' && type !== 'textarea') {
-        e.preventDefault();
-        finish(true);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        finish(false);
+    function buildBranchPrefix(guides) {
+      if (!guides.length) return '';
+      let out = '';
+      for (let i = 0; i < guides.length - 1; i++) {
+        out += guides[i] ? '   ' : '│  ';
       }
-    };
-    input.addEventListener('blur', onBlur);
-    input.addEventListener('keydown', onKey);
-  }
+      out += guides[guides.length - 1] ? '└─ ' : '├─ ';
+      return out;
+    }
 
-  function appendOptions(select, options) {
-    select.innerHTML = '';
-    select.appendChild(new Option('–', ''));
-    options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
-  }
+    function formatNodeLabel(node) {
+      const sku = node.sku || '(bez SKU)';
+      return node.nazev ? `${sku} – ${node.nazev}` : sku;
+    }
 
-  function formatDisplay(field, value) {
-    if (!value) return '–';
-    if (field === 'aktivni') return value === '1' ? '✓' : '–';
-    if (field === 'znacka_id') return lookupLabel(meta.brands, value);
-    if (field === 'skupina_id') return lookupLabel(meta.groups, value);
-    return value;
-  }
+    function createValueCell(value) {
+      const td = document.createElement('td');
+      td.textContent = value === undefined || value === null || value === '' ? '–' : value;
+      return td;
+    }
 
-  function lookupLabel(list, value) {
-    const found = list.find((item) => item.value === String(value));
-    return found ? found.label : '–';
-  }
+    function displayValue(value) {
+      if (value === undefined || value === null || value === '') return '–';
+      return String(value);
+    }
 
-  async function saveChange(sku, field, value) {
-    try {
-      const response = await fetch(updateUrl, {
+    function formatNumber(value) {
+      if (value === undefined || value === null || value === '') return '–';
+      const num = Number(value);
+      if (Number.isNaN(num)) return String(value);
+      return Number.isInteger(num) ? String(num) : num.toString().replace('.', ',');
+    }
+
+    function deleteBomLink(parentSku, childSku, refresh) {
+      if (!confirm('Opravdu odstranit vazbu?')) return;
+      fetch(bomDeleteUrl, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({sku, field, value})
+        body: JSON.stringify({parent: parentSku, child: childSku})
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data.ok) {
+            alert(data.error || 'Smazání se nezdařilo.');
+            return;
+          }
+          refresh();
+        })
+        .catch(() => alert('Smazání se nezdařilo.'));
+    }
+
+    function openBomAddForm(targetRow, rowData, refresh) {
+      closeBomAddForm();
+      const formRow = document.createElement('tr');
+      formRow.className = 'bom-add-row';
+      const cell = document.createElement('td');
+      cell.colSpan = targetRow.children.length;
+      const form = document.createElement('form');
+      form.className = 'bom-add-form';
+      form.innerHTML = `
+        <div class="bom-add-fields">
+          <div class="field">
+            <label>Potomek*</label>
+            <input type="text" class="bom-child-search" placeholder="SKU, název, EAN" autocomplete="off" />
+            <input type="hidden" class="bom-child-sku" />
+            <div class="bom-search-results"></div>
+          </div>
+          <div class="field">
+            <label>Koeficient*</label>
+            <input type="number" step="0.001" min="0" class="bom-input-koef" required />
+          </div>
+          <div class="field">
+            <label>MJ potomka</label>
+            <input type="text" class="bom-input-unit" />
+          </div>
+          <div class="field">
+            <label>Druh vazby</label>
+            <select class="bom-input-bond">
+              <option value="">(automaticky)</option>
+              <option value="sada">sada</option>
+              <option value="karton">karton</option>
+            </select>
+          </div>
+        </div>
+        <div class="bom-add-actions">
+          <strong>Rodič:</strong> <span>${rowData.node.sku || ''}</span>
+          <span class="bom-add-error"></span>
+          <button type="submit">Uložit</button>
+          <button type="button" class="bom-add-cancel">Zrušit</button>
+        </div>
+      `;
+      cell.appendChild(form);
+      formRow.appendChild(cell);
+      targetRow.parentNode.insertBefore(formRow, targetRow.nextSibling);
+      bomAddState = { row: formRow };
+      setupAddForm(form, rowData, refresh);
+    }
+
+    function closeBomAddForm() {
+      if (bomAddState.row) {
+        bomAddState.row.remove();
+        bomAddState = { row: null };
+      }
+    }
+
+    function setupAddForm(form, rowData, refresh) {
+      const searchInput = form.querySelector('.bom-child-search');
+      const skuInput = form.querySelector('.bom-child-sku');
+      const resultsBox = form.querySelector('.bom-search-results');
+      const unitInput = form.querySelector('.bom-input-unit');
+      const bondSelect = form.querySelector('.bom-input-bond');
+      const coefInput = form.querySelector('.bom-input-koef');
+      const errorBox = form.querySelector('.bom-add-error');
+      const cancelBtn = form.querySelector('.bom-add-cancel');
+
+      bondSelect.value = rowData.node.typ === 'karton' ? 'karton' : '';
+
+      let searchTimer = null;
+      searchInput.addEventListener('input', () => {
+        skuInput.value = '';
+        if (searchTimer) clearTimeout(searchTimer);
+        const term = searchInput.value.trim();
+        if (term.length < 2) {
+          resultsBox.innerHTML = '';
+          return;
+        }
+        searchTimer = setTimeout(() => runProductSearch(term), 250);
       });
-      const data = await response.json();
-      if (!data.ok) {
-        alert(data.error || 'Uložení se nezdařilo.');
+
+      function runProductSearch(term) {
+        fetch(`${productSearchUrl}?q=${encodeURIComponent(term)}`)
+          .then((r) => r.json())
+          .then((data) => renderSearchResults(data.items || []))
+          .catch(() => { resultsBox.innerHTML = '<span class="bom-search-empty">Chyba vyhledávání</span>'; });
+      }
+
+      function renderSearchResults(items) {
+        resultsBox.innerHTML = '';
+        if (!items.length) {
+          const empty = document.createElement('span');
+          empty.className = 'bom-search-empty';
+          empty.textContent = 'Nenalezeno';
+          resultsBox.appendChild(empty);
+          return;
+        }
+        items.forEach((item) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'bom-search-option';
+          btn.textContent = `${item.sku} – ${item.nazev}`;
+          btn.addEventListener('click', () => {
+            skuInput.value = item.sku;
+            searchInput.value = `${item.sku} – ${item.nazev}`;
+            unitInput.value = item.merna_jednotka || '';
+            resultsBox.innerHTML = '';
+          });
+          resultsBox.appendChild(btn);
+        });
+      }
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        errorBox.textContent = '';
+        const childSku = (skuInput.value || searchInput.value || '').trim();
+        const coef = parseFloat(String(coefInput.value).replace(',', '.'));
+        if (!childSku) {
+          errorBox.textContent = 'Vyberte potomka.';
+          return;
+        }
+        if (!Number.isFinite(coef) || coef <= 0) {
+          errorBox.textContent = 'Koeficient musí být kladné číslo.';
+          return;
+        }
+        const payload = {
+          parent: rowData.node.sku,
+          child: childSku,
+          koeficient: coef,
+          merna_jednotka_potomka: unitInput.value.trim(),
+          druh_vazby: bondSelect.value,
+        };
+        fetch(bomAddUrl, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data.ok) {
+              errorBox.textContent = data.error || 'Uložení se nezdařilo.';
+              return;
+            }
+            closeBomAddForm();
+            refresh();
+          })
+          .catch(() => { errorBox.textContent = 'Uložení se nezdařilo.'; });
+      });
+
+      cancelBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeBomAddForm();
+      });
+    }
+
+    function startEdit(cell, sku) {
+      cell.dataset.editing = '1';
+      const field = cell.dataset.field;
+      const type = cell.dataset.type || 'text';
+      const currentValue = cell.dataset.value ?? cell.textContent.trim();
+      let input;
+      if (type === 'select') {
+        const optionsKey = cell.dataset.options;
+        input = document.createElement('select');
+        appendOptions(input, meta[optionsKey] ?? []);
+        input.value = currentValue;
+      } else if (type === 'textarea') {
+        input = document.createElement('textarea');
+        input.rows = 3;
+        input.value = currentValue;
+      } else {
+        input = document.createElement('input');
+        input.type = type === 'number' ? 'number' : 'text';
+        if (type === 'number' && cell.dataset.step) {
+          input.step = cell.dataset.step;
+        }
+        input.value = currentValue;
+      }
+      input.className = 'inline-input';
+      cell.innerHTML = '';
+      cell.appendChild(input);
+      input.focus();
+      if (input.select) input.select();
+
+      const finish = (commit) => {
+        cell.dataset.editing = '0';
+        input.removeEventListener('blur', onBlur);
+        input.removeEventListener('keydown', onKey);
+        if (!commit) {
+          cell.textContent = formatDisplay(field, currentValue);
+          cell.dataset.value = currentValue;
+          return;
+        }
+        const newValue = input.value.trim();
+        if (newValue === currentValue) {
+          cell.textContent = formatDisplay(field, currentValue);
+          return;
+        }
+        saveChange(sku, field, newValue)
+          .then((ok) => {
+            const valueToShow = ok ? newValue : currentValue;
+            if (ok) cell.dataset.value = newValue;
+            cell.textContent = formatDisplay(field, valueToShow);
+          });
+      };
+
+      const onBlur = () => finish(true);
+      const onKey = (e) => {
+        if (e.key === 'Enter' && type !== 'textarea') {
+          e.preventDefault();
+          finish(true);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          finish(false);
+        }
+      };
+      input.addEventListener('blur', onBlur);
+      input.addEventListener('keydown', onKey);
+    }
+
+    function appendOptions(select, options) {
+      select.innerHTML = '';
+      select.appendChild(new Option('–', ''));
+      options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
+    }
+
+    function formatDisplay(field, value) {
+      if (!value) return '–';
+      if (field === 'aktivni') return value === '1' ? '✓' : '–';
+      if (field === 'znacka_id') return lookupLabel(meta.brands, value);
+      if (field === 'skupina_id') return lookupLabel(meta.groups, value);
+      return value;
+    }
+
+    function lookupLabel(list, value) {
+      const found = list.find((item) => item.value === String(value));
+      return found ? found.label : '–';
+    }
+
+    async function saveChange(sku, field, value) {
+      try {
+        const response = await fetch(updateUrl, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({sku, field, value})
+        });
+        const data = await response.json();
+        if (!data.ok) {
+          alert(data.error || 'Uložení se nezdařilo.');
+          return false;
+        }
+        return true;
+      } catch (err) {
+        alert('Chyba při ukládání.');
         return false;
       }
-      return true;
-    } catch (err) {
-      alert('Chyba při ukládání.');
-      return false;
     }
-  }
   })();
 });
 </script>

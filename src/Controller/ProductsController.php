@@ -334,6 +334,115 @@ final class ProductsController
         }
     }
 
+    public function search(): void
+    {
+        $this->requireAuth();
+        $term = $this->toUtf8((string)($_GET['q'] ?? ''));
+        header('Content-Type: application/json');
+        if ($term === '') {
+            echo json_encode(['items' => []]);
+            return;
+        }
+        $like = '%' . $term . '%';
+        $stmt = DB::pdo()->prepare(
+            'SELECT sku, alt_sku, nazev, ean, merna_jednotka, typ FROM produkty ' .
+            'WHERE sku LIKE ? OR alt_sku LIKE ? OR nazev LIKE ? OR ean LIKE ? ' .
+            'ORDER BY nazev LIMIT 20'
+        );
+        $stmt->execute([$like, $like, $like, $like]);
+        $items = [];
+        foreach ($stmt as $row) {
+            $items[] = [
+                'sku' => (string)$row['sku'],
+                'alt_sku' => (string)($row['alt_sku'] ?? ''),
+                'nazev' => (string)$row['nazev'],
+                'ean' => (string)($row['ean'] ?? ''),
+                'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+                'typ' => (string)($row['typ'] ?? ''),
+            ];
+        }
+        echo json_encode(['items' => $items]);
+    }
+
+    public function bomAdd(): void
+    {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+        $payload = $this->collectRequestData();
+        $parent = $this->toUtf8((string)($payload['parent'] ?? ''));
+        $child  = $this->toUtf8((string)($payload['child'] ?? ''));
+        $coefRaw = str_replace(',', '.', (string)($payload['koeficient'] ?? ''));
+        $unit = $this->toUtf8((string)($payload['merna_jednotka_potomka'] ?? ''));
+        $bond = $this->toUtf8((string)($payload['druh_vazby'] ?? ''));
+        if ($parent === '' || $child === '') {
+            echo json_encode(['ok'=>false,'error'=>'Chybí rodič nebo potomek.']);
+            return;
+        }
+        if (!is_numeric($coefRaw) || (float)$coefRaw <= 0) {
+            echo json_encode(['ok'=>false,'error'=>'Koeficient musí být kladné číslo.']);
+            return;
+        }
+        $parentInfo = $this->fetchProductBasics($parent);
+        if (!$parentInfo) {
+            echo json_encode(['ok'=>false,'error'=>'Rodičovský produkt neexistuje.']);
+            return;
+        }
+        $childInfo = $this->fetchProductBasics($child);
+        if (!$childInfo) {
+            echo json_encode(['ok'=>false,'error'=>'Potomek neexistuje.']);
+            return;
+        }
+        if ($unit === '') {
+            $unit = $childInfo['merna_jednotka'] ?? '';
+        }
+        if ($unit === '') {
+            echo json_encode(['ok'=>false,'error'=>'Zadejte měrnou jednotku potomka.']);
+            return;
+        }
+        if ($bond === '') {
+            $bond = $this->deriveBondType($parentInfo['typ'] ?? null);
+        }
+        if (!in_array($bond, ['karton','sada'], true)) {
+            echo json_encode(['ok'=>false,'error'=>'Neplatný druh vazby.']);
+            return;
+        }
+        $coef = (float)$coefRaw;
+        $pdo = DB::pdo();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?')->execute([$parent, $child]);
+            $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby) VALUES (?,?,?,?,?)')
+                ->execute([$parent, $child, $coef, $unit, $bond]);
+            $pdo->commit();
+            echo json_encode(['ok'=>true]);
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            echo json_encode(['ok'=>false,'error'=>'Nepodařilo se uložit vazbu.']);
+        }
+    }
+
+    public function bomDelete(): void
+    {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+        $payload = $this->collectRequestData();
+        $parent = $this->toUtf8((string)($payload['parent'] ?? ''));
+        $child  = $this->toUtf8((string)($payload['child'] ?? ''));
+        if ($parent === '' || $child === '') {
+            echo json_encode(['ok'=>false,'error'=>'Chybí rodič nebo potomek.']);
+            return;
+        }
+        $stmt = DB::pdo()->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?');
+        $stmt->execute([$parent, $child]);
+        if ($stmt->rowCount() === 0) {
+            echo json_encode(['ok'=>false,'error'=>'Vazba nebyla nalezena.']);
+            return;
+        }
+        echo json_encode(['ok'=>true]);
+    }
+
     private function editableFields(): array
     {
         return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
@@ -648,6 +757,45 @@ final class ProductsController
             $map[mb_strtolower($value, 'UTF-8')] = $value;
         }
         return $map;
+    }
+
+    private function fetchProductBasics(string $sku): ?array
+    {
+        if ($sku === '') {
+            return null;
+        }
+        $stmt = DB::pdo()->prepare('SELECT sku,nazev,typ,merna_jednotka FROM produkty WHERE sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return null;
+        }
+        return [
+            'sku' => (string)$row['sku'],
+            'nazev' => (string)$row['nazev'],
+            'typ' => (string)$row['typ'],
+            'merna_jednotka' => (string)$row['merna_jednotka'],
+        ];
+    }
+
+    private function deriveBondType(?string $parentType): string
+    {
+        return $parentType === 'karton' ? 'karton' : 'sada';
+    }
+
+    private function collectRequestData(): array
+    {
+        if (!empty($_POST)) {
+            return $_POST;
+        }
+        $raw = file_get_contents('php://input');
+        if ($raw !== false && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+        return [];
     }
 
     private function dictionaryIdExists(string $table, int $id): bool
