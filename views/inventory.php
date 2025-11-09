@@ -242,7 +242,16 @@
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({sku, quantity: value})
     })
-      .then((r) => r.json())
+      .then((response) => response.text().then((text) => {
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (_) {}
+        if (!response.ok) {
+          const message = data && data.error ? data.error : (text || `HTTP ${response.status}`);
+          throw new Error(message);
+        }
+        if (!data) throw new Error('Neplatná odpověď ze serveru.');
+        return data;
+      }))
       .then((data) => {
         if (!data.ok) {
           alert(data.error || 'Uložení se nezdařilo.');
@@ -251,7 +260,7 @@
         updateRow(data.row);
         input.value = '';
       })
-      .catch(() => alert('Nelze uložit inventuru.'))
+      .catch((err) => alert('Nelze uložit inventuru: ' + (err.message || err)))
       .finally(() => { input.disabled = false; });
   }
 

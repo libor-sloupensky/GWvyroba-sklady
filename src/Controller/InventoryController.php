@@ -132,7 +132,7 @@ final class InventoryController
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
-            echo json_encode(['ok' => false, 'error' => 'Uložení selhalo.']);
+            echo json_encode(['ok' => false, 'error' => 'Uložení selhalo: ' . $e->getMessage()]);
             return;
         }
         $rowData = $this->buildInventoryRow($product, $inventory);
