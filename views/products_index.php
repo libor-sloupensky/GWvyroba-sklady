@@ -1,4 +1,4 @@
-﻿ď»ż<?php
+<?php
 
   $activeFilters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
 
@@ -1284,6 +1284,7 @@ php
   }
 })();
 </script>
+
 
 
 
