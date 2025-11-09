@@ -52,7 +52,7 @@
   font-size: 0.9rem;
 }
 </style>
-<p class="muted">Rezervace platĂ­ do 23:59:59 zvolenĂ©ho dne. Nejprve vyhledejte produkt, potĂ© zadejte mnoĹľstvĂ­.</p>
+<p class="muted">Rezervace platí do 23:59:59 zvoleného dne. Nejdříve vyhledejte produkt, poté zadejte množství.</p>
 <form method="post" action="/reservations" class="reservation-form" id="reservation-form" autocomplete="off">
   <input type="hidden" name="id" value="" />
   <input type="hidden" name="sku" id="reservation-sku" />
@@ -68,27 +68,27 @@
 
   <label>Produkt</label>
   <div class="product-search">
-    <input type="text" id="product-search-input" placeholder="Hledejte podle SKU, nĂˇzvu nebo EAN" autocomplete="off" />
+    <input type="text" id="product-search-input" placeholder="Hledejte podle SKU, názvu nebo EAN" autocomplete="off" />
     <div class="product-search-results" id="product-search-results"></div>
     <small class="muted-note" id="product-search-hint"></small>
   </div>
 
-  <label>MnoĹľstvĂ­ <span class="muted-note" id="product-unit-label"></span></label>
+  <label>Množství <span class="muted-note" id="product-unit-label"></span></label>
   <input type="number" step="any" name="mnozstvi" id="reservation-qty" required />
 
-  <label>PlatnĂˇ do</label>
+  <label>Platná do</label>
   <input type="date" name="platna_do" required />
 
-  <label>PoznĂˇmka</label>
+  <label>Poznámka</label>
   <input type="text" name="poznamka" />
 
   <br>
-  <button type="submit">UloĹľit</button>
+  <button type="submit">Uložit</button>
 </form>
 
 <hr>
 <table>
-  <tr><th>SKU</th><th>Typ</th><th>MnoĹľstvĂ­</th><th>PlatnĂˇ do</th><th>PoznĂˇmka</th><th>Akce</th></tr>
+  <tr><th>SKU</th><th>Typ</th><th>Množství</th><th>Platná do</th><th>Poznámka</th><th>Akce</th></tr>
   <?php foreach (($rows ?? []) as $r): ?>
   <tr>
     <td><?= htmlspecialchars((string)$r['sku'],ENT_QUOTES,'UTF-8') ?></td>
@@ -123,8 +123,8 @@
 
   function selectProduct(item) {
     skuInput.value = item.sku;
-    searchInput.value = item.sku + ' â€“ ' + item.nazev;
-    hint.textContent = 'VybrĂˇno: ' + item.sku + ' Â· ' + item.nazev + (item.ean ? ' (EAN ' + item.ean + ')' : '');
+    searchInput.value = item.sku + ' – ' + item.nazev;
+    hint.textContent = 'Vybráno: ' + item.sku + ' · ' + item.nazev + (item.ean ? ' (EAN ' + item.ean + ')' : '');
     unitLabel.textContent = item.merna_jednotka ? '(MJ: ' + item.merna_jednotka + ')' : '';
     hideResults();
   }
@@ -138,8 +138,8 @@
     items.forEach((item) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      const ean = item.ean ? ' Â· EAN ' + item.ean : '';
-      btn.textContent = item.sku + ' â€“ ' + item.nazev + ean;
+      const ean = item.ean ? ' · EAN ' + item.ean : '';
+      btn.textContent = item.sku + ' – ' + item.nazev + ean;
       btn.addEventListener('click', () => selectProduct(item));
       resultsBox.appendChild(btn);
     });
