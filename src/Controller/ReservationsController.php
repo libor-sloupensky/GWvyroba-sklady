@@ -9,8 +9,12 @@ final class ReservationsController
     {
         $this->requireAuth();
         $pdo = DB::pdo();
-        $rows = $pdo->query('SELECT id,sku,mnozstvi,platna_do,poznamka FROM rezervace ORDER BY platna_do DESC, id DESC')->fetchAll();
-        $this->render('reservations.php', ['title'=>'Rezervace','rows'=>$rows]);
+        $rows = $pdo->query('SELECT id,sku,typ,mnozstvi,platna_do,poznamka FROM rezervace ORDER BY platna_do DESC, id DESC')->fetchAll();
+        $this->render('reservations.php', [
+            'title' => 'Rezervace',
+            'rows'  => $rows,
+            'types' => $this->productTypes(),
+        ]);
     }
 
     public function save(): void
@@ -18,17 +22,21 @@ final class ReservationsController
         $this->requireAuth();
         $id = (int)($_POST['id'] ?? 0);
         $sku = trim((string)($_POST['sku'] ?? ''));
+        $type = trim((string)($_POST['typ'] ?? 'produkt'));
+        if (!in_array($type, $this->productTypes(), true)) {
+            $type = 'produkt';
+        }
         $qty = (float)($_POST['mnozstvi'] ?? 0);
         $to  = trim((string)($_POST['platna_do'] ?? ''));
         $note= trim((string)($_POST['poznamka'] ?? ''));
         if ($sku === '' || $qty <= 0 || $to === '') { $this->redirect('/reservations'); return; }
         $pdo = DB::pdo();
         if ($id > 0) {
-            $st = $pdo->prepare('UPDATE rezervace SET sku=?, mnozstvi=?, platna_do=?, poznamka=? WHERE id=?');
-            $st->execute([$sku,$qty,$to,$note,$id]);
+            $st = $pdo->prepare('UPDATE rezervace SET sku=?, typ=?, mnozstvi=?, platna_do=?, poznamka=? WHERE id=?');
+            $st->execute([$sku,$type,$qty,$to,$note,$id]);
         } else {
-            $st = $pdo->prepare('INSERT INTO rezervace (sku,mnozstvi,platna_do,poznamka) VALUES (?,?,?,?)');
-            $st->execute([$sku,$qty,$to,$note]);
+            $st = $pdo->prepare('INSERT INTO rezervace (sku,typ,mnozstvi,platna_do,poznamka) VALUES (?,?,?,?,?)');
+            $st->execute([$sku,$type,$qty,$to,$note]);
         }
         $this->redirect('/reservations');
     }
@@ -41,6 +49,35 @@ final class ReservationsController
         $this->redirect('/reservations');
     }
 
+    public function searchProducts(): void
+    {
+        $this->requireAuth();
+        $term = trim((string)($_GET['q'] ?? ''));
+        header('Content-Type: application/json');
+        if ($term === '') {
+            echo json_encode(['items' => []]);
+            return;
+        }
+        $like = '%' . $term . '%';
+        $stmt = DB::pdo()->prepare(
+            'SELECT sku, alt_sku, nazev, ean, merna_jednotka FROM produkty ' .
+            'WHERE sku LIKE ? OR alt_sku LIKE ? OR nazev LIKE ? OR ean LIKE ? ' .
+            'ORDER BY nazev LIMIT 20'
+        );
+        $stmt->execute([$like,$like,$like,$like]);
+        $items = [];
+        foreach ($stmt as $row) {
+            $items[] = [
+                'sku' => (string)$row['sku'],
+                'alt_sku' => (string)($row['alt_sku'] ?? ''),
+                'nazev' => (string)$row['nazev'],
+                'ean' => (string)($row['ean'] ?? ''),
+                'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+            ];
+        }
+        echo json_encode(['items' => $items]);
+    }
+
     private function requireAuth(): void {
         if (!isset($_SESSION['user'])) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
@@ -48,6 +85,12 @@ final class ReservationsController
             exit;
         }
     }
+
+    private function productTypes(): array
+    {
+        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+    }
+
     private function render(string $view, array $vars=[]): void { extract($vars); require __DIR__ . '/../../views/_layout.php'; }
     private function redirect(string $p): void { header('Location: '.$p, true, 302); exit; }
 }

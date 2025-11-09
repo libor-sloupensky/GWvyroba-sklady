@@ -65,6 +65,7 @@ $router->post('/inventory/move', [InventoryController::class, 'addMove']);
 $router->get('/reservations', [ReservationsController::class, 'index']);
 $router->post('/reservations', [ReservationsController::class, 'save']);
 $router->post('/reservations/delete', [ReservationsController::class, 'delete']);
+$router->get('/reservations/search-products', [ReservationsController::class, 'searchProducts']);
 
 // Production
 $router->get('/production/plans', [ProductionController::class, 'plans']);

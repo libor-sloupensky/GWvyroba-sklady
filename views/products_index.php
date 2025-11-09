@@ -1,20 +1,53 @@
 <h1>Produkty</h1>
-<div class="csv-help">
-  <strong>Popis sloupců CSV (oddělovač ;):</strong>
-  <ul>
-    <li><code>sku</code> – povinný interní kód produktu.</li>
-    <li><code>alt_sku</code> – volitelný alternativní kód (unikátní, nesmí být shodný se SKU).</li>
-    <li><code>ean</code> – volitelný EAN / čárový kód.</li>
-    <li><code>znacka</code> – název značky definovaný v Nastavení (povolené hodnoty).</li>
-    <li><code>skupina</code> – název produktové skupiny z Nastavení.</li>
-    <li><code>typ</code> – jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>baleni</code>, <code>karton</code>.</li>
-    <li><code>merna_jednotka</code> – kód jednotky nadefinovaný v Nastavení (např. <code>ks</code>, <code>kg</code>).</li>
-    <li><code>nazev</code> – povinný název položky.</li>
-    <li><code>min_zasoba</code>, <code>min_davka</code>, <code>krok_vyroby</code>, <code>vyrobni_doba_dni</code> – číselné hodnoty (volitelné).</li>
-    <li><code>aktivni</code> – 1 = aktivní, 0 = skrytý produkt.</li>
-    <li><code>poznamka</code> – libovolný text.</li>
-  </ul>
-</div>
+<style>
+.csv-help {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin: 0 0 1rem;
+}
+.csv-help summary {
+  cursor: pointer;
+  font-weight: bold;
+  list-style: none;
+}
+.csv-help summary::-webkit-details-marker {
+  display: none;
+}
+.csv-help summary::after {
+  content: ' ▾';
+  font-weight: normal;
+}
+.csv-help[open] summary::after {
+  content: ' ▴';
+}
+.csv-help-body {
+  margin-top: 0.5rem;
+}
+</style>
+<details class="csv-help" id="products-help">
+  <summary>Napoveda - CSV a pole produktu</summary>
+  <div class="csv-help-body">
+    <p><strong>Popis sloupcu CSV (oddelovac ;):</strong></p>
+    <ul>
+      <li><code>sku</code> - povinny interni kod produktu.</li>
+      <li><code>alt_sku</code> - volitelny alternativni kod (unikatni, nesmi byt shodny se SKU).</li>
+      <li><code>ean</code> - volitelny EAN / carovy kod.</li>
+      <li><code>znacka</code> / <code>skupina</code> - nazvy definovane v Nastaveni.</li>
+      <li><code>typ</code> - jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>baleni</code>, <code>karton</code>.</li>
+      <li><code>merna_jednotka</code> - kod jednotky z Nastaveni (napr. <code>ks</code>, <code>kg</code>).</li>
+      <li><code>nazev</code> - povinny nazev polozky.</li>
+      <li><code>min_zasoba</code> - bezpecna zasoba; planovani se ma drzet alespon teto hodnoty.</li>
+      <li><code>min_davka</code> - minimalni vyrabena davka. Mensi mnozstvi vyroba nespusti.</li>
+      <li><code>krok_vyroby</code> - o kolik lze davku navysovat nad minimum (napr. krok 50 => 200, 250, 300 ...).</li>
+      <li><code>vyrobni_doba_dni</code> - delka vyroby v kalendarnich dnech.</li>
+      <li><code>aktivni</code> - 1 = aktivni, 0 = skryty produkt.</li>
+      <li><code>poznamka</code> - libovolny text.</li>
+    </ul>
+    <p>Desetinne hodnoty piste s teckou (napr. <code>0.25</code>). CSV musi byt v UTF-8.</p>
+  </div>
+</details>
+
 
 <?php if (!empty($error)): ?>
   <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">

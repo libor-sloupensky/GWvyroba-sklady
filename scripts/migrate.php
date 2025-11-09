@@ -66,6 +66,10 @@ try {
     try {
         $pdo->exec('ALTER TABLE produkty ADD CONSTRAINT fk_produkty_skupina FOREIGN KEY (skupina_id) REFERENCES produkty_skupiny(id) ON DELETE SET NULL');
     } catch (Throwable $e) {}
+    if (!columnExists($pdo, 'rezervace', 'typ')) {
+        addColumn($pdo, 'rezervace', "COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
+        try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (Throwable $e) {}
+    }
     echo "Migrace OK\n";
 } catch (Throwable $e) {
     echo "Migrace selhala: " . $e->getMessage() . "\n";

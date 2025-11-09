@@ -140,10 +140,12 @@ CREATE TABLE IF NOT EXISTS polozky_pohyby (
 CREATE TABLE IF NOT EXISTS rezervace (
   id INT AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(128) NOT NULL,
+  typ ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt',
   mnozstvi DECIMAL(18,3) NOT NULL,
   platna_do DATE NOT NULL,
   poznamka VARCHAR(512) NULL,
   KEY idx_rez_sku (sku),
+  KEY idx_rez_typ (typ),
   KEY idx_rez_platnost (platna_do)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
