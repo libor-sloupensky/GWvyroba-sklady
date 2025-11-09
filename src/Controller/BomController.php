@@ -9,7 +9,7 @@ final class BomController
     {
         $this->requireAuth();
         $rows = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-        $this->render('bom_index.php', ['title'=>'BOM','items'=>$rows]);
+        $this->render('bom_index.php', ['title'=>'BOM','items'=>$rows,'total'=>$this->bomCount()]);
     }
 
     public function exportCsv(): void
@@ -81,10 +81,10 @@ final class BomController
             }
             $pdo->commit();
             $items = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-            $this->render('bom_index.php',['title'=>'BOM','items'=>$items,'message'=>"Import OK: $ok", 'errors'=>$err]);
+            $this->render('bom_index.php',['title'=>'BOM','items'=>$items,'message'=>"Import OK: $ok", 'errors'=>$err,'total'=>$this->bomCount()]);
         } catch (\Throwable $e){
             if($pdo->inTransaction())$pdo->rollBack();
-            $this->render('bom_index.php',['title'=>'BOM','error'=>$e->getMessage()]);
+            $this->render('bom_index.php',['title'=>'BOM','error'=>$e->getMessage(),'total'=>$this->bomCount()]);
         }
     }
 
@@ -143,5 +143,11 @@ final class BomController
     private function render(string $view, array $vars=[]): void {
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
+    }
+
+    private function bomCount(): int
+    {
+        $count = DB::pdo()->query('SELECT COUNT(*) FROM bom')->fetchColumn();
+        return (int)$count;
     }
 }

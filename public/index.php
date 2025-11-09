@@ -66,6 +66,8 @@ $router->get('/inventory', [InventoryController::class, 'index']);
 $router->post('/inventory/start', [InventoryController::class, 'start']);
 $router->post('/inventory/close', [InventoryController::class, 'close']);
 $router->post('/inventory/entry', [InventoryController::class, 'addEntry']);
+$router->post('/inventory/delete', [InventoryController::class, 'delete']);
+$router->post('/inventory/reopen', [InventoryController::class, 'reopen']);
 
 // Reservations
 $router->get('/reservations', [ReservationsController::class, 'index']);

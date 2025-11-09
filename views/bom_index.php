@@ -1,4 +1,5 @@
-<h1>BOM (karton / sada)</h1>
+﻿<h1>BOM (karton / sada)</h1>
+<?php $total = isset($total) ? (int)$total : 0; ?>
 <style>
 .csv-help {
   border: 1px solid #ddd;
@@ -28,6 +29,7 @@
 .csv-help-body {
   margin-top: 0.5rem;
 }
+.muted-note { color:#607d8b; margin-top:0.4rem; }
 </style>
 <details class="csv-help" id="bom-help">
   <summary>Nápověda – BOM import</summary>
@@ -66,6 +68,7 @@
 </form>
 
 <hr>
+<p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format($total, 0, ',', ' ') ?></strong></p>
 <table>
   <tr>
     <th>Rodič (SKU)</th>

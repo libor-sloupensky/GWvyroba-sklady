@@ -12,17 +12,34 @@ final class InventoryController
         $error = $_SESSION['inventory_error'] ?? null;
         unset($_SESSION['inventory_message'], $_SESSION['inventory_error']);
 
+        $selectedId = isset($_GET['inventory_id']) ? max(0, (int)$_GET['inventory_id']) : null;
+        $inventories = $this->listInventories();
         $activeInventory = $this->getActiveInventory();
         $lastClosed = $this->getLastClosedInventory();
+
+        $inventory = null;
+        if ($selectedId) {
+            foreach ($inventories as $candidate) {
+                if ((int)$candidate['id'] === $selectedId) {
+                    $inventory = $candidate;
+                    break;
+                }
+            }
+        }
+        if (!$inventory) {
+            $inventory = $activeInventory ?: ($inventories[0] ?? null);
+        }
+
         $filters = $this->currentFilters();
         $hasSearch = $this->searchTriggered();
-        $items = ($hasSearch && $activeInventory)
-            ? $this->fetchInventoryProducts($filters, $activeInventory)
+        $allowEntries = $inventory && !$inventory['closed_at'] && $activeInventory && $inventory['id'] === $activeInventory['id'];
+        $items = ($hasSearch && $inventory)
+            ? $this->fetchInventoryProducts($filters, $inventory)
             : [];
 
         $this->render('inventory.php', [
             'title' => 'Inventura',
-            'inventory' => $activeInventory,
+            'inventory' => $inventory,
             'lastClosed' => $lastClosed,
             'items' => $items,
             'filters' => $filters,
@@ -32,6 +49,11 @@ final class InventoryController
             'types' => $this->productTypes(),
             'message' => $message,
             'error' => $error,
+            'allowEntries' => $allowEntries,
+            'inventories' => $inventories,
+            'selectedInventoryId' => $inventory['id'] ?? null,
+            'activeInventoryId' => $activeInventory['id'] ?? null,
+            'latestInventoryId' => $inventories[0]['id'] ?? null,
             'isAdmin' => $this->isAdmin(),
         ]);
     }
@@ -140,6 +162,72 @@ final class InventoryController
         echo json_encode(['ok' => true, 'row' => $rowData]);
     }
 
+    public function delete(): void
+    {
+        $this->requireAdmin();
+        $inventoryId = (int)($_POST['inventory_id'] ?? 0);
+        if ($inventoryId <= 0) {
+            $_SESSION['inventory_error'] = 'Neplatná inventura.';
+            $this->redirect('/inventory');
+            return;
+        }
+        $latest = $this->getLatestInventoryId();
+        if ($latest === null || $inventoryId !== $latest) {
+            $_SESSION['inventory_error'] = 'Smazat lze pouze poslední inventuru.';
+            $this->redirect('/inventory');
+            return;
+        }
+        $pdo = DB::pdo();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM polozky_pohyby WHERE ref_id LIKE ?')->execute([$this->inventoryRefPattern($inventoryId)]);
+            $pdo->prepare('DELETE FROM inventura_polozky WHERE inventura_id=?')->execute([$inventoryId]);
+            $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventoryId]);
+            $pdo->prepare('DELETE FROM inventury WHERE id=?')->execute([$inventoryId]);
+            $pdo->commit();
+            $_SESSION['inventory_message'] = 'Inventura byla smazána.';
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $_SESSION['inventory_error'] = 'Smazání inventury selhalo: ' . $e->getMessage();
+        }
+        $this->redirect('/inventory');
+    }
+
+    public function reopen(): void
+    {
+        $this->requireAdmin();
+        $inventoryId = (int)($_POST['inventory_id'] ?? 0);
+        if ($inventoryId <= 0) {
+            $_SESSION['inventory_error'] = 'Neplatná inventura.';
+            $this->redirect('/inventory');
+            return;
+        }
+        $latest = $this->getLatestInventoryId();
+        if ($latest === null || $inventoryId !== $latest) {
+            $_SESSION['inventory_error'] = 'Znovu otevřít lze pouze poslední inventuru.';
+            $this->redirect('/inventory');
+            return;
+        }
+        $inventory = $this->loadInventoryById($inventoryId);
+        if (!$inventory || empty($inventory['closed_at'])) {
+            $_SESSION['inventory_error'] = 'Inventura není uzavřená.';
+            $this->redirect('/inventory');
+            return;
+        }
+        $pdo = DB::pdo();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventoryId]);
+            $pdo->prepare('UPDATE inventury SET closed_at=NULL WHERE id=?')->execute([$inventoryId]);
+            $pdo->commit();
+            $_SESSION['inventory_message'] = 'Inventura byla znovu otevřena.';
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $_SESSION['inventory_error'] = 'Znovu otevření inventury selhalo: ' . $e->getMessage();
+        }
+        $this->redirect('/inventory?inventory_id=' . $inventoryId);
+    }
+
     // ----- Helpers -----
 
     private function fetchInventoryProducts(array $filters, array $inventory): array
@@ -234,7 +322,8 @@ final class InventoryController
         $baselineMap = $this->loadSnapshotMap($baselineId, $skuFilter);
         $baselineClosedAt = $this->getInventoryClosedAt($baselineId);
         $excludeInventoryId = $excludeActiveEntries ? (int)$inventory['id'] : null;
-        $movements = $this->loadMovementSums($baselineClosedAt, $skuFilter, $excludeInventoryId, null);
+        $until = $inventory['closed_at'] ?? null;
+        $movements = $this->loadMovementSums($baselineClosedAt, $skuFilter, $excludeInventoryId, $until);
         return $this->mergeQuantities($baselineMap, $movements);
     }
 
@@ -542,5 +631,29 @@ final class InventoryController
     private function canEditInventory(): bool
     {
         return true;
+    }
+
+    private function listInventories(): array
+    {
+        return DB::pdo()->query('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka FROM inventury ORDER BY opened_at DESC, id DESC')->fetchAll();
+    }
+
+    private function loadInventoryById(int $id): ?array
+    {
+        $stmt = DB::pdo()->prepare('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka FROM inventury WHERE id=? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    private function getLatestInventoryId(): ?int
+    {
+        $row = DB::pdo()->query('SELECT id FROM inventury ORDER BY opened_at DESC, id DESC LIMIT 1')->fetch();
+        return $row ? (int)$row['id'] : null;
+    }
+
+    private function inventoryRefPattern(int $inventoryId): string
+    {
+        return sprintf('inv:%d:%%', $inventoryId);
     }
 }
