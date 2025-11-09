@@ -302,7 +302,7 @@ final class InventoryController
 
     private function fetchFilteredProducts(array $filters): array
     {
-        $sql = 'SELECT p.sku,p.alt_sku,p.ean,p.nazev,p.typ,p.merna_jednotka,' .
+        $sql = 'SELECT p.sku,p.alt_sku,p.ean,p.nazev AS nazev,p.typ,p.merna_jednotka,' .
             'COALESCE(z.nazev, "") AS znacka, COALESCE(g.nazev, "") AS skupina ' .
             'FROM produkty p ' .
             'LEFT JOIN produkty_znacky z ON z.id = p.znacka_id ' .
