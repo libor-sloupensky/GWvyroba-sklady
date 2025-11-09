@@ -49,8 +49,7 @@ final class BomController
             if (!$header || array_map('strtolower',$header)!==$expected) {
                 throw new \RuntimeException('Neplatná hlavička CSV.');
             }
-            $seenParents = [];
-            $delete = $pdo->prepare('DELETE FROM bom WHERE rodic_sku=?');
+            $deletePair = $pdo->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?');
             $insert = $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby) VALUES (?,?,?,?,?)');
             $ok=0;$err=[];$line=1;
             while(($row=$this->readCsvRow($fh))!==false){
@@ -76,10 +75,7 @@ final class BomController
                     $err[]="Řádek $line: neplatný druh_vazby";
                     continue;
                 }
-                if(!isset($seenParents[$parent])){
-                    $seenParents[$parent]=true;
-                    $delete->execute([$parent]);
-                }
+                $deletePair->execute([$parent,$child]);
                 $insert->execute([$parent,$child,$coef,$unit,$bond]);
                 $ok++;
             }
