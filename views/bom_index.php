@@ -111,11 +111,59 @@
   };
 ?>
 <?php if (!empty($tree)): ?>
+  <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.2/styles/vis-network.min.css" />
+  <script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
   <details class="bom-tree-panel">
     <summary>Strom vazeb produktů</summary>
-    <p class="muted">Každý produkt je ve stromu uveden pouze jednou. Barva odpovídá typu produktu.</p>
-    <?php $renderBomTree($tree); ?>
+    <p class="muted">Každý produkt je ve stromu uveden pouze jednou. Barvy rozlišují typy produktů.</p>
+    <div id="bom-network" style="height:480px;"></div>
+    <noscript><?php $renderBomTree($tree); ?></noscript>
   </details>
+  <script>
+  (function(){
+    const container = document.getElementById('bom-network');
+    if (!container || typeof vis === 'undefined') return;
+    const rawTree = <?= json_encode($tree, JSON_UNESCAPED_UNICODE) ?>;
+    const typeColors = {
+      'produkt': '#81c784',
+      'obal': '#ffe082',
+      'etiketa': '#ce93d8',
+      'surovina': '#ef9a9a',
+      'baleni': '#90caf9',
+      'karton': '#b39ddb',
+      '': '#cfd8dc'
+    };
+    const nodes = [];
+    const edges = [];
+    const seen = new Set();
+    function traverse(node, parent) {
+      if (!node) return;
+      if (!seen.has(node.sku)) {
+        seen.add(node.sku);
+        nodes.push({
+          id: node.sku,
+          label: node.sku + (node.nazev ? ' – ' + node.nazev : ''),
+          color: typeColors[node.typ] || typeColors[''],
+          shape: 'box',
+          font: { multi: 'html', color: '#263238' }
+        });
+      }
+      if (parent) {
+        edges.push({ from: parent, to: node.sku, arrows: 'to' });
+      }
+      (node.children || []).forEach(child => traverse(child, node.sku));
+    }
+    rawTree.forEach(root => traverse(root, null));
+    const network = new vis.Network(container, {
+      nodes: new vis.DataSet(nodes),
+      edges: new vis.DataSet(edges)
+    }, {
+      layout: { hierarchical: { direction: 'UD', nodeSpacing: 180, levelSeparation: 150, sortMethod: 'directed' } },
+      physics: false,
+      interaction: { hover: true }
+    });
+  })();
+  </script>
 <?php endif; ?>
 <table>
   <tr>
