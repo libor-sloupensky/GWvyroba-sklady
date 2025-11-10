@@ -13,7 +13,7 @@ final class BomController
             'title'=>'BOM',
             'items'=>$rows,
             'total'=>$this->bomCount(),
-            'tree'=>$this->buildBomTreeData($rows),
+            'graph'=>$this->buildBomGraphData($rows),
         ]);
     }
 
@@ -92,7 +92,7 @@ final class BomController
                 'message'=>"Import OK: $ok",
                 'errors'=>$err,
                 'total'=>$this->bomCount(),
-                'tree'=>$this->buildBomTreeData($items),
+                'graph'=>$this->buildBomGraphData($items),
             ]);
         } catch (\Throwable $e){
             if($pdo->inTransaction())$pdo->rollBack();
@@ -102,7 +102,7 @@ final class BomController
                 'items'=>$items,
                 'error'=>$e->getMessage(),
                 'total'=>$this->bomCount(),
-                'tree'=>$this->buildBomTreeData($items),
+                'graph'=>$this->buildBomGraphData($items),
             ]);
         }
     }
@@ -172,53 +172,36 @@ final class BomController
 
     /**
      * @param array<int,array<string,string>> $rows
-     * @return array<int,array<string,mixed>>
+     * @return array{nodes:array<int,array<string,string>>,edges:array<int,array<string,string>>>}
      */
-    private function buildBomTreeData(array $rows): array
+    private function buildBomGraphData(array $rows): array
     {
+        $nodes = [];
+        $edges = [];
         if (empty($rows)) {
-            return [];
+            return ['nodes'=>$nodes,'edges'=>$edges];
         }
-        $graph = [];
-        $hasParent = [];
-        $allNodes = [];
+        $allSkus = [];
         foreach ($rows as $row) {
-            $parent = (string)$row['rodic_sku'];
-            $child = (string)$row['potomek_sku'];
-            $graph[$parent][] = $child;
-            $hasParent[$child] = true;
-            $allNodes[$parent] = true;
-            $allNodes[$child] = true;
+            $allSkus[(string)$row['rodic_sku']] = true;
+            $allSkus[(string)$row['potomek_sku']] = true;
         }
-        if (empty($allNodes)) {
-            return [];
+        $info = $this->loadProductInfoBulk(array_keys($allSkus));
+        foreach ($allSkus as $sku => $_) {
+            $nodes[] = [
+                'id' => $sku,
+                'sku' => $sku,
+                'nazev' => $info[$sku]['nazev'] ?? '',
+                'typ' => $info[$sku]['typ'] ?? '',
+            ];
         }
-        $info = $this->loadProductInfoBulk(array_keys($allNodes));
-        $roots = [];
-        foreach ($allNodes as $sku => $_) {
-            if (empty($hasParent[$sku])) {
-                $roots[] = $sku;
-            }
+        foreach ($rows as $row) {
+            $edges[] = [
+                'from' => (string)$row['rodic_sku'],
+                'to' => (string)$row['potomek_sku'],
+            ];
         }
-        sort($roots);
-        $visited = [];
-        $tree = [];
-        foreach ($roots as $sku) {
-            $node = $this->buildTreeNode($sku, $graph, $info, $visited);
-            if ($node) {
-                $tree[] = $node;
-            }
-        }
-        foreach ($allNodes as $sku => $_) {
-            if (isset($visited[$sku])) {
-                continue;
-            }
-            $node = $this->buildTreeNode($sku, $graph, $info, $visited);
-            if ($node) {
-                $tree[] = $node;
-            }
-        }
-        return $tree;
+        return ['nodes'=>$nodes,'edges'=>$edges];
     }
 
     /**
@@ -241,30 +224,5 @@ final class BomController
             ];
         }
         return $map;
-    }
-
-    private function buildTreeNode(string $sku, array $graph, array $info, array &$visited): ?array
-    {
-        if (isset($visited[$sku])) {
-            return null;
-        }
-        $visited[$sku] = true;
-        $node = [
-            'sku' => $sku,
-            'nazev' => $info[$sku]['nazev'] ?? '',
-            'typ' => $info[$sku]['typ'] ?? '',
-            'children' => [],
-        ];
-        $children = $graph[$sku] ?? [];
-        foreach ($children as $childSku) {
-            if (isset($visited[$childSku])) {
-                continue;
-            }
-            $childNode = $this->buildTreeNode($childSku, $graph, $info, $visited);
-            if ($childNode) {
-                $node['children'][] = $childNode;
-            }
-        }
-        return $node;
     }
 }

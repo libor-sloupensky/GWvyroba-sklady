@@ -88,42 +88,19 @@
 
 <hr>
 <p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format($total, 0, ',', ' ') ?></strong></p>
-<?php
-  $renderBomTree = function(array $nodes) use (&$renderBomTree) {
-      if (empty($nodes)) return;
-      echo '<ul class="bom-tree-view">';
-      foreach ($nodes as $node) {
-          $sku = htmlspecialchars((string)$node['sku'], ENT_QUOTES, 'UTF-8');
-          $nazev = htmlspecialchars((string)($node['nazev'] ?? ''), ENT_QUOTES, 'UTF-8');
-          $type = htmlspecialchars((string)($node['typ'] ?? ''), ENT_QUOTES, 'UTF-8');
-          echo '<li>';
-          echo '<span class="bom-tree-node" data-type="' . $type . '">' . $sku;
-          if ($nazev !== '') {
-              echo ' – ' . $nazev;
-          }
-          echo '</span>';
-          if (!empty($node['children'])) {
-              $renderBomTree($node['children']);
-          }
-          echo '</li>';
-      }
-      echo '</ul>';
-  };
-?>
-<?php if (!empty($tree)): ?>
+<?php if (!empty($graph['nodes'])): ?>
   <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.2/styles/vis-network.min.css" />
   <script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
   <details class="bom-tree-panel">
     <summary>Strom vazeb produktů</summary>
     <p class="muted">Každý produkt je ve stromu uveden pouze jednou. Barvy rozlišují typy produktů.</p>
-    <div id="bom-network" style="height:480px;"></div>
-    <noscript><?php $renderBomTree($tree); ?></noscript>
+    <div id="bom-network" style="height:520px;"></div>
   </details>
   <script>
   (function(){
     const container = document.getElementById('bom-network');
     if (!container || typeof vis === 'undefined') return;
-    const rawTree = <?= json_encode($tree, JSON_UNESCAPED_UNICODE) ?>;
+    const graph = <?= json_encode($graph, JSON_UNESCAPED_UNICODE) ?>;
     const typeColors = {
       'produkt': '#81c784',
       'obal': '#ffe082',
@@ -133,32 +110,23 @@
       'karton': '#b39ddb',
       '': '#cfd8dc'
     };
-    const nodes = [];
-    const edges = [];
-    const seen = new Set();
-    function traverse(node, parent) {
-      if (!node) return;
-      if (!seen.has(node.sku)) {
-        seen.add(node.sku);
-        nodes.push({
-          id: node.sku,
-          label: node.sku + (node.nazev ? ' – ' + node.nazev : ''),
-          color: typeColors[node.typ] || typeColors[''],
-          shape: 'box',
-          font: { multi: 'html', color: '#263238' }
-        });
-      }
-      if (parent) {
-        edges.push({ from: parent, to: node.sku, arrows: 'to' });
-      }
-      (node.children || []).forEach(child => traverse(child, node.sku));
-    }
-    rawTree.forEach(root => traverse(root, null));
-    const network = new vis.Network(container, {
+    const nodes = (graph.nodes || []).map((node) => ({
+      id: node.sku,
+      label: node.sku + (node.nazev ? ' – ' + node.nazev : ''),
+      color: typeColors[node.typ] || typeColors[''],
+      shape: 'box',
+      font: { color: '#263238' }
+    }));
+    const edges = (graph.edges || []).map((edge) => ({
+      from: edge.from,
+      to: edge.to,
+      arrows: 'to'
+    }));
+    new vis.Network(container, {
       nodes: new vis.DataSet(nodes),
       edges: new vis.DataSet(edges)
     }, {
-      layout: { hierarchical: { direction: 'UD', nodeSpacing: 180, levelSeparation: 150, sortMethod: 'directed' } },
+      layout: { hierarchical: { direction: 'LR', nodeSpacing: 180, levelSeparation: 220, sortMethod: 'directed' } },
       physics: false,
       interaction: { hover: true }
     });
