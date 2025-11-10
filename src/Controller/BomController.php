@@ -9,7 +9,12 @@ final class BomController
     {
         $this->requireAuth();
         $rows = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-        $this->render('bom_index.php', ['title'=>'BOM','items'=>$rows,'total'=>$this->bomCount()]);
+        $this->render('bom_index.php', [
+            'title'=>'BOM',
+            'items'=>$rows,
+            'total'=>$this->bomCount(),
+            'tree'=>$this->buildBomTreeData($rows),
+        ]);
     }
 
     public function exportCsv(): void
@@ -81,10 +86,24 @@ final class BomController
             }
             $pdo->commit();
             $items = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-            $this->render('bom_index.php',['title'=>'BOM','items'=>$items,'message'=>"Import OK: $ok", 'errors'=>$err,'total'=>$this->bomCount()]);
+            $this->render('bom_index.php',[
+                'title'=>'BOM',
+                'items'=>$items,
+                'message'=>"Import OK: $ok",
+                'errors'=>$err,
+                'total'=>$this->bomCount(),
+                'tree'=>$this->buildBomTreeData($items),
+            ]);
         } catch (\Throwable $e){
             if($pdo->inTransaction())$pdo->rollBack();
-            $this->render('bom_index.php',['title'=>'BOM','error'=>$e->getMessage(),'total'=>$this->bomCount()]);
+            $items = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
+            $this->render('bom_index.php',[
+                'title'=>'BOM',
+                'items'=>$items,
+                'error'=>$e->getMessage(),
+                'total'=>$this->bomCount(),
+                'tree'=>$this->buildBomTreeData($items),
+            ]);
         }
     }
 
@@ -149,5 +168,103 @@ final class BomController
     {
         $count = DB::pdo()->query('SELECT COUNT(*) FROM bom')->fetchColumn();
         return (int)$count;
+    }
+
+    /**
+     * @param array<int,array<string,string>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildBomTreeData(array $rows): array
+    {
+        if (empty($rows)) {
+            return [];
+        }
+        $graph = [];
+        $hasParent = [];
+        $allNodes = [];
+        foreach ($rows as $row) {
+            $parent = (string)$row['rodic_sku'];
+            $child = (string)$row['potomek_sku'];
+            $graph[$parent][] = $child;
+            $hasParent[$child] = true;
+            $allNodes[$parent] = true;
+            $allNodes[$child] = true;
+        }
+        if (empty($allNodes)) {
+            return [];
+        }
+        $info = $this->loadProductInfoBulk(array_keys($allNodes));
+        $roots = [];
+        foreach ($allNodes as $sku => $_) {
+            if (empty($hasParent[$sku])) {
+                $roots[] = $sku;
+            }
+        }
+        sort($roots);
+        $visited = [];
+        $tree = [];
+        foreach ($roots as $sku) {
+            $node = $this->buildTreeNode($sku, $graph, $info, $visited);
+            if ($node) {
+                $tree[] = $node;
+            }
+        }
+        foreach ($allNodes as $sku => $_) {
+            if (isset($visited[$sku])) {
+                continue;
+            }
+            $node = $this->buildTreeNode($sku, $graph, $info, $visited);
+            if ($node) {
+                $tree[] = $node;
+            }
+        }
+        return $tree;
+    }
+
+    /**
+     * @param array<int,string> $skus
+     * @return array<string,array<string,string>>
+     */
+    private function loadProductInfoBulk(array $skus): array
+    {
+        if (empty($skus)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($skus), '?'));
+        $stmt = DB::pdo()->prepare("SELECT sku,nazev,typ FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt->execute($skus);
+        $map = [];
+        foreach ($stmt as $row) {
+            $map[(string)$row['sku']] = [
+                'nazev' => (string)$row['nazev'],
+                'typ' => (string)$row['typ'],
+            ];
+        }
+        return $map;
+    }
+
+    private function buildTreeNode(string $sku, array $graph, array $info, array &$visited): ?array
+    {
+        if (isset($visited[$sku])) {
+            return null;
+        }
+        $visited[$sku] = true;
+        $node = [
+            'sku' => $sku,
+            'nazev' => $info[$sku]['nazev'] ?? '',
+            'typ' => $info[$sku]['typ'] ?? '',
+            'children' => [],
+        ];
+        $children = $graph[$sku] ?? [];
+        foreach ($children as $childSku) {
+            if (isset($visited[$childSku])) {
+                continue;
+            }
+            $childNode = $this->buildTreeNode($childSku, $graph, $info, $visited);
+            if ($childNode) {
+                $node['children'][] = $childNode;
+            }
+        }
+        return $node;
     }
 }

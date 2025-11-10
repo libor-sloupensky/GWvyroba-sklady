@@ -30,6 +30,25 @@
   margin-top: 0.5rem;
 }
 .muted-note { color:#607d8b; margin-top:0.4rem; }
+.bom-tree-panel {
+  border:1px solid #dfe3e8;
+  border-radius:6px;
+  padding:0.75rem;
+  margin:1.2rem 0;
+}
+.bom-tree-panel summary {
+  cursor:pointer;
+  font-weight:600;
+}
+.bom-tree-view { list-style:none; padding-left:1.2rem; margin:0.5rem 0 0 0; }
+.bom-tree-node { margin:0.15rem 0; padding:0.2rem 0.4rem; border-radius:4px; display:inline-block; }
+.bom-tree-node[data-type="produkt"] { background:#e8f5e9; }
+.bom-tree-node[data-type="obal"] { background:#fff8e1; }
+.bom-tree-node[data-type="etiketa"] { background:#f3e5f5; }
+.bom-tree-node[data-type="surovina"] { background:#ffebee; }
+.bom-tree-node[data-type="baleni"] { background:#e3f2fd; }
+.bom-tree-node[data-type="karton"] { background:#ede7f6; }
+.bom-tree-node[data-type=""] { background:#eceff1; }
 </style>
 <details class="csv-help" id="bom-help">
   <summary>Nápověda – BOM import</summary>
@@ -69,6 +88,35 @@
 
 <hr>
 <p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format($total, 0, ',', ' ') ?></strong></p>
+<?php
+  $renderBomTree = function(array $nodes) use (&$renderBomTree) {
+      if (empty($nodes)) return;
+      echo '<ul class="bom-tree-view">';
+      foreach ($nodes as $node) {
+          $sku = htmlspecialchars((string)$node['sku'], ENT_QUOTES, 'UTF-8');
+          $nazev = htmlspecialchars((string)($node['nazev'] ?? ''), ENT_QUOTES, 'UTF-8');
+          $type = htmlspecialchars((string)($node['typ'] ?? ''), ENT_QUOTES, 'UTF-8');
+          echo '<li>';
+          echo '<span class="bom-tree-node" data-type="' . $type . '">' . $sku;
+          if ($nazev !== '') {
+              echo ' – ' . $nazev;
+          }
+          echo '</span>';
+          if (!empty($node['children'])) {
+              $renderBomTree($node['children']);
+          }
+          echo '</li>';
+      }
+      echo '</ul>';
+  };
+?>
+<?php if (!empty($tree)): ?>
+  <details class="bom-tree-panel">
+    <summary>Strom vazeb produktů</summary>
+    <p class="muted">Každý produkt je ve stromu uveden pouze jednou. Barva odpovídá typu produktu.</p>
+    <?php $renderBomTree($tree); ?>
+  </details>
+<?php endif; ?>
 <table>
   <tr>
     <th>Rodič (SKU)</th>
