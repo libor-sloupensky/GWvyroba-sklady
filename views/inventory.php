@@ -91,6 +91,7 @@
 .inventory-table td { border:1px solid #ddd; padding:0.45rem 0.55rem; vertical-align:top; }
 .inventory-table th { background:#f3f6f9; }
 .inventory-expression { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; }
+.inventory-expected { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; color:#37474f; }
 .inventory-diff { font-weight:600; }
 .inventory-input { display:flex; align-items:center; gap:0.35rem; }
 .inventory-input input { width:140px; padding:0.3rem 0.4rem; }
@@ -167,7 +168,11 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
   padding:0.25rem 0.5rem;
   cursor:pointer;
   font-size:1rem;
+  display:inline-flex;
+  align-items:center;
+  gap:0.3rem;
 }
+.inventory-print-btn__icon { display:inline-flex; }
 .no-print {}
 .print-only { display:none; }
 @media print {
@@ -178,6 +183,11 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
   .inventory-table { font-size:12px; }
   .notice { display:none !important; }
   .print-only { display:block !important; }
+  .inventory-table .col-ean,
+  .inventory-table .col-group,
+  .inventory-table .col-type,
+  .inventory-table .col-inventarizovano,
+  .inventory-table .col-rozdil { display:none !important; }
 }
 </style>
 
@@ -280,8 +290,19 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
     <button type="submit">Vyhledat</button>
     <?php if ($hasSearchActive): ?>
       <span class="inventory-pill">Zobrazeno <?= $resultCount ?></span>
-      <button type="button" class="inventory-print-btn" title="Tisk inventury" onclick="window.print()">🖨</button>
-      <a href="/inventory<?= $inventory ? '?inventory_id='.(int)$inventory['id'] : '' ?>" class="inventory-reset" title="Zrušit filtr" aria-label="Zrušit filtr">×</a>
+      <button type="button" class="inventory-print-btn" title="Tisk inventury" onclick="window.print()">
+        <span class="inventory-print-btn__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 3 18 3 18 9"></polyline>
+            <path d="M6 14h12v7H6z"></path>
+            <path d="M6 18h12"></path>
+            <path d="M6 14H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"></path>
+            <circle cx="18" cy="10" r="1"></circle>
+          </svg>
+        </span>
+        <span>Tisk</span>
+      </button>
+      <a href="/inventory<?= $inventory ? '?inventory_id='.(int)$inventory['id'] : '' ?>" class="inventory-reset" title="Zrušit filtr" aria-label="Zrušit filtr">&times;</a>
     <?php endif; ?>
   </div>
 </form>
@@ -297,29 +318,31 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
 <?php else: ?>
   <table class="inventory-table" id="inventory-table">
     <tr>
-      <th>SKU</th>
-      <th>EAN</th>
-      <th>Značka</th>
-      <th>Skupina</th>
-      <th>Typ</th>
-      <th>MJ</th>
-      <th>Název</th>
-      <th>Inventarizováno</th>
-      <th>Rozdíl</th>
-      <th>Počet</th>
+      <th class="col-sku">SKU</th>
+      <th class="col-ean">EAN</th>
+      <th class="col-brand">Značka</th>
+      <th class="col-group">Skupina</th>
+      <th class="col-type">Typ</th>
+      <th class="col-unit">MJ</th>
+      <th class="col-name">Název</th>
+      <th class="col-expected">Očekávaný stav</th>
+      <th class="col-inventarizovano">Inventarizováno</th>
+      <th class="col-rozdil">Rozdíl</th>
+      <th class="col-input">Počet</th>
     </tr>
     <?php foreach ($items as $row): ?>
       <tr data-sku="<?= htmlspecialchars((string)$row['sku'],ENT_QUOTES,'UTF-8') ?>" data-unit="<?= htmlspecialchars((string)$row['merna_jednotka'],ENT_QUOTES,'UTF-8') ?>">
-        <td><?= htmlspecialchars((string)$row['sku'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$row['ean'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$row['znacka'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$row['skupina'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$row['typ'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$row['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
-        <td><?= htmlspecialchars((string)$row['nazev'],ENT_QUOTES,'UTF-8') ?></td>
-        <td class="inventory-expression"><?= htmlspecialchars((string)$row['inventarizovano'],ENT_QUOTES,'UTF-8') ?></td>
-        <td class="inventory-diff"><?= htmlspecialchars((string)$row['rozdil'],ENT_QUOTES,'UTF-8') ?></td>
-        <td>
+        <td class="col-sku"><?= htmlspecialchars((string)$row['sku'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-ean"><?= htmlspecialchars((string)$row['ean'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-brand"><?= htmlspecialchars((string)$row['znacka'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-group"><?= htmlspecialchars((string)$row['skupina'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-type"><?= htmlspecialchars((string)$row['typ'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-unit"><?= htmlspecialchars((string)$row['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-name"><?= htmlspecialchars((string)$row['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="inventory-expected col-expected"><?= htmlspecialchars((string)$row['expected'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="inventory-expression col-inventarizovano"><?= htmlspecialchars((string)$row['inventarizovano'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="inventory-diff col-rozdil"><?= htmlspecialchars((string)$row['rozdil'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="col-input">
           <?php if ($allowEntries): ?>
           <div class="inventory-input">
             <input type="number" step="any" data-sku="<?= htmlspecialchars((string)$row['sku'],ENT_QUOTES,'UTF-8') ?>" class="inventory-qty" placeholder="+/-" />

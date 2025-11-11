@@ -43,10 +43,16 @@ $fi = app_footer_info();
     th { background:#f1f5f9; }
     .muted { color:#607d8b; font-size: 13px; }
     .help { cursor: help; }
+    .print-hide {}
+    @media print {
+      header, .footer, .print-hide { display:none !important; }
+      body { background:#fff; }
+      .container { border:none; border-radius:0; margin:0; padding:0.5rem; }
+    }
   </style>
 </head>
 <body>
-  <header>
+  <header class="print-hide">
     <nav>
       <a href="/">Domů</a>
       <a href="/import" title="Nahrát XML a spustit import">Import</a>
@@ -64,7 +70,7 @@ $fi = app_footer_info();
   <main class="container">
     <?php require __DIR__ . '/' . basename($view ?? 'home.php'); ?>
   </main>
-  <div class="footer">
+  <div class="footer print-hide">
     <div><strong>Poslední úprava:</strong> <?= date('Y-m-d H:i:s', (int)$fi['mtime']) ?></div>
     <div><strong>Verze/Deploy:</strong> <?= htmlspecialchars((string)$version, ENT_QUOTES, 'UTF-8') ?></div>
   </div>
