@@ -8,6 +8,7 @@
   $resultCount = isset($items) ? count($items) : 0;
   $inventory = $inventory ?? null;
   $allowEntries = !empty($allowEntries);
+  $allowEntries = !empty($allowEntries);
   $inventories = $inventories ?? [];
   $selectedInventoryId = (int)($selectedInventoryId ?? 0);
   $latestInventoryId = (int)($latestInventoryId ?? 0);
@@ -94,6 +95,12 @@
 .inventory-input { display:flex; align-items:center; gap:0.35rem; }
 .inventory-input input { width:140px; padding:0.3rem 0.4rem; }
 .inventory-input span { color:#607d8b; }
+.inventory-print-blank {
+  display:none;
+  border:1px dashed #cfd8dc;
+  height:2.2rem;
+  margin-top:0.35rem;
+}
 .inventory-empty {
   border:1px dashed #b0bec5;
   padding:1rem;
@@ -153,17 +160,36 @@
 .inventory-history-modal-buttons { display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:1rem; }
 .inventory-history-modal-buttons button { flex:1 1 auto; padding:0.45rem 0.7rem; }
 button.disabled { opacity:0.5; cursor:not-allowed; }
+.inventory-print-btn {
+  border:1px solid #b0bec5;
+  background:#fff;
+  border-radius:4px;
+  padding:0.25rem 0.5rem;
+  cursor:pointer;
+  font-size:1rem;
+}
+.no-print {}
+.print-only { display:none; }
+@media print {
+  body { background:#fff; color:#000; }
+  .no-print { display:none !important; }
+  .inventory-input { display:none !important; }
+  .inventory-print-blank { display:block !important; border:1px solid #90a4ae; height:2.6rem; }
+  .inventory-table { font-size:12px; }
+  .notice { display:none !important; }
+  .print-only { display:block !important; }
+}
 </style>
 
 <?php if (!empty($message)): ?>
-  <div class="notice"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div>
+  <div class="notice no-print"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div>
 <?php endif; ?>
 <?php if (!empty($error)): ?>
-  <div class="notice error"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div>
+  <div class="notice error no-print"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div>
 <?php endif; ?>
 
 <?php if (!$inventory): ?>
-  <div class="inventory-empty">
+  <div class="inventory-empty no-print">
     <p><strong>Aktuálně neprobíhá žádná inventura.</strong></p>
     <?php if ($isAdmin): ?>
       <form method="post" action="/inventory/start">
@@ -177,7 +203,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
     <?php endif; ?>
   </div>
 <?php else: ?>
-  <div class="inventory-meta">
+  <div class="inventory-meta no-print">
     <div>
       <strong>Inventura #<?= (int)$inventory['id'] ?></strong><br>
       Zahájeno: <?= htmlspecialchars((string)$inventory['opened_at'],ENT_QUOTES,'UTF-8') ?><br>
@@ -214,7 +240,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
   </div>
 <?php endif; ?>
 
-<form method="get" action="/inventory" class="inventory-search">
+<form method="get" action="/inventory" class="inventory-search no-print">
   <input type="hidden" name="search" value="1" />
   <?php if ($inventory): ?>
     <input type="hidden" name="inventory_id" value="<?= (int)$inventory['id'] ?>" />
@@ -254,13 +280,14 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
     <button type="submit">Vyhledat</button>
     <?php if ($hasSearchActive): ?>
       <span class="inventory-pill">Zobrazeno <?= $resultCount ?></span>
+      <button type="button" class="inventory-print-btn" title="Tisk inventury" onclick="window.print()">🖨</button>
       <a href="/inventory<?= $inventory ? '?inventory_id='.(int)$inventory['id'] : '' ?>" class="inventory-reset" title="Zrušit filtr" aria-label="Zrušit filtr">×</a>
     <?php endif; ?>
   </div>
 </form>
 
 <?php if ($inventory && !$allowEntries): ?>
-  <p class="muted">Inventura je pouze pro čtení. Změny lze provádět pouze u právě otevřené inventury.</p>
+  <p class="muted no-print">Inventura je pouze pro čtení. Změny lze provádět pouze u právě otevřené inventury.</p>
 <?php endif; ?>
 
 <?php if (!$hasSearchActive): ?>
@@ -279,7 +306,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
       <th>Název</th>
       <th>Inventarizováno</th>
       <th>Rozdíl</th>
-      <?php if ($allowEntries): ?><th>Počet</th><?php endif; ?>
+      <th>Počet</th>
     </tr>
     <?php foreach ($items as $row): ?>
       <tr data-sku="<?= htmlspecialchars((string)$row['sku'],ENT_QUOTES,'UTF-8') ?>" data-unit="<?= htmlspecialchars((string)$row['merna_jednotka'],ENT_QUOTES,'UTF-8') ?>">
@@ -292,21 +319,22 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
         <td><?= htmlspecialchars((string)$row['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="inventory-expression"><?= htmlspecialchars((string)$row['inventarizovano'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="inventory-diff"><?= htmlspecialchars((string)$row['rozdil'],ENT_QUOTES,'UTF-8') ?></td>
-        <?php if ($allowEntries): ?>
         <td>
+          <?php if ($allowEntries): ?>
           <div class="inventory-input">
             <input type="number" step="any" data-sku="<?= htmlspecialchars((string)$row['sku'],ENT_QUOTES,'UTF-8') ?>" class="inventory-qty" placeholder="+/-" />
             <span><?= htmlspecialchars((string)$row['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></span>
           </div>
+          <?php endif; ?>
+          <div class="inventory-print-blank"></div>
         </td>
-        <?php endif; ?>
       </tr>
     <?php endforeach; ?>
   </table>
 <?php endif; ?>
 
 <?php if (!empty($inventories)): ?>
-  <div class="inventory-history">
+  <div class="inventory-history no-print">
     <h2>Historie inventur</h2>
     <table>
       <tr>
@@ -412,13 +440,13 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
 <?php endif; ?>
 
 <?php if ($isAdmin): ?>
-<form id="inventory-delete-form" method="post" action="/inventory/delete" style="display:none;">
+<form id="inventory-delete-form" method="post" action="/inventory/delete" style="display:none;" class="no-print">
   <input type="hidden" name="inventory_id" value="">
 </form>
-<form id="inventory-reopen-form" method="post" action="/inventory/reopen" style="display:none;">
+<form id="inventory-reopen-form" method="post" action="/inventory/reopen" style="display:none;" class="no-print">
   <input type="hidden" name="inventory_id" value="">
 </form>
-<div class="inventory-history-modal-overlay" id="inventory-history-modal">
+<div class="inventory-history-modal-overlay no-print" id="inventory-history-modal">
   <div class="inventory-history-modal">
     <h3>Správa inventury #<span id="inventory-modal-id"></span></h3>
     <p>Opravdu chcete pokračovat? Tato akce může ovlivnit skladové pohyby.</p>

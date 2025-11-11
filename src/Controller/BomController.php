@@ -13,7 +13,6 @@ final class BomController
             'title'=>'BOM',
             'items'=>$rows,
             'total'=>$this->bomCount(),
-            'graph'=>$this->buildBomGraphData($rows),
         ]);
     }
 
@@ -92,7 +91,6 @@ final class BomController
                 'message'=>"Import OK: $ok",
                 'errors'=>$err,
                 'total'=>$this->bomCount(),
-                'graph'=>$this->buildBomGraphData($items),
             ]);
         } catch (\Throwable $e){
             if($pdo->inTransaction())$pdo->rollBack();
@@ -102,7 +100,6 @@ final class BomController
                 'items'=>$items,
                 'error'=>$e->getMessage(),
                 'total'=>$this->bomCount(),
-                'graph'=>$this->buildBomGraphData($items),
             ]);
         }
     }
@@ -168,61 +165,5 @@ final class BomController
     {
         $count = DB::pdo()->query('SELECT COUNT(*) FROM bom')->fetchColumn();
         return (int)$count;
-    }
-
-    /**
-     * @param array<int,array<string,string>> $rows
-     * @return array{nodes:array<int,array<string,string>>,edges:array<int,array<string,string>>>}
-     */
-    private function buildBomGraphData(array $rows): array
-    {
-        $nodes = [];
-        $edges = [];
-        if (empty($rows)) {
-            return ['nodes'=>$nodes,'edges'=>$edges];
-        }
-        $allSkus = [];
-        foreach ($rows as $row) {
-            $allSkus[(string)$row['rodic_sku']] = true;
-            $allSkus[(string)$row['potomek_sku']] = true;
-        }
-        $info = $this->loadProductInfoBulk(array_keys($allSkus));
-        foreach ($allSkus as $sku => $_) {
-            $nodes[] = [
-                'id' => $sku,
-                'sku' => $sku,
-                'nazev' => $info[$sku]['nazev'] ?? '',
-                'typ' => $info[$sku]['typ'] ?? '',
-            ];
-        }
-        foreach ($rows as $row) {
-            $edges[] = [
-                'from' => (string)$row['rodic_sku'],
-                'to' => (string)$row['potomek_sku'],
-            ];
-        }
-        return ['nodes'=>$nodes,'edges'=>$edges];
-    }
-
-    /**
-     * @param array<int,string> $skus
-     * @return array<string,array<string,string>>
-     */
-    private function loadProductInfoBulk(array $skus): array
-    {
-        if (empty($skus)) {
-            return [];
-        }
-        $placeholders = implode(',', array_fill(0, count($skus), '?'));
-        $stmt = DB::pdo()->prepare("SELECT sku,nazev,typ FROM produkty WHERE sku IN ({$placeholders})");
-        $stmt->execute($skus);
-        $map = [];
-        foreach ($stmt as $row) {
-            $map[(string)$row['sku']] = [
-                'nazev' => (string)$row['nazev'],
-                'typ' => (string)$row['typ'],
-            ];
-        }
-        return $map;
     }
 }

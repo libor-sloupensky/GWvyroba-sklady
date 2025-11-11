@@ -1,5 +1,4 @@
-﻿<h1>BOM (karton / sada)</h1>
-<?php $total = isset($total) ? (int)$total : 0; ?>
+<h1>BOM (karton / sada)</h1>
 <style>
 .csv-help {
   border: 1px solid #ddd;
@@ -30,25 +29,6 @@
   margin-top: 0.5rem;
 }
 .muted-note { color:#607d8b; margin-top:0.4rem; }
-.bom-tree-panel {
-  border:1px solid #dfe3e8;
-  border-radius:6px;
-  padding:0.75rem;
-  margin:1.2rem 0;
-}
-.bom-tree-panel summary {
-  cursor:pointer;
-  font-weight:600;
-}
-.bom-tree-view { list-style:none; padding-left:1.2rem; margin:0.5rem 0 0 0; }
-.bom-tree-node { margin:0.15rem 0; padding:0.2rem 0.4rem; border-radius:4px; display:inline-block; }
-.bom-tree-node[data-type="produkt"] { background:#e8f5e9; }
-.bom-tree-node[data-type="obal"] { background:#fff8e1; }
-.bom-tree-node[data-type="etiketa"] { background:#f3e5f5; }
-.bom-tree-node[data-type="surovina"] { background:#ffebee; }
-.bom-tree-node[data-type="baleni"] { background:#e3f2fd; }
-.bom-tree-node[data-type="karton"] { background:#ede7f6; }
-.bom-tree-node[data-type=""] { background:#eceff1; }
 </style>
 <details class="csv-help" id="bom-help">
   <summary>Nápověda – BOM import</summary>
@@ -88,51 +68,6 @@
 
 <hr>
 <p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format($total, 0, ',', ' ') ?></strong></p>
-<?php if (!empty($graph['nodes'])): ?>
-  <link rel="stylesheet" href="https://unpkg.com/vis-network@9.1.2/styles/vis-network.min.css" />
-  <script src="https://unpkg.com/vis-network@9.1.2/standalone/umd/vis-network.min.js"></script>
-  <details class="bom-tree-panel">
-    <summary>Strom vazeb produktů</summary>
-    <p class="muted">Každý produkt je ve stromu uveden pouze jednou. Barvy rozlišují typy produktů.</p>
-    <div id="bom-network" style="height:520px;"></div>
-  </details>
-  <script>
-  (function(){
-    const container = document.getElementById('bom-network');
-    if (!container || typeof vis === 'undefined') return;
-    const graph = <?= json_encode($graph, JSON_UNESCAPED_UNICODE) ?>;
-    const typeColors = {
-      'produkt': '#81c784',
-      'obal': '#ffe082',
-      'etiketa': '#ce93d8',
-      'surovina': '#ef9a9a',
-      'baleni': '#90caf9',
-      'karton': '#b39ddb',
-      '': '#cfd8dc'
-    };
-    const nodes = (graph.nodes || []).map((node) => ({
-      id: node.sku,
-      label: node.sku + (node.nazev ? ' – ' + node.nazev : ''),
-      color: typeColors[node.typ] || typeColors[''],
-      shape: 'box',
-      font: { color: '#263238' }
-    }));
-    const edges = (graph.edges || []).map((edge) => ({
-      from: edge.from,
-      to: edge.to,
-      arrows: 'to'
-    }));
-    new vis.Network(container, {
-      nodes: new vis.DataSet(nodes),
-      edges: new vis.DataSet(edges)
-    }, {
-      layout: { hierarchical: { direction: 'LR', nodeSpacing: 180, levelSeparation: 220, sortMethod: 'directed' } },
-      physics: false,
-      interaction: { hover: true }
-    });
-  })();
-  </script>
-<?php endif; ?>
 <table>
   <tr>
     <th>Rodič (SKU)</th>
