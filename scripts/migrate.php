@@ -44,6 +44,12 @@ function addColumn(PDO $pdo, string $table, string $definition): void {
     $pdo->exec("ALTER TABLE `{$table}` ADD {$definition}");
 }
 
+function tableExists(PDO $pdo, string $table): bool {
+    $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
+    $stmt->execute([$table]);
+    return (bool)$stmt->fetch(PDO::FETCH_NUM);
+}
+
 try {
     if (!columnExists($pdo, 'produkty', 'alt_sku')) {
         addColumn($pdo, 'produkty', "COLUMN `alt_sku` VARCHAR(128) NULL AFTER `sku`");
@@ -59,6 +65,35 @@ try {
     }
     if (!columnExists($pdo, 'produkty', 'poznamka')) {
         addColumn($pdo, 'produkty', 'COLUMN `poznamka` VARCHAR(1024) NULL AFTER `skupina_id`');
+    }
+    try {
+        $pdo->exec("ALTER TABLE users MODIFY role ENUM('superadmin','admin','user') NOT NULL DEFAULT 'user'");
+    } catch (Throwable $e) {}
+    $superEmail = 'sloupensky@grig.cz';
+    $checkSuper = $pdo->prepare('SELECT id, role FROM users WHERE email = ? LIMIT 1');
+    $checkSuper->execute([$superEmail]);
+    $superRow = $checkSuper->fetch(PDO::FETCH_ASSOC);
+    if ($superRow) {
+        if ($superRow['role'] !== 'superadmin') {
+            $upd = $pdo->prepare('UPDATE users SET role = ?, active = 1 WHERE id = ?');
+            $upd->execute(['superadmin', (int)$superRow['id']]);
+        }
+    } else {
+        $insertSuper = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?, ?, 1)');
+        $insertSuper->execute([$superEmail, 'superadmin']);
+    }
+    if (!tableExists($pdo, 'ai_prompts')) {
+        $pdo->exec("CREATE TABLE ai_prompts (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL DEFAULT 0,
+            title VARCHAR(255) NOT NULL,
+            prompt TEXT NOT NULL,
+            is_public TINYINT(1) NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_ai_prompts_user (user_id),
+            KEY idx_ai_prompts_public (is_public, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci");
     }
     try {
         $pdo->exec('ALTER TABLE produkty ADD CONSTRAINT fk_produkty_znacka FOREIGN KEY (znacka_id) REFERENCES produkty_znacky(id) ON DELETE SET NULL');

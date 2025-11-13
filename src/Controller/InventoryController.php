@@ -625,7 +625,8 @@ final class InventoryController
 
     private function isAdmin(): bool
     {
-        return (($_SESSION['user']['role'] ?? 'user') === 'admin');
+        $role = $_SESSION['user']['role'] ?? 'user';
+        return in_array($role, ['admin','superadmin'], true);
     }
 
     private function canEditInventory(): bool

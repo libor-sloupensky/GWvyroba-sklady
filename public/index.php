@@ -19,13 +19,6 @@ use App\Controller\PlansController;
 use App\Controller\AdminController;
 
 session_start();
-if (!isset($_SESSION['user'])) {
-    $_SESSION['user'] = [
-        'id' => 0,
-        'email' => 'auto-admin@local',
-        'role' => 'admin',
-    ];
-}
 
 $router = new Router();
 
@@ -83,6 +76,7 @@ $router->post('/production/check', [ProductionController::class, 'check']);
 
 // Analytics
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
+$router->post('/analytics/ai', [AnalyticsController::class, 'ai']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
@@ -97,6 +91,7 @@ $router->post('/settings/group/delete', [SettingsController::class, 'deleteGroup
 $router->post('/settings/unit', [SettingsController::class, 'saveUnit']);
 $router->post('/settings/unit/delete', [SettingsController::class, 'deleteUnit']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
+$router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
 
 // Plans page
 $router->get('/plany', [PlansController::class, 'index']);

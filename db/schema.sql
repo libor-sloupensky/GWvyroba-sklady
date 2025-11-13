@@ -4,7 +4,7 @@ SET NAMES utf8mb4 COLLATE utf8mb4_czech_ci;
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
-  role ENUM('admin','user') NOT NULL DEFAULT 'user',
+  role ENUM('superadmin','admin','user') NOT NULL DEFAULT 'user',
   active TINYINT(1) NOT NULL DEFAULT 1,
   password_hash VARCHAR(255) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -199,6 +199,18 @@ CREATE TABLE IF NOT EXISTS nastaveni_global (
   mena_zakladni VARCHAR(8) NOT NULL DEFAULT 'CZK',
   zaokrouhleni VARCHAR(16) NOT NULL DEFAULT 'half_up',
   timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Prague'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS ai_prompts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL DEFAULT 0,
+  title VARCHAR(255) NOT NULL,
+  prompt TEXT NOT NULL,
+  is_public TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_ai_prompts_user (user_id),
+  KEY idx_ai_prompts_public (is_public, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 INSERT IGNORE INTO nastaveni_global (id) VALUES (1);
