@@ -1,4 +1,4 @@
-﻿<?php
+<?php
   $filters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
   $filterBrand = (int)($filters['brand'] ?? 0);
   $filterGroup = (int)($filters['group'] ?? 0);
