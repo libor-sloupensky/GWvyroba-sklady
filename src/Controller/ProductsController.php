@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Service\StockService;
 use App\Support\DB;
 
 final class ProductsController
@@ -71,7 +72,7 @@ final class ProductsController
         $delimiter = ';';
         $enclosure = '"';
         $escape = '\\';
-        fputcsv($fh, ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
+        fputcsv($fh, ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
         foreach ($rows as $r) {
             fputcsv($fh, [
                 $r['sku'],
@@ -83,6 +84,7 @@ final class ProductsController
                 $r['merna_jednotka'],
                 $r['nazev'],
                 $r['min_zasoba'],
+                $r['nast_zasob'],
                 $r['min_davka'],
                 $r['krok_vyroby'],
                 $r['vyrobni_doba_dni'],
@@ -121,15 +123,16 @@ final class ProductsController
             $pendingSku = [];
             $pendingAlt = [];
             $stmt = $pdo->prepare(
-                'INSERT INTO produkty (sku,alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
-                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
-                'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
+                'INSERT INTO produkty (sku,alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
+                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
+                'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),nast_zasob=VALUES(nast_zasob),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
             );
             $ok = 0;
             $created = 0;
             $updated = 0;
             $unchanged = 0;
             $errors = [];
+            $autoSkus = [];
             $line = 1;
             while (($row = $this->readCsvRow($fh)) !== false) {
                 $line++;
@@ -194,6 +197,14 @@ final class ProductsController
                 } else {
                     $altSku = null;
                 }
+                $minValue = $min === '' ? 0.0 : (float)$min;
+                $stockMode = $minValue > 0 ? 'manual' : 'auto';
+                if ($stockMode === 'auto') {
+                    $minValue = 0.0;
+                }
+                if ($minValue === null) {
+                    $minValue = 0.0;
+                }
                 $stmt->execute([
                     $sku,
                     $altSku,
@@ -201,7 +212,8 @@ final class ProductsController
                     $typ,
                     $mj,
                     $ean,
-                    $min === '' ? 0 : $min,
+                    $minValue,
+                    $stockMode,
                     $md === '' ? 0 : $md,
                     $krok === '' ? 0 : $krok,
                     $vdd === '' ? 0 : $vdd,
@@ -210,6 +222,9 @@ final class ProductsController
                     $note === '' ? null : $note,
                     $groupId,
                 ]);
+                if ($stockMode === 'auto') {
+                    $autoSkus[] = $sku;
+                }
                 $affected = $stmt->rowCount();
                 if ($affected === 1) {
                     $created++;
@@ -222,6 +237,9 @@ final class ProductsController
             }
             $pdo->commit();
             fclose($fh);
+            if (!empty($autoSkus)) {
+                StockService::recalcAutoSafetyStock(array_values(array_unique($autoSkus)));
+            }
             $this->flashProductImportSuccess(
                 "Import OK: {$ok}",
                 $errors,
@@ -259,6 +277,7 @@ final class ProductsController
         $brandId = (int)($_POST['znacka_id'] ?? 0);
         $groupId = (int)($_POST['skupina_id'] ?? 0);
         $note  = trim((string)($_POST['poznamka'] ?? ''));
+        $stockMode = $this->sanitizeStockMode((string)($_POST['nast_zasob'] ?? 'auto'));
 
         $oldInput = [
             'sku' => $sku,
@@ -275,6 +294,7 @@ final class ProductsController
             'vyrobni_doba_dni' => $lead,
             'aktivni' => $active,
             'poznamka' => $note,
+            'nast_zasob' => $stockMode,
         ];
 
         $errors = [];
@@ -301,9 +321,13 @@ final class ProductsController
             return;
         }
 
+        if ($stockMode === 'auto') {
+            $min = '0';
+        }
+
         $pdo = DB::pdo();
         try {
-            $stmt = $pdo->prepare('INSERT INTO produkty (sku, alt_sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, min_davka, krok_vyroby, vyrobni_doba_dni, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO produkty (sku, alt_sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, nast_zasob, min_davka, krok_vyroby, vyrobni_doba_dni, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
             $stmt->execute([
                 $sku,
                 $altSku === '' ? null : $altSku,
@@ -314,12 +338,16 @@ final class ProductsController
                 $unit,
                 $name,
                 $min === '' ? 0 : $min,
+                $stockMode,
                 $batch === '' ? 0 : $batch,
                 $step === '' ? 0 : $step,
                 $lead === '' ? 0 : $lead,
                 $active === 1 ? 1 : 0,
                 $note === '' ? null : $note,
             ]);
+            if ($stockMode === 'auto') {
+                StockService::recalcAutoSafetyStock([$sku]);
+            }
             $_SESSION['products_message'] = 'Produkt byl přidán.';
             unset($_SESSION['products_old']);
         } catch (\Throwable $e) {
@@ -501,7 +529,7 @@ final class ProductsController
 
     private function editableFields(): array
     {
-        return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+        return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
     }
 
     private function normalizeFieldValue(string $field, $value, string $currentSku = ''): array
@@ -774,7 +802,7 @@ final class ProductsController
 
     private function productsSelectSql(): string
     {
-        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
+        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
                'FROM produkty p ' .
                'LEFT JOIN produkty_znacky zb ON p.znacka_id = zb.id ' .
                'LEFT JOIN produkty_skupiny sg ON p.skupina_id = sg.id';
@@ -908,6 +936,20 @@ final class ProductsController
             $value = mb_convert_encoding($value, 'UTF-8', 'WINDOWS-1250,ISO-8859-2,ISO-8859-1');
         }
         return trim($value);
+    }
+
+    private function sanitizeStockMode(string $value): string
+    {
+        $normalized = strtolower($this->toUtf8($value));
+        return in_array($normalized, ['auto','manual'], true) ? $normalized : 'auto';
+    }
+
+    private function loadProductRow(string $sku): ?array
+    {
+        $stmt = DB::pdo()->prepare('SELECT sku, nast_zasob FROM produkty WHERE sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $row = $stmt->fetch();
+        return $row ?: null;
     }
 
     private function flashProductImportSuccess(string $message, array $errors, array $stats = []): void

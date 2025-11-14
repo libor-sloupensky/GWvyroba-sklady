@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Service\StockService;
 use App\Support\DB;
 
 final class SettingsController
@@ -12,7 +13,7 @@ final class SettingsController
         $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do, EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports FROM nastaveni_rady nr ORDER BY nr.eshop_source")
             ->fetchAll();
         $ignores = $pdo->query('SELECT id,vzor FROM nastaveni_ignorovane_polozky ORDER BY id DESC')->fetchAll();
-        $glob = $pdo->query('SELECT okno_pro_prumer_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
+        $glob = $pdo->query('SELECT okno_pro_prumer_dni,spotreba_prumer_dni,zasoba_cil_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
         $brands = $pdo->query('SELECT z.id,z.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.znacka_id=z.id) AS used_count FROM produkty_znacky z ORDER BY z.nazev')->fetchAll();
         $groups = $pdo->query('SELECT g.id,g.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.skupina_id=g.id) AS used_count FROM produkty_skupiny g ORDER BY g.nazev')->fetchAll();
         $units = $pdo->query('SELECT u.id,u.kod,(SELECT COUNT(*) FROM produkty p WHERE p.merna_jednotka=u.kod) AS used_count FROM produkty_merne_jednotky u ORDER BY u.kod')->fetchAll();
@@ -212,7 +213,11 @@ final class SettingsController
     {
         $this->requireAdmin();
         $okno = max(1, (int)($_POST['okno_pro_prumer_dni'] ?? 30));
-        DB::pdo()->prepare('UPDATE nastaveni_global SET okno_pro_prumer_dni=? WHERE id=1')->execute([$okno]);
+        $spotreba = max(1, (int)($_POST['spotreba_prumer_dni'] ?? 90));
+        $zasoba = max(1, (int)($_POST['zasoba_cil_dni'] ?? 30));
+        DB::pdo()->prepare('UPDATE nastaveni_global SET okno_pro_prumer_dni=?, spotreba_prumer_dni=?, zasoba_cil_dni=? WHERE id=1')
+            ->execute([$okno, $spotreba, $zasoba]);
+        StockService::recalcAutoSafetyStock();
         $_SESSION['settings_message'] = 'Globální nastavení bylo upraveno.';
         header('Location: /settings');
     }

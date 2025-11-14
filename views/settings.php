@@ -173,11 +173,51 @@
 </table>
 
 <h2>Globální nastavení</h2>
-<form method="post" action="/settings/global">
-  <label>Okno průměru (dní)</label>
-  <input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" />
+<style>
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #eceff1;
+  color: #37474f;
+  font-size: 0.8rem;
+  margin-left: 0.35rem;
+  cursor: help;
+}
+.global-settings-form label {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.global-settings-form input[type="number"] {
+  width: 200px;
+  margin: 0.3rem 0 0.8rem;
+}
+</style>
+<form method="post" action="/settings/global" class="global-settings-form">
+  <label>
+    Počet dní sledování chyb importu XML
+    <span class="info-icon" title="Kolik dní zpětně se v importu XML vyhodnocují nenapárované položky.">i</span>
+  </label>
+  <input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" min="1" />
+
+  <label>
+    Počet dní pro výpočet průměrné spotřeby
+    <span class="info-icon" title="Délka okna pro výpočet průměrného denního odběru (např. 90 dní ≈ 3 měsíce).">i</span>
+  </label>
+  <input type="number" name="spotreba_prumer_dni" value="<?= (int)($glob['spotreba_prumer_dni'] ?? 90) ?>" min="1" />
+
+  <label>
+    Počet dní skladových zásob
+    <span class="info-icon" title="Na kolik dní dopředu mají být sklady naplněny (cílový stav hotových produktů).">i</span>
+  </label>
+  <input type="number" name="zasoba_cil_dni" value="<?= (int)($glob['zasoba_cil_dni'] ?? 30) ?>" min="1" />
+
   <button type="submit">Uložit</button>
-  <span class="muted">Měna, zaokrouhlení a časová zóna jsou pevně dané v systému.</span>
 </form>
 
 <?php if (!empty($canManageUsers)): ?>

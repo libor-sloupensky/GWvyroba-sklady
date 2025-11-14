@@ -66,6 +66,9 @@ try {
     if (!columnExists($pdo, 'produkty', 'poznamka')) {
         addColumn($pdo, 'produkty', 'COLUMN `poznamka` VARCHAR(1024) NULL AFTER `skupina_id`');
     }
+    if (!columnExists($pdo, 'produkty', 'nast_zasob')) {
+        addColumn($pdo, 'produkty', "COLUMN `nast_zasob` ENUM('auto','manual') NOT NULL DEFAULT 'auto' AFTER `min_zasoba`");
+    }
     try {
         $pdo->exec("ALTER TABLE users MODIFY role ENUM('superadmin','admin','user') NOT NULL DEFAULT 'user'");
     } catch (Throwable $e) {}
@@ -101,6 +104,12 @@ try {
     try {
         $pdo->exec('ALTER TABLE produkty ADD CONSTRAINT fk_produkty_skupina FOREIGN KEY (skupina_id) REFERENCES produkty_skupiny(id) ON DELETE SET NULL');
     } catch (Throwable $e) {}
+    if (!columnExists($pdo, 'nastaveni_global', 'spotreba_prumer_dni')) {
+        addColumn($pdo, 'nastaveni_global', 'COLUMN `spotreba_prumer_dni` INT NOT NULL DEFAULT 90 AFTER `okno_pro_prumer_dni`');
+    }
+    if (!columnExists($pdo, 'nastaveni_global', 'zasoba_cil_dni')) {
+        addColumn($pdo, 'nastaveni_global', 'COLUMN `zasoba_cil_dni` INT NOT NULL DEFAULT 30 AFTER `spotreba_prumer_dni`');
+    }
     if (!columnExists($pdo, 'rezervace', 'typ')) {
         addColumn($pdo, 'rezervace', "COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
         try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (Throwable $e) {}

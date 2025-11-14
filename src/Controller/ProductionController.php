@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Service\StockService;
 use App\Support\DB;
 
 final class ProductionController
@@ -12,6 +13,7 @@ final class ProductionController
         $filters = $this->currentFilters();
         $hasSearch = isset($_GET['search']);
         $items = [];
+        $stockMap = [];
 
         if ($hasSearch) {
             [$searchCondition, $searchParams] = $this->buildSearchClauses(
@@ -45,6 +47,14 @@ final class ProductionController
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $items = $stmt->fetchAll();
+            if ($items) {
+                $skus = array_column($items, 'sku');
+                $stockMap = StockService::buildStockMap($skus);
+                foreach ($items as &$item) {
+                    $item['stav'] = $stockMap[$item['sku']] ?? 0.0;
+                }
+                unset($item);
+            }
         }
 
         $this->render('production_plans.php', [

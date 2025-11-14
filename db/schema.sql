@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS produkty (
   typ ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL,
   merna_jednotka VARCHAR(16) NOT NULL,
   min_zasoba DECIMAL(18,3) NOT NULL DEFAULT 0,
+  nast_zasob ENUM('auto','manual') NOT NULL DEFAULT 'auto',
   min_davka DECIMAL(18,3) NOT NULL DEFAULT 0,
   krok_vyroby DECIMAL(18,3) NOT NULL DEFAULT 0,
   vyrobni_doba_dni INT NOT NULL DEFAULT 0,
@@ -196,6 +197,8 @@ CREATE TABLE IF NOT EXISTS nastaveni_ignorovane_polozky (
 CREATE TABLE IF NOT EXISTS nastaveni_global (
   id TINYINT PRIMARY KEY,
   okno_pro_prumer_dni INT NOT NULL DEFAULT 30,
+  spotreba_prumer_dni INT NOT NULL DEFAULT 90,
+  zasoba_cil_dni INT NOT NULL DEFAULT 30,
   mena_zakladni VARCHAR(8) NOT NULL DEFAULT 'CZK',
   zaokrouhleni VARCHAR(16) NOT NULL DEFAULT 'half_up',
   timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Prague'
