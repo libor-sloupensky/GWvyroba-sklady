@@ -9,14 +9,52 @@ final class ProductionController
     {
         $this->requireAuth();
         $pdo = DB::pdo();
-        $items = $pdo->query("SELECT sku,nazev,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni FROM produkty WHERE typ='produkt' AND aktivni=1 ORDER BY nazev")->fetchAll();
+        $filters = $this->currentFilters();
+        $hasSearch = isset($_GET['search']);
+        [$searchCondition, $searchParams] = $this->buildSearchClauses(
+            $filters['search'],
+            ['sku','nazev','alt_sku','ean']
+        );
+
+        $conditions = ['aktivni = 1'];
+        $params = [];
+
+        $type = $filters['type'] !== '' ? $filters['type'] : 'produkt';
+        $conditions[] = 'typ = ?';
+        $params[] = $type;
+
+        if ($filters['brand'] > 0) {
+            $conditions[] = 'COALESCE(znacka_id,0) = ?';
+            $params[] = $filters['brand'];
+        }
+        if ($filters['group'] > 0) {
+            $conditions[] = 'COALESCE(skupina_id,0) = ?';
+            $params[] = $filters['group'];
+        }
+        if ($searchCondition !== '') {
+            $conditions[] = '(' . $searchCondition . ')';
+            $params = array_merge($params, $searchParams);
+        }
+
+        $sql = 'SELECT sku,nazev,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni FROM produkty WHERE ' .
+            implode(' AND ', $conditions) . ' ORDER BY nazev';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $items = $stmt->fetchAll();
+
         $this->render('production_plans.php', [
-            'title'=>'Výroba – návrhy',
-            'items'=>$items,
+            'title' => 'Výroba – návrhy',
+            'items' => $items,
+            'brands' => $this->fetchBrands(),
+            'groups' => $this->fetchGroups(),
+            'types' => $this->productTypes(),
+            'filters' => $filters,
+            'hasSearch' => $hasSearch,
+            'resultCount' => count($items),
         ]);
     }
 
-    public function produce(): void
+public function produce(): void
     {
         $this->requireAuth();
         $sku = $this->toUtf8((string)($_POST['sku'] ?? ''));
@@ -195,5 +233,56 @@ final class ProductionController
     {
         header('Location: '.$path, true, 302);
         exit;
+    }
+
+    private function currentFilters(): array
+    {
+        $brand = (int)($_GET['znacka_id'] ?? 0);
+        $group = (int)($_GET['skupina_id'] ?? 0);
+        $typeRaw = $this->toUtf8((string)($_GET['typ'] ?? ''));
+        $type = in_array($typeRaw, $this->productTypes(), true) ? $typeRaw : '';
+        $search = $this->toUtf8((string)($_GET['q'] ?? ''));
+        return [
+            'brand' => $brand > 0 ? $brand : 0,
+            'group' => $group > 0 ? $group : 0,
+            'type'  => $type,
+            'search'=> $search,
+        ];
+    }
+
+    private function fetchBrands(): array
+    {
+        return DB::pdo()->query('SELECT id,nazev FROM produkty_znacky ORDER BY nazev')->fetchAll();
+    }
+
+    private function fetchGroups(): array
+    {
+        return DB::pdo()->query('SELECT id,nazev FROM produkty_skupiny ORDER BY nazev')->fetchAll();
+    }
+
+    private function productTypes(): array
+    {
+        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+    }
+
+    private function buildSearchClauses(string $search, array $fields): array
+    {
+        $terms = preg_split('/\s+/u', trim($search)) ?: [];
+        $terms = array_values(array_filter($terms, static fn($t) => $t !== ''));
+        if (empty($terms)) {
+            return ['', []];
+        }
+        $clauses = [];
+        $params = [];
+        foreach ($terms as $term) {
+            $like = '%' . $term . '%';
+            $inner = [];
+            foreach ($fields as $field) {
+                $inner[] = "{$field} LIKE ?";
+                $params[] = $like;
+            }
+            $clauses[] = '(' . implode(' OR ', $inner) . ')';
+        }
+        return [implode(' AND ', $clauses), $params];
     }
 }
