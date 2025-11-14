@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 namespace App\Controller;
 
 use App\Support\DB;
@@ -13,7 +13,21 @@ final class ProductsController
         $message = $_SESSION['products_message'] ?? null;
         $errorMessage = $_SESSION['products_error'] ?? null;
         $formOld = $_SESSION['products_old'] ?? null;
-        unset($_SESSION['products_message'], $_SESSION['products_error'], $_SESSION['products_old']);
+        $importMessage = $_SESSION['products_import_message'] ?? null;
+        $importErrors = $_SESSION['products_import_errors'] ?? [];
+        $bomMessage = $_SESSION['products_bom_message'] ?? null;
+        $bomError = $_SESSION['products_bom_error'] ?? null;
+        $bomErrors = $_SESSION['products_bom_errors'] ?? [];
+        unset(
+            $_SESSION['products_message'],
+            $_SESSION['products_error'],
+            $_SESSION['products_old'],
+            $_SESSION['products_import_message'],
+            $_SESSION['products_import_errors'],
+            $_SESSION['products_bom_message'],
+            $_SESSION['products_bom_error'],
+            $_SESSION['products_bom_errors']
+        );
 
         $items = $this->fetchProducts($filters);
 
@@ -30,6 +44,12 @@ final class ProductsController
             'hasSearch' => $hasSearch,
             'resultCount' => count($items),
             'formOld' => $formOld,
+            'importMessage' => $importMessage,
+            'importErrors' => $importErrors,
+            'bomMessage' => $bomMessage,
+            'bomError' => $bomError,
+            'bomErrors' => $bomErrors,
+            'bomTotal' => $this->countBomLinks(),
         ]);
     }
 
@@ -70,13 +90,11 @@ final class ProductsController
     {
         $this->requireAdmin();
         if (!isset($_FILES['csv']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
-            $this->renderIndexWithError('Soubor nebyl nahrán.');
-            return;
+            $this->flashProductImportError('Soubor nebyl nahrán.');
         }
         $fh = fopen($_FILES['csv']['tmp_name'], 'rb');
         if (!$fh) {
-            $this->renderIndexWithError('Nelze číst soubor.');
-            return;
+            $this->flashProductImportError('Nelze číst soubor.');
         }
         $pdo = DB::pdo();
         $pdo->beginTransaction();
@@ -92,7 +110,7 @@ final class ProductsController
             if (empty($units)) {
                 throw new \RuntimeException('Nejprve definujte povolené měrné jednotky v Nastavení.');
             }
-            [$existingSkuMap,$existingAltMap] = $this->loadExistingSkuMaps();
+            [$existingSkuMap, $existingAltMap] = $this->loadExistingSkuMaps();
             $pendingSku = [];
             $pendingAlt = [];
             $stmt = $pdo->prepare(
@@ -125,47 +143,39 @@ final class ProductsController
                 if ($typ === '' || !in_array($typ, $this->productTypes(), true)) { $errors[] = "Řádek {$line}: neplatný typ"; continue; }
                 if ($mj === '') { $errors[] = "Řádek {$line}: chybí měrná jednotka"; continue; }
                 $unitKey = mb_strtolower($mj, 'UTF-8');
-                if (!isset($units[$unitKey])) { $errors[] = "Řádek {$line}: měrná jednotka '{$mj}' není definována"; continue; }
+                if (!isset($units[$unitKey])) { $errors[] = "Řádek {$line}: měrná jednotka '{$mj}' není definovaná"; continue; }
                 $mj = $units[$unitKey];
-                if ($act === '') { $errors[] = "Řádek {$line}: aktivni je povinné (0/1)"; continue; }
+                if ($act === '') { $errors[] = "Řádek {$line}: aktivní je povinné (0/1)"; continue; }
                 $aktivni = (int)$act;
                 $brandId = null;
                 if ($brandName !== '') {
                     $brandKey = mb_strtolower($brandName, 'UTF-8');
-                    if (!isset($brands[$brandKey])) { $errors[] = "Řádek {$line}: značka '{$brandName}' není definována"; continue; }
+                    if (!isset($brands[$brandKey])) { $errors[] = "Řádek {$line}: značka '{$brandName}' není definovaná"; continue; }
                     $brandId = $brands[$brandKey];
                 }
                 $groupId = null;
                 if ($groupName !== '') {
                     $groupKey = mb_strtolower($groupName, 'UTF-8');
-                    if (!isset($groups[$groupKey])) { $errors[] = "Řádek {$line}: skupina '{$groupName}' není definována"; continue; }
+                    if (!isset($groups[$groupKey])) { $errors[] = "Řádek {$line}: skupina '{$groupName}' není definovaná"; continue; }
                     $groupId = $groups[$groupKey];
                 }
                 if ($ean === '') {
                     $ean = null;
                 }
                 $skuKey = mb_strtolower($sku, 'UTF-8');
-                $existingRecord = $existingSkuMap[$skuKey] ?? null;
-                $currentAltKey = $existingRecord && !empty($existingRecord['alt']) ? mb_strtolower($existingRecord['alt'],'UTF-8') : '';
-                if (!$existingRecord && (isset($existingSkuMap[$skuKey]) || isset($pendingSku[$skuKey]))) {
-                    $errors[] = "Řádek {$line}: SKU '{$sku}' již existuje.";
+                if (isset($pendingSku[$skuKey])) {
+                    $errors[] = "Řádek {$line}: duplicitní SKU '{$sku}'";
                     continue;
                 }
                 $pendingSku[$skuKey] = true;
-                $altKey = $altSku === '' ? '' : mb_strtolower($altSku, 'UTF-8');
-                if ($altKey !== '') {
-                    if ($altKey === $skuKey) {
-                        $errors[] = "Řádek {$line}: alt_sku nesmí být stejné jako sku.";
-                        continue;
+                $conflict = isset($existingSkuMap[$skuKey]) && $existingSkuMap[$skuKey] !== $sku;
+                if ($altSku !== '') {
+                    $altKey = mb_strtolower($altSku, 'UTF-8');
+                    if (isset($existingSkuMap[$altKey]) || isset($existingAltMap[$altKey])) {
+                        $conflict = true;
                     }
-                    $conflict = false;
-                    if ($altKey !== $currentAltKey) {
-                        if (isset($existingSkuMap[$altKey])) { $conflict = true; }
-                        $altOwner = $existingAltMap[$altKey] ?? null;
-                        if ($altOwner !== null && mb_strtolower($altOwner,'UTF-8') !== $skuKey) { $conflict = true; }
-                        if (isset($pendingSku[$altKey]) && $pendingSku[$altKey] === true) { $conflict = true; }
-                        if (isset($pendingAlt[$altKey]) && $pendingAlt[$altKey] !== $skuKey) { $conflict = true; }
-                    }
+                    if (isset($pendingSku[$altKey]) && $pendingSku[$altKey] === true) { $conflict = true; }
+                    if (isset($pendingAlt[$altKey]) && $pendingAlt[$altKey] !== $skuKey) { $conflict = true; }
                     if ($conflict) {
                         $errors[] = "Řádek {$line}: alt_sku '{$altSku}' je již použito.";
                         continue;
@@ -193,27 +203,17 @@ final class ProductsController
                 $ok++;
             }
             $pdo->commit();
-            $filters = $this->currentFilters();
-            $hasSearch = $this->searchTriggered();
-            $this->render('products_index.php', [
-                'title'  => 'Produkty',
-                'items'  => $this->fetchProducts($filters),
-                'brands' => $this->fetchBrands(),
-                'groups' => $this->fetchGroups(),
-                'units'  => $this->fetchUnits(),
-                'types'  => $this->productTypes(),
-                'message'=> "Import OK: {$ok}",
-                'errors' => $errors,
-                'filters'=> $filters,
-                'hasSearch' => $hasSearch,
-            ]);
+            fclose($fh);
+            $this->flashProductImportSuccess("Import OK: {$ok}", $errors);
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            $this->renderIndexWithError($e->getMessage());
+            fclose($fh);
+            $this->flashProductImportError('Import selhal: ' . $e->getMessage());
         }
     }
+
 
     public function create(): void
     {
@@ -252,18 +252,18 @@ final class ProductsController
 
         $errors = [];
         if ($sku === '') $errors[] = 'Zadejte SKU.';
-        if ($name === '') $errors[] = 'Zadejte název.';
-        if (!in_array($type, $this->productTypes(), true)) $errors[] = 'Neplatný typ.';
+        if ($name === '') $errors[] = 'Zadejte nĂˇzev.';
+        if (!in_array($type, $this->productTypes(), true)) $errors[] = 'NeplatnĂ˝ typ.';
         $unitCodes = array_column($this->fetchUnits(), 'kod');
-        if ($unit === '' || !in_array($unit, $unitCodes, true)) $errors[] = 'Vyberte měrnou jednotku.';
-        if ($brandId > 0 && !$this->dictionaryIdExists('produkty_znacky', $brandId)) $errors[] = 'Neplatná značka.';
-        if ($groupId > 0 && !$this->dictionaryIdExists('produkty_skupiny', $groupId)) $errors[] = 'Neplatná skupina.';
+        if ($unit === '' || !in_array($unit, $unitCodes, true)) $errors[] = 'Vyberte mÄ›rnou jednotku.';
+        if ($brandId > 0 && !$this->dictionaryIdExists('produkty_znacky', $brandId)) $errors[] = 'NeplatnĂˇ znaÄŤka.';
+        if ($groupId > 0 && !$this->dictionaryIdExists('produkty_skupiny', $groupId)) $errors[] = 'NeplatnĂˇ skupina.';
         $altSku = $this->toUtf8($altSku);
         if ($altSku !== '') {
             if (mb_strtolower($altSku, 'UTF-8') === mb_strtolower($sku, 'UTF-8')) {
-                $errors[] = 'alt_sku nesmí být shodné se sku.';
+                $errors[] = 'alt_sku nesmĂ­ bĂ˝t shodnĂ© se sku.';
             } elseif ($this->altSkuConflictExists($altSku)) {
-                $errors[] = 'alt_sku je již použito nebo koliduje s jiným SKU.';
+                $errors[] = 'alt_sku je jiĹľ pouĹľito nebo koliduje s jinĂ˝m SKU.';
             }
         }
 
@@ -293,10 +293,10 @@ final class ProductsController
                 $active === 1 ? 1 : 0,
                 $note === '' ? null : $note,
             ]);
-            $_SESSION['products_message'] = 'Produkt byl přidán.';
+            $_SESSION['products_message'] = 'Produkt byl pĹ™idĂˇn.';
             unset($_SESSION['products_old']);
         } catch (\Throwable $e) {
-            $_SESSION['products_error'] = 'Uložení selhalo: ' . $e->getMessage();
+            $_SESSION['products_error'] = 'UloĹľenĂ­ selhalo: ' . $e->getMessage();
             $_SESSION['products_old'] = $oldInput;
         }
         header('Location: /products');
@@ -318,7 +318,7 @@ final class ProductsController
 
         header('Content-Type: application/json');
         if ($sku === '' || $field === '') {
-            echo json_encode(['ok'=>false,'error'=>'Neplatný požadavek.']);
+            echo json_encode(['ok'=>false,'error'=>'NeplatnĂ˝ poĹľadavek.']);
             return;
         }
         if (!in_array($field, $this->editableFields(), true)) {
@@ -348,14 +348,14 @@ final class ProductsController
         $sku = trim((string)($_GET['sku'] ?? ''));
         header('Content-Type: application/json');
         if ($sku === '') {
-            echo json_encode(['ok'=>false,'error'=>'Chybí SKU.']);
+            echo json_encode(['ok'=>false,'error'=>'ChybĂ­ SKU.']);
             return;
         }
         try {
             $tree = $this->buildBomTree($sku);
             echo json_encode(['ok'=>true,'tree'=>$tree]);
         } catch (\Throwable $e) {
-            echo json_encode(['ok'=>false,'error'=>'Nepodařilo se načíst BOM strom.']);
+            echo json_encode(['ok'=>false,'error'=>'NepodaĹ™ilo se naÄŤĂ­st BOM strom.']);
         }
     }
 
@@ -404,16 +404,16 @@ final class ProductsController
         $unit = $this->toUtf8((string)($payload['merna_jednotka_potomka'] ?? ''));
         $bond = $this->toUtf8((string)($payload['druh_vazby'] ?? ''));
         if ($parent === '' || $child === '') {
-            echo json_encode(['ok'=>false,'error'=>'Chybí rodič nebo potomek.']);
+            echo json_encode(['ok'=>false,'error'=>'ChybĂ­ rodiÄŤ nebo potomek.']);
             return;
         }
         if (!is_numeric($coefRaw) || (float)$coefRaw <= 0) {
-            echo json_encode(['ok'=>false,'error'=>'Koeficient musí být kladné číslo.']);
+            echo json_encode(['ok'=>false,'error'=>'Koeficient musĂ­ bĂ˝t kladnĂ© ÄŤĂ­slo.']);
             return;
         }
         $parentInfo = $this->fetchProductBasics($parent);
         if (!$parentInfo) {
-            echo json_encode(['ok'=>false,'error'=>'Rodičovský produkt neexistuje.']);
+            echo json_encode(['ok'=>false,'error'=>'RodiÄŤovskĂ˝ produkt neexistuje.']);
             return;
         }
         $childInfo = $this->fetchProductBasics($child);
@@ -425,14 +425,14 @@ final class ProductsController
             $unit = $childInfo['merna_jednotka'] ?? '';
         }
         if ($unit === '') {
-            echo json_encode(['ok'=>false,'error'=>'Zadejte měrnou jednotku potomka.']);
+            echo json_encode(['ok'=>false,'error'=>'Zadejte mÄ›rnou jednotku potomka.']);
             return;
         }
         if ($bond === '') {
             $bond = $this->deriveBondType($parentInfo['typ'] ?? null);
         }
         if (!in_array($bond, ['karton','sada'], true)) {
-            echo json_encode(['ok'=>false,'error'=>'Neplatný druh vazby.']);
+            echo json_encode(['ok'=>false,'error'=>'NeplatnĂ˝ druh vazby.']);
             return;
         }
         $coef = (float)$coefRaw;
@@ -448,7 +448,7 @@ final class ProductsController
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            echo json_encode(['ok'=>false,'error'=>'Nepodařilo se uložit vazbu.']);
+            echo json_encode(['ok'=>false,'error'=>'NepodaĹ™ilo se uloĹľit vazbu.']);
         }
     }
 
@@ -460,7 +460,7 @@ final class ProductsController
         $parent = $this->toUtf8((string)($payload['parent'] ?? ''));
         $child  = $this->toUtf8((string)($payload['child'] ?? ''));
         if ($parent === '' || $child === '') {
-            echo json_encode(['ok'=>false,'error'=>'Chybí rodič nebo potomek.']);
+            echo json_encode(['ok'=>false,'error'=>'ChybĂ­ rodiÄŤ nebo potomek.']);
             return;
         }
         $stmt = DB::pdo()->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?');
@@ -489,32 +489,32 @@ final class ProductsController
                     return [null, null];
                 }
                 if ($currentSku === '') {
-                    return [null, 'Nelze určit SKU produktu.'];
+                    return [null, 'Nelze urÄŤit SKU produktu.'];
                 }
                 if (mb_strtolower($val, 'UTF-8') === mb_strtolower($currentSku, 'UTF-8')) {
-                    return [null, 'alt_sku nesmí být shodné se sku.'];
+                    return [null, 'alt_sku nesmĂ­ bĂ˝t shodnĂ© se sku.'];
                 }
                 if ($this->altSkuConflictExists($val, $currentSku)) {
-                    return [null, 'alt_sku je již použito nebo koliduje se SKU.'];
+                    return [null, 'alt_sku je jiĹľ pouĹľito nebo koliduje se SKU.'];
                 }
                 return [$val, null];
             case 'nazev':
                 $val = $this->toUtf8((string)$value);
-                return $val === '' ? [null, 'Název nesmí být prázdný.'] : [$val, null];
+                return $val === '' ? [null, 'NĂˇzev nesmĂ­ bĂ˝t prĂˇzdnĂ˝.'] : [$val, null];
             case 'poznamka':
                 $val = $this->toUtf8((string)$value);
                 return [$val === '' ? null : $val, null];
             case 'typ':
                 $val = $this->toUtf8((string)$value);
-                return in_array($val, $this->productTypes(), true) ? [$val, null] : [null, 'Neplatný typ.'];
+                return in_array($val, $this->productTypes(), true) ? [$val, null] : [null, 'NeplatnĂ˝ typ.'];
             case 'merna_jednotka':
                 $val = $this->toUtf8((string)$value);
                 $units = array_column($this->fetchUnits(), 'kod');
-                return in_array($val, $units, true) ? [$val, null] : [null, 'Neznámá měrná jednotka.'];
+                return in_array($val, $units, true) ? [$val, null] : [null, 'NeznĂˇmĂˇ mÄ›rnĂˇ jednotka.'];
             case 'znacka_id':
                 $id = (int)$value;
                 if ($id !== 0 && !$this->dictionaryIdExists('produkty_znacky', $id)) {
-                    return [null, 'Značka neexistuje.'];
+                    return [null, 'ZnaÄŤka neexistuje.'];
                 }
                 return [$id ?: null, null];
             case 'skupina_id':
@@ -532,7 +532,7 @@ final class ProductsController
             case 'aktivni':
                 return [(int)($value === '0' ? 0 : 1), null];
         }
-        return [null, 'Neznámé pole.'];
+        return [null, 'NeznĂˇmĂ© pole.'];
     }
 
     private function normalizeDecimal($value): array
@@ -542,7 +542,7 @@ final class ProductsController
             return ['0', null];
         }
         if (!is_numeric($val)) {
-            return [null, 'Hodnota musí být číslo.'];
+            return [null, 'Hodnota musĂ­ bĂ˝t ÄŤĂ­slo.'];
         }
         return [$val, null];
     }
@@ -554,7 +554,7 @@ final class ProductsController
             return [0, null];
         }
         if (!is_numeric($val)) {
-            return [null, 'Hodnota musí být číslo.'];
+            return [null, 'Hodnota musĂ­ bĂ˝t ÄŤĂ­slo.'];
         }
         return [(int)$val, null];
     }
@@ -705,7 +705,7 @@ final class ProductsController
         if (!$row) {
             return [
                 'sku' => $sku,
-                'nazev' => '(neznámý produkt)',
+                'nazev' => '(neznĂˇmĂ˝ produkt)',
                 'typ' => '',
                 'merna_jednotka' => '',
             ];
@@ -737,7 +737,7 @@ final class ProductsController
                 'koeficient' => (float)$row['koeficient'],
                 'edge_mj' => $row['edge_mj'] === null ? null : (string)$row['edge_mj'],
                 'druh_vazby' => (string)$row['druh_vazby'],
-                'nazev' => (string)($row['nazev'] ?? '(neznámý)'),
+                'nazev' => (string)($row['nazev'] ?? '(neznĂˇmĂ˝)'),
                 'typ' => (string)($row['typ'] ?? ''),
                 'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
             ];
@@ -883,20 +883,22 @@ final class ProductsController
         return trim($value);
     }
 
-    private function renderIndexWithError(string $message): void
+    private function flashProductImportSuccess(string $message, array $errors): void
     {
-        $filters = $this->currentFilters();
-        $this->render('products_index.php', [
-            'title'  => 'Produkty',
-            'items'  => $this->fetchProducts($filters),
-            'brands' => $this->fetchBrands(),
-            'groups' => $this->fetchGroups(),
-            'units'  => $this->fetchUnits(),
-            'types'  => $this->productTypes(),
-            'error'  => $message,
-            'filters'=> $filters,
-            'hasSearch' => $this->searchTriggered(),
-        ]);
+        $_SESSION['products_import_message'] = $message;
+        $_SESSION['products_import_errors'] = $errors;
+        unset($_SESSION['products_error']);
+        header('Location: /products#product-import');
+        exit;
+    }
+
+    private function flashProductImportError(string $message): void
+    {
+        $_SESSION['products_error'] = $message;
+        unset($_SESSION['products_import_message']);
+        $_SESSION['products_import_errors'] = [];
+        header('Location: /products#product-import');
+        exit;
     }
 
     private function requireAuth(): void
@@ -911,9 +913,10 @@ final class ProductsController
     private function requireAdmin(): void
     {
         $this->requireAuth();
-        if (($_SESSION['user']['role'] ?? 'user') !== 'admin') {
+        $role = $_SESSION['user']['role'] ?? 'user';
+        if (!in_array($role, ['admin','superadmin'], true)) {
             http_response_code(403);
-            echo 'Přístup jen pro admina.';
+            echo 'PĹ™Ă­stup jen pro admina.';
             exit;
         }
     }
@@ -938,9 +941,16 @@ final class ProductsController
         return isset($_GET['search']);
     }
 
+    private function countBomLinks(): int
+    {
+        $stmt = DB::pdo()->query('SELECT COUNT(*) FROM bom');
+        return (int)$stmt->fetchColumn();
+    }
+
     private function render(string $view, array $vars = []): void
     {
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
     }
 }
+

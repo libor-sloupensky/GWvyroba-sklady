@@ -36,6 +36,11 @@
 }
 .collapsible[open] summary::after { content: '\25B2'; }
 .collapsible-body { margin-top: 0.75rem; }
+.collapsible-block { margin-bottom: 1.25rem; }
+.collapsible-heading { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.4rem; }
+.notice-success { border-color:#c8e6c9; background:#f1f8f1; color:#2e7d32; }
+.notice-error { border-color:#ffbdbd; background:#fff5f5; color:#b00020; }
+.import-result { margin-bottom: 0.8rem; }
 
 .product-filter-form {
   border: 1px solid #ddd;
@@ -167,7 +172,7 @@
 </style>
 
 <?php if (!empty($error)): ?>
-  <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
+  <div class="notice notice-error">
     <?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?>
   </div>
 <?php endif; ?>
@@ -653,102 +658,155 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 <?php if (!empty($message)): ?>
-  <div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;">
+  <div class="notice notice-success">
     <?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?>
   </div>
 <?php endif; ?>
 
-<details class="collapsible" id="products-help">
-  <summary>Nápověda – CSV a pole produktu</summary>
-  <div class="collapsible-body">
-    <p><strong>Popis sloupců CSV (oddělovač ;):</strong></p>
-    <ul>
-      <li><code>sku</code> – povinný interní kód produktu.</li>
-      <li><code>alt_sku</code> – volitelný alternativní kód (unikátní, nesmí být shodný se SKU).</li>
-      <li><code>ean</code> – volitelný EAN / čárový kód.</li>
-      <li><code>značka</code> / <code>skupina</code> – názvy definované v Nastavení.</li>
-      <li><code>typ</code> – jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balení</code>, <code>karton</code>.</li>
-      <li><code>měrná_jednotka</code> – kód jednotky z Nastavení (např. <code>ks</code>, <code>kg</code>).</li>
-      <li><code>název</code> – povinný název položky.</li>
-      <li><code>min_zásoba</code> – bezpečná zásoba; plánování se má držet alespoň této hodnoty.</li>
-      <li><code>min_dávka</code> – minimální vyráběná dávka. Menší množství výroba nespustí.</li>
-      <li><code>krok_výroby</code> – o kolik lze dávku navyšovat nad minimum (např. krok 50 ⇒ 200, 250, 300 …).</li>
-      <li><code>výrobní_doba_dní</code> – délka výroby v kalendářních dnech.</li>
-      <li><code>aktivní</code> – 1 = aktivní, 0 = skrytý produkt.</li>
-      <li><code>poznámka</code> – libovolný text.</li>
-    </ul>
-    <p>Desetinné hodnoty pište s tečkou (např. <code>0.25</code>). CSV musí být v UTF‑8.</p>
-  </div>
-</details>
-
 <details class="collapsible" id="product-create-panel">
   <summary>Přidat produkt</summary>
   <div class="collapsible-body">
-    <form method="post" action="/products/create" class="product-create-form">
-      <label>SKU*</label><input type="text" name="sku" value="<?= htmlspecialchars((string)($formOld['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
-      <label>Alt SKU</label><input type="text" name="alt_sku" value="<?= htmlspecialchars((string)($formOld['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-      <label>EAN</label><input type="text" name="ean" value="<?= htmlspecialchars((string)($formOld['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-      <label>Značka</label>
-      <select name="znacka_id">
-        <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
-        <?php foreach (($brands ?? []) as $b): $id=(int)$b['id']; ?>
-          <option value="<?= $id ?>"<?= (int)($formOld['znacka_id'] ?? 0) === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
-        <?php endforeach; ?>
-      </select>
-      <label>Skupina</label>
-      <select name="skupina_id">
-        <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
-        <?php foreach (($groups ?? []) as $g): $gid=(int)$g['id']; ?>
-          <option value="<?= $gid ?>"<?= (int)($formOld['skupina_id'] ?? 0) === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
-        <?php endforeach; ?>
-      </select>
-      <label>Typ*</label>
-      <select name="typ" required>
-        <?php foreach (($types ?? []) as $t): $selected = ((string)($formOld['typ'] ?? '') === (string)$t) ? ' selected' : ''; ?>
-          <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $selected ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
-        <?php endforeach; ?>
-      </select>
-      <label>Měrná jednotka*</label>
-      <select name="merna_jednotka" required>
-        <?php foreach (($units ?? []) as $u): $code = (string)$u['kod']; ?>
-          <option value="<?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?>"<?= ((string)($formOld['merna_jednotka'] ?? '') === $code) ? ' selected' : '' ?>><?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?></option>
-        <?php endforeach; ?>
-      </select>
-      <label>Název*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
-      <label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-      <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-      <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-      <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-      <label>Aktivní*</label>
-      <select name="aktivni">
-        <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
-        <option value="0"<?= (string)($formOld['aktivni'] ?? '1') === '0' ? ' selected' : '' ?>>Skryto</option>
-      </select>
-      <label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea>
-      <button type="submit">Uložit produkt</button>
-    </form>
+    <section class="collapsible-block">
+      <h3 class="collapsible-heading">Nápověda – CSV a pole produktu</h3>
+      <p><strong>Popis sloupců CSV (oddělovač středník):</strong></p>
+      <ul>
+        <li><code>sku</code> – povinný interní kód produktu.</li>
+        <li><code>alt_sku</code> – volitelný alternativní kód (unikátní, nesmí být shodné se SKU).</li>
+        <li><code>ean</code> – volitelný EAN / čárový kód.</li>
+        <li><code>značka</code> / <code>skupina</code> – názvy definované v Nastavení.</li>
+        <li><code>typ</code> – jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balení</code>, <code>karton</code>.</li>
+        <li><code>měrná_jednotka</code> – kód jednotky z Nastavení (např. <code>ks</code>, <code>kg</code>).</li>
+        <li><code>název</code> – povinný název položky.</li>
+        <li><code>min_zásoba</code> – bezpečná zásoba; plánování ji má držet alespoň na této hodnotě.</li>
+        <li><code>min_dávka</code> – minimální výrobní dávka. Menší množství se nevyrábí.</li>
+        <li><code>krok_výroby</code> – o kolik lze dávku navyšovat nad minimum (např. krok 50 ⇒ 200, 250, 300…).</li>
+        <li><code>výrobní_doba_dnů</code> – délka výroby v kalendářních dnech.</li>
+        <li><code>aktivní</code> – 1 = aktivní, 0 = skrytý produkt.</li>
+        <li><code>poznámka</code> – libovolný text.</li>
+      </ul>
+      <p>Desetinné hodnoty pište s tečkou. CSV musí být v UTF-8.</p>
+    </section>
+
+    <section class="collapsible-block">
+      <h3 class="collapsible-heading">Nový produkt</h3>
+      <form method="post" action="/products/create" class="product-create-form">
+        <label>SKU*</label><input type="text" name="sku" value="<?= htmlspecialchars((string)($formOld['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
+        <label>Alt SKU</label><input type="text" name="alt_sku" value="<?= htmlspecialchars((string)($formOld['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>EAN</label><input type="text" name="ean" value="<?= htmlspecialchars((string)($formOld['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Značka</label>
+        <select name="znacka_id">
+          <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
+          <?php foreach (($brands ?? []) as $b): $id=(int)$b['id']; ?>
+            <option value="<?= $id ?>"<?= (int)($formOld['znacka_id'] ?? 0) === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+          <?php endforeach; ?>
+        </select>
+        <label>Skupina</label>
+        <select name="skupina_id">
+          <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
+          <?php foreach (($groups ?? []) as $g): $gid=(int)$g['id']; ?>
+            <option value="<?= $gid ?>"<?= (int)($formOld['skupina_id'] ?? 0) === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+          <?php endforeach; ?>
+        </select>
+        <label>Typ*</label>
+        <select name="typ" required>
+          <?php foreach (($types ?? []) as $t): $selected = ((string)($formOld['typ'] ?? '') === (string)$t) ? ' selected' : ''; ?>
+            <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $selected ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+          <?php endforeach; ?>
+        </select>
+        <label>Měrná jednotka*</label>
+        <select name="merna_jednotka" required>
+          <?php foreach (($units ?? []) as $u): $code = (string)$u['kod']; ?>
+            <option value="<?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?>"<?= ((string)($formOld['merna_jednotka'] ?? '') === $code) ? ' selected' : '' ?>><?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?></option>
+          <?php endforeach; ?>
+        </select>
+        <label>Název*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
+        <label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Aktivní*</label>
+        <select name="aktivni">
+          <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
+          <option value="0"<?= (string)($formOld['aktivni'] ?? '1') === '0' ? ' selected' : '' ?>>Skryto</option>
+        </select>
+        <label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea>
+        <button type="submit">Uložit produkt</button>
+      </form>
+    </section>
+
+    <section class="collapsible-block" id="product-import">
+      <h3 class="collapsible-heading">Import a úprava produktů</h3>
+      <?php if (!empty($importMessage) || !empty($importErrors)): ?>
+        <?php $importHasErrors = !empty($importErrors); ?>
+        <div class="notice <?= $importHasErrors ? 'notice-error' : 'notice-success' ?> import-result">
+          <?php if (!empty($importMessage)): ?>
+            <strong><?= htmlspecialchars((string)$importMessage,ENT_QUOTES,'UTF-8') ?></strong>
+          <?php endif; ?>
+          <?php if ($importHasErrors): ?>
+            <div>Chyby importu:</div>
+            <ul style="margin:0.4rem 0 0 1rem;">
+              <?php foreach ($importErrors as $e): ?>
+                <li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li>
+              <?php endforeach; ?>
+            </ul>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
+      <p><a href="/products/export">Stáhnout CSV (aktuální)</a></p>
+      <form method="post" action="/products/import" enctype="multipart/form-data">
+        <label>Nahrát CSV</label><br>
+        <input type="file" name="csv" accept=".csv" required />
+        <br>
+        <button type="submit">Importovat</button>
+        <span class="muted">Používejte UTF-8 a středník jako oddělovač.</span>
+      </form>
+    </section>
   </div>
 </details>
 
-<details class="collapsible" id="product-import-panel">
-  <summary>Import a úprava produktů</summary>
+<details class="collapsible" id="bom-import-panel">
+  <summary>Import BOM (karton / sada)</summary>
   <div class="collapsible-body">
-    <p><a href="/products/export">Stáhnout CSV (aktuální)</a></p>
-    <?php if (!empty($errors)): ?>
-      <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
-        <strong>Chyby importu:</strong>
-        <ul style="margin:0.4rem 0 0 1rem;"><?php foreach ($errors as $e): ?><li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li><?php endforeach; ?></ul>
+    <section class="collapsible-block" id="bom-import">
+      <h3 class="collapsible-heading">Nápověda – BOM import</h3>
+      <p><strong>Popis sloupců (oddělovač středník):</strong></p>
+      <ul>
+        <li><code>rodic_sku</code> – finální produkt nebo karton, pro který skládáte recepturu.</li>
+        <li><code>potomek_sku</code> – komponenta, která do rodiče vstupuje.</li>
+        <li><code>koeficient</code> – množství potomka na 1 jednotku rodiče (ve stejné MJ jako má potomek).</li>
+        <li><code>merna_jednotka_potomka</code> – volitelné; prázdné pole převezme MJ potomka z kmenových produktů.</li>
+        <li><code>druh_vazby</code> – <code>karton</code> pouze pro rodiče typu karton; ve všech ostatních případech zvolte <em>sada</em>. Prázdné pole systém dopočítá stejně.</li>
+      </ul>
+      <p>Desetinné hodnoty zadávejte s tečkou. Každou vazbu lze nahrát kdykoliv – rodič i potomek musí existovat v tabulce produktů.</p>
+    </section>
+    <?php $bomHasErrors = !empty($bomErrors); $bomNotice = $bomError ?? $bomMessage ?? null; ?>
+    <?php if ($bomNotice || $bomHasErrors): ?>
+      <div class="notice <?= $bomError ? 'notice-error' : 'notice-success' ?> import-result">
+        <?php if ($bomNotice): ?>
+          <strong><?= htmlspecialchars((string)$bomNotice,ENT_QUOTES,'UTF-8') ?></strong>
+        <?php endif; ?>
+        <?php if ($bomHasErrors): ?>
+          <div>Chyby importu:</div>
+          <ul style="margin:0.4rem 0 0 1rem;">
+            <?php foreach ($bomErrors as $e): ?>
+              <li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
       </div>
     <?php endif; ?>
-    <form method="post" action="/products/import" enctype="multipart/form-data">
+    <p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format((int)($bomTotal ?? 0), 0, ',', ' ') ?></strong></p>
+    <p><a href="/bom/export">Stáhnout CSV (aktuální)</a></p>
+    <form method="post" action="/bom/import" enctype="multipart/form-data">
       <label>Nahrát CSV</label><br>
       <input type="file" name="csv" accept=".csv" required />
       <br>
       <button type="submit">Importovat</button>
-      <span class="muted">Používejte UTF‑8 a středník jako oddělovač.</span>
+      <span class="muted">Tip: používejte UTF-8; oddělovač je středník.</span>
     </form>
   </div>
 </details>
+
 
 <div class="product-search-panel">
   <div class="section-title">Vyhledej produkt</div>

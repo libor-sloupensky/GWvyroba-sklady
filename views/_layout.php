@@ -59,7 +59,7 @@ $currentUser = $_SESSION['user'] ?? null;
       <a href="/">Domů</a>
       <a href="/import" title="Nahrát XML a spustit import">Import</a>
       <a href="/products" title="Kmenová karta produktů, CSV import/export">Produkty</a>
-      <a href="/bom" title="Vazby BOM: karton/sada">BOM</a>
+      <a href="/products#bom-import" title="Vazby BOM: karton/sada">BOM</a>
       <a href="/inventory" title="Záznam inventury a korekcí">Inventura</a>
       <a href="/reservations" title="Rezervace hotových produktů">Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného">Výroba</a>

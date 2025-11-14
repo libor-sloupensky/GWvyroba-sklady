@@ -8,12 +8,8 @@ final class BomController
     public function index(): void
     {
         $this->requireAuth();
-        $rows = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-        $this->render('bom_index.php', [
-            'title'=>'BOM',
-            'items'=>$rows,
-            'total'=>$this->bomCount(),
-        ]);
+        header('Location: /products#bom-import');
+        exit;
     }
 
     public function exportCsv(): void
@@ -37,16 +33,15 @@ final class BomController
     {
         $this->requireAdmin();
         if (!isset($_FILES['csv']) || !is_uploaded_file($_FILES['csv']['tmp_name'])) {
-            $this->render('bom_index.php',['title'=>'BOM','error'=>'Soubor nebyl nahrán.']);
-            return;
+            $this->flashBomError('Soubor nebyl nahrán.');
         }
-        $fh = fopen($_FILES['csv']['tmp_name'],'rb');
-        if (!$fh){
-            $this->render('bom_index.php',['title'=>'BOM','error'=>'Nelze číst soubor.']);
-            return;
+        $fh = fopen($_FILES['csv']['tmp_name'], 'rb');
+        if (!$fh) {
+            $this->flashBomError('Nelze číst soubor.');
         }
         $pdo = DB::pdo();
         $pdo->beginTransaction();
+        $err = [];
         try {
             $header = $this->readCsvRow($fh);
             $expected = ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka','druh_vazby'];
@@ -55,7 +50,7 @@ final class BomController
             }
             $deletePair = $pdo->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?');
             $insert = $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby) VALUES (?,?,?,?,?)');
-            $ok=0;$err=[];$line=1;
+            $ok=0;$line=1;
             while(($row=$this->readCsvRow($fh))!==false){
                 $line++;
                 if(count(array_filter($row,fn($v)=>trim((string)$v)!==''))===0)continue;
@@ -65,8 +60,8 @@ final class BomController
                 $child=$this->toUtf8($child);
                 $unit=$this->toUtf8($unit);
                 $bond=$this->toUtf8($bond);
-                if($parent===''||$child===''){ $err[]="Řádek $line: chybí rodič/potomek"; continue;}
-                if($coef===''|| !is_numeric($coef) || (float)$coef<=0){ $err[]="Řádek $line: neplatný koeficient"; continue;}
+                if($parent===''||$child===''){ $err[]="Řádek {$line}: chybí rodič/potomek"; continue;}
+                if($coef===''|| !is_numeric($coef) || (float)$coef<=0){ $err[]="Řádek {$line}: neplatný koeficient"; continue;}
                 if($unit===''){
                     $childInfo = $this->getProductInfo($child);
                     $unit = $childInfo['merna_jednotka'] ?? null;
@@ -76,7 +71,7 @@ final class BomController
                     $bond = $this->deriveBondType($parentInfo['typ'] ?? null);
                 }
                 if(!in_array($bond,['karton','sada'],true)){
-                    $err[]="Řádek $line: neplatný druh_vazby";
+                    $err[]="Řádek {$line}: neplatný druh_vazby";
                     continue;
                 }
                 $deletePair->execute([$parent,$child]);
@@ -84,25 +79,15 @@ final class BomController
                 $ok++;
             }
             $pdo->commit();
-            $items = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-            $this->render('bom_index.php',[
-                'title'=>'BOM',
-                'items'=>$items,
-                'message'=>"Import OK: $ok",
-                'errors'=>$err,
-                'total'=>$this->bomCount(),
-            ]);
+            $this->flashBomSuccess("Import OK: {$ok}", $err);
         } catch (\Throwable $e){
             if($pdo->inTransaction())$pdo->rollBack();
-            $items = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku LIMIT 1000')->fetchAll();
-            $this->render('bom_index.php',[
-                'title'=>'BOM',
-                'items'=>$items,
-                'error'=>$e->getMessage(),
-                'total'=>$this->bomCount(),
-            ]);
+            $this->flashBomError('Import selhal: ' . $e->getMessage());
+        } finally {
+            fclose($fh);
         }
     }
+
 
     private function getProductInfo(string $sku): ?array
     {
@@ -139,6 +124,24 @@ final class BomController
         return trim($value);
     }
 
+    private function flashBomSuccess(string $message, array $errors): void
+    {
+        $_SESSION['products_bom_message'] = $message;
+        $_SESSION['products_bom_errors'] = $errors;
+        unset($_SESSION['products_bom_error']);
+        header('Location: /products#bom-import');
+        exit;
+    }
+
+    private function flashBomError(string $message, array $errors = []): void
+    {
+        $_SESSION['products_bom_error'] = $message;
+        $_SESSION['products_bom_errors'] = $errors;
+        unset($_SESSION['products_bom_message']);
+        header('Location: /products#bom-import');
+        exit;
+    }
+
     private function requireAuth(): void {
         if (!isset($_SESSION['user'])) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
@@ -149,21 +152,15 @@ final class BomController
 
     private function requireAdmin(): void {
         $this->requireAuth();
-        if (($_SESSION['user']['role'] ?? 'user') !== 'admin'){
+        $role = $_SESSION['user']['role'] ?? 'user';
+        if (!in_array($role, ['admin','superadmin'], true)) {
             http_response_code(403);
             echo 'Přístup jen pro admina.';
             exit;
         }
     }
 
-    private function render(string $view, array $vars=[]): void {
-        extract($vars);
-        require __DIR__ . '/../../views/_layout.php';
-    }
 
-    private function bomCount(): int
-    {
-        $count = DB::pdo()->query('SELECT COUNT(*) FROM bom')->fetchColumn();
-        return (int)$count;
-    }
+
+
 }

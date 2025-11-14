@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 namespace App\Controller;
 
 use App\Support\DB;
@@ -12,7 +12,7 @@ final class AnalyticsController
         $favorites = $this->loadFavorites();
         $status = $this->openAiStatus();
         $this->render('analytics_revenue.php', [
-            'title' => 'AnalĂ˝za (AI)',
+            'title' => 'Analýza (AI)',
             'openAiStatus' => $status['message'],
             'openAiReady' => $status['ready'],
             'myFavorites' => $favorites['mine'],
@@ -30,13 +30,13 @@ final class AnalyticsController
         $saveFavorite = !empty($payload['saveFavorite']);
 
         if ($prompt === '') {
-            $this->jsonError('Zadejte prosĂ­m prompt.');
+            $this->jsonError('Zadejte prosím prompt.');
             return;
         }
 
         $apiKey = $this->resolveOpenAiKey();
         if ($apiKey === '') {
-            $this->jsonError('ChybĂ­ serverovĂˇ promÄ›nnĂˇ OPENAI_API_KEY.');
+            $this->jsonError('Chybí serverová proměnná OPENAI_API_KEY.');
             return;
         }
 
@@ -57,13 +57,13 @@ final class AnalyticsController
         try {
             $aiResponse = $this->callOpenAi($apiKey, $requestBody);
         } catch (\Throwable $e) {
-            $this->jsonError('OpenAI API nenĂ­ dostupnĂ©: ' . $e->getMessage());
+            $this->jsonError('OpenAI API není dostupné: ' . $e->getMessage());
             return;
         }
 
         $plan = $this->parseAiPlan($aiResponse);
         if ($plan === null) {
-            $this->jsonError('AI vrĂˇtila neoÄŤekĂˇvanĂ˝ vĂ˝stup.');
+            $this->jsonError('AI vrátila neočekávaný výstup.');
             return;
         }
 
@@ -214,11 +214,11 @@ final class AnalyticsController
     private function buildSystemPrompt(string $schema): string
     {
         return <<<PROMPT
-Jsi analytik v systĂ©mu WormUP. MĂˇĹˇ pĹ™Ă­stup pouze k databĂˇzi MySQL popsanĂ© nĂ­Ĺľe. OdpovÄ›z vĹľdy ve stejnĂ©m jazyce, ve kterĂ©m je uĹľivatelskĂ˝ dotaz.
+Jsi analytik v systému WormUP. Máš přístup pouze k databázi MySQL popsané níže. Odpovídej vždy ve stejném jazyce, ve kterém je uživatelský dotaz.
 
-ZadĂˇnĂ­:
-- PĹ™iprav SQL dotazy typu SELECT, kterĂ© vrĂˇtĂ­ poĹľadovanĂˇ data. Nikdy nepouĹľĂ­vej jinĂ© pĹ™Ă­kazy.
-- KaĹľdĂ˝ vĂ˝stup popiĹˇ v poli "outputs" s tĂ­mto formĂˇtem:
+Zadání:
+- Připrav SQL dotazy typu SELECT, které vrátí požadovaná data. Nikdy nepoužívej jiné příkazy.
+- Každý výstup popiš v poli "outputs" s tímto formátem:
     {
       "type": "table" | "line_chart",
       "title": "Titulek",
@@ -226,13 +226,13 @@ ZadĂˇnĂ­:
       "columns": [{"key":"nazev_sloupce","label":"Titulek"}],
       "x_column": "pro graf",
       "y_column": "pro graf",
-      "series_label": "NĂˇzev sĂ©rie"
+      "series_label": "Název série"
     }
-- Tabulky a grafy omez na rozumnĂ˝ poÄŤet Ĺ™ĂˇdkĹŻ (doporuÄŤ LIMIT 200).
-- PĹ™idej souhrn do klĂ­ÄŤe "explanation".
-- Do klĂ­ÄŤe "language" uveÄŹ jazyk odpovÄ›di (napĹ™. "cs" nebo "en").
+- Tabulky a grafy omez na rozumný počet řádků (doporuč LIMIT 200).
+- Přidej souhrn do klíče "explanation".
+- Do klíče "language" uveď jazyk odpovědi (např. "cs" nebo "en").
 
-DostupnĂˇ schĂ©mata:
+Dostupná schémata:
 {$schema}
 PROMPT;
     }
@@ -275,7 +275,7 @@ PROMPT;
         }
         $json = json_decode($result, true);
         if (!is_array($json) || empty($json['choices'][0]['message']['content'])) {
-            throw new \RuntimeException('NeplatnĂˇ odpovÄ›ÄŹ OpenAI');
+            throw new \RuntimeException('Neplatná odpověď OpenAI');
         }
         return (string)$json['choices'][0]['message']['content'];
     }
@@ -286,12 +286,12 @@ PROMPT;
         if ($key === '') {
             return [
                 'ready' => false,
-                'message' => 'ChybĂ­ promÄ›nnĂˇ OPENAI_API_KEY â€“ poĹľĂˇdejte sprĂˇvce hostingu o doplnÄ›nĂ­.',
+                'message' => 'Chybí proměnná OPENAI_API_KEY – požádejte správce hostingu o doplnění.',
             ];
         }
         return [
             'ready' => true,
-            'message' => 'OpenAI klĂ­ÄŤ je naÄŤten a rozhranĂ­ je pĹ™ipraveno.',
+            'message' => 'OpenAI klíč je načten a rozhraní je připraveno.',
         ];
     }
 
@@ -339,4 +339,7 @@ PROMPT;
         require __DIR__ . '/../../views/_layout.php';
     }
 }
+
+
+
 
