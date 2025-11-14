@@ -42,6 +42,8 @@ final class BomController
         $pdo = DB::pdo();
         $pdo->beginTransaction();
         $err = [];
+        $created = 0;
+        $updated = 0;
         try {
             $header = $this->readCsvRow($fh);
             $expected = ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka','druh_vazby'];
@@ -62,12 +64,20 @@ final class BomController
                 $bond=$this->toUtf8($bond);
                 if($parent===''||$child===''){ $err[]="Řádek {$line}: chybí rodič/potomek"; continue;}
                 if($coef===''|| !is_numeric($coef) || (float)$coef<=0){ $err[]="Řádek {$line}: neplatný koeficient"; continue;}
+                $parentInfo = $this->getProductInfo($parent);
+                if ($parentInfo === null) {
+                    $err[] = "Řádek {$line}: rodič '{$parent}' neexistuje";
+                    continue;
+                }
+                $childInfo = $this->getProductInfo($child);
+                if ($childInfo === null) {
+                    $err[] = "Řádek {$line}: potomek '{$child}' neexistuje";
+                    continue;
+                }
                 if($unit===''){
-                    $childInfo = $this->getProductInfo($child);
                     $unit = $childInfo['merna_jednotka'] ?? null;
                 }
                 if($bond===''){
-                    $parentInfo = $this->getProductInfo($parent);
                     $bond = $this->deriveBondType($parentInfo['typ'] ?? null);
                 }
                 if(!in_array($bond,['karton','sada'],true)){
@@ -75,11 +85,21 @@ final class BomController
                     continue;
                 }
                 $deletePair->execute([$parent,$child]);
+                $wasUpdate = $deletePair->rowCount() > 0;
                 $insert->execute([$parent,$child,$coef,$unit,$bond]);
+                if ($wasUpdate) {
+                    $updated++;
+                } else {
+                    $created++;
+                }
                 $ok++;
             }
             $pdo->commit();
-            $this->flashBomSuccess("Import OK: {$ok}", $err);
+            $this->flashBomSuccess("Import OK: {$ok}", $err, [
+                'created' => $created,
+                'updated' => $updated,
+                'errors' => count($err),
+            ]);
         } catch (\Throwable $e){
             if($pdo->inTransaction())$pdo->rollBack();
             $this->flashBomError('Import selhal: ' . $e->getMessage());
@@ -124,10 +144,11 @@ final class BomController
         return trim($value);
     }
 
-    private function flashBomSuccess(string $message, array $errors): void
+    private function flashBomSuccess(string $message, array $errors, array $stats = []): void
     {
         $_SESSION['products_bom_message'] = $message;
         $_SESSION['products_bom_errors'] = $errors;
+        $_SESSION['products_bom_stats'] = $stats;
         unset($_SESSION['products_bom_error']);
         header('Location: /products#bom-import');
         exit;
@@ -138,6 +159,7 @@ final class BomController
         $_SESSION['products_bom_error'] = $message;
         $_SESSION['products_bom_errors'] = $errors;
         unset($_SESSION['products_bom_message']);
+        unset($_SESSION['products_bom_stats']);
         header('Location: /products#bom-import');
         exit;
     }

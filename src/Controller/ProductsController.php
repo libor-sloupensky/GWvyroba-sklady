@@ -15,18 +15,22 @@ final class ProductsController
         $formOld = $_SESSION['products_old'] ?? null;
         $importMessage = $_SESSION['products_import_message'] ?? null;
         $importErrors = $_SESSION['products_import_errors'] ?? [];
+        $importStats = $_SESSION['products_import_stats'] ?? null;
         $bomMessage = $_SESSION['products_bom_message'] ?? null;
         $bomError = $_SESSION['products_bom_error'] ?? null;
         $bomErrors = $_SESSION['products_bom_errors'] ?? [];
+        $bomStats = $_SESSION['products_bom_stats'] ?? null;
         unset(
             $_SESSION['products_message'],
             $_SESSION['products_error'],
             $_SESSION['products_old'],
             $_SESSION['products_import_message'],
             $_SESSION['products_import_errors'],
+            $_SESSION['products_import_stats'],
             $_SESSION['products_bom_message'],
             $_SESSION['products_bom_error'],
-            $_SESSION['products_bom_errors']
+            $_SESSION['products_bom_errors'],
+            $_SESSION['products_bom_stats']
         );
 
         $items = $this->fetchProducts($filters);
@@ -44,12 +48,15 @@ final class ProductsController
             'hasSearch' => $hasSearch,
             'resultCount' => count($items),
             'formOld' => $formOld,
+            'importStats' => $importStats,
             'importMessage' => $importMessage,
             'importErrors' => $importErrors,
             'bomMessage' => $bomMessage,
             'bomError' => $bomError,
             'bomErrors' => $bomErrors,
+            'bomStats' => $bomStats,
             'bomTotal' => $this->countBomLinks(),
+            'bomOrphans' => $this->fetchBomOrphans(),
         ]);
     }
 
@@ -119,6 +126,9 @@ final class ProductsController
                 'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
             );
             $ok = 0;
+            $created = 0;
+            $updated = 0;
+            $unchanged = 0;
             $errors = [];
             $line = 1;
             while (($row = $this->readCsvRow($fh)) !== false) {
@@ -200,11 +210,28 @@ final class ProductsController
                     $note === '' ? null : $note,
                     $groupId,
                 ]);
+                $affected = $stmt->rowCount();
+                if ($affected === 1) {
+                    $created++;
+                } elseif ($affected === 2) {
+                    $updated++;
+                } else {
+                    $unchanged++;
+                }
                 $ok++;
             }
             $pdo->commit();
             fclose($fh);
-            $this->flashProductImportSuccess("Import OK: {$ok}", $errors);
+            $this->flashProductImportSuccess(
+                "Import OK: {$ok}",
+                $errors,
+                [
+                    'created' => $created,
+                    'updated' => $updated,
+                    'unchanged' => $unchanged,
+                    'errors' => count($errors),
+                ]
+            );
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
@@ -883,10 +910,11 @@ final class ProductsController
         return trim($value);
     }
 
-    private function flashProductImportSuccess(string $message, array $errors): void
+    private function flashProductImportSuccess(string $message, array $errors, array $stats = []): void
     {
         $_SESSION['products_import_message'] = $message;
         $_SESSION['products_import_errors'] = $errors;
+        $_SESSION['products_import_stats'] = $stats;
         unset($_SESSION['products_error']);
         header('Location: /products#product-import');
         exit;
@@ -897,6 +925,7 @@ final class ProductsController
         $_SESSION['products_error'] = $message;
         unset($_SESSION['products_import_message']);
         $_SESSION['products_import_errors'] = [];
+        unset($_SESSION['products_import_stats']);
         header('Location: /products#product-import');
         exit;
     }
@@ -945,6 +974,28 @@ final class ProductsController
     {
         $stmt = DB::pdo()->query('SELECT COUNT(*) FROM bom');
         return (int)$stmt->fetchColumn();
+    }
+
+    private function fetchBomOrphans(): array
+    {
+        $sql = 'SELECT b.rodic_sku, b.potomek_sku,
+                       pr.sku AS parent_sku,
+                       ch.sku AS child_sku
+                FROM bom b
+                LEFT JOIN produkty pr ON pr.sku = b.rodic_sku
+                LEFT JOIN produkty ch ON ch.sku = b.potomek_sku
+                WHERE pr.sku IS NULL OR ch.sku IS NULL
+                ORDER BY b.rodic_sku, b.potomek_sku
+                LIMIT 200';
+        $rows = DB::pdo()->query($sql)->fetchAll();
+        return array_map(static function ($row) {
+            return [
+                'rodic_sku' => (string)$row['rodic_sku'],
+                'potomek_sku' => (string)$row['potomek_sku'],
+                'missing_parent' => empty($row['parent_sku']),
+                'missing_child' => empty($row['child_sku']),
+            ];
+        }, $rows ?: []);
     }
 
     private function render(string $view, array $vars = []): void

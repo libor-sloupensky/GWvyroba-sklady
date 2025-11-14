@@ -40,7 +40,19 @@
 .collapsible-heading { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.4rem; }
 .notice-success { border-color:#c8e6c9; background:#f1f8f1; color:#2e7d32; }
 .notice-error { border-color:#ffbdbd; background:#fff5f5; color:#b00020; }
+.notice-warning { border-color:#ffe082; background:#fff8e1; color:#8d6e63; }
 .import-result { margin-bottom: 0.8rem; }
+.import-stats {
+  list-style: none;
+  padding: 0.3rem 0 0;
+  margin: 0.3rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  font-size: 0.9rem;
+}
+.text-success { color:#2e7d32; }
+.text-error { color:#b00020; }
 
 .product-filter-form {
   border: 1px solid #ddd;
@@ -736,11 +748,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     <section class="collapsible-block" id="product-import">
       <h3 class="collapsible-heading">Import a úprava produktů</h3>
-      <?php if (!empty($importMessage) || !empty($importErrors)): ?>
+      <?php if (!empty($importMessage) || !empty($importStats) || !empty($importErrors)): ?>
         <?php $importHasErrors = !empty($importErrors); ?>
         <div class="notice <?= $importHasErrors ? 'notice-error' : 'notice-success' ?> import-result">
           <?php if (!empty($importMessage)): ?>
             <strong><?= htmlspecialchars((string)$importMessage,ENT_QUOTES,'UTF-8') ?></strong>
+          <?php endif; ?>
+          <?php if (!empty($importStats)): ?>
+            <ul class="import-stats">
+              <li>Nové: <strong><?= (int)($importStats['created'] ?? 0) ?></strong></li>
+              <li>Aktualizované: <strong><?= (int)($importStats['updated'] ?? 0) ?></strong></li>
+              <li>Beze změny: <strong><?= (int)($importStats['unchanged'] ?? 0) ?></strong></li>
+              <li class="<?= ((int)($importStats['errors'] ?? 0)) === 0 ? 'text-success' : 'text-error' ?>">
+                Chyby: <strong><?= (int)($importStats['errors'] ?? 0) ?></strong>
+              </li>
+            </ul>
           <?php endif; ?>
           <?php if ($importHasErrors): ?>
             <div>Chyby importu:</div>
@@ -749,6 +771,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 <li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li>
               <?php endforeach; ?>
             </ul>
+          <?php elseif (empty($importStats)): ?>
+            <div class="text-success">Chyby: 0</div>
           <?php endif; ?>
         </div>
       <?php endif; ?>
@@ -779,11 +803,23 @@ document.addEventListener('DOMContentLoaded', function () {
       </ul>
       <p>Desetinné hodnoty zadávejte s tečkou. Každou vazbu lze nahrát kdykoliv – rodič i potomek musí existovat v tabulce produktů.</p>
     </section>
-    <?php $bomHasErrors = !empty($bomErrors); $bomNotice = $bomError ?? $bomMessage ?? null; ?>
-    <?php if ($bomNotice || $bomHasErrors): ?>
+    <?php
+      $bomHasErrors = !empty($bomErrors);
+      $bomNotice = $bomError ?? $bomMessage ?? null;
+    ?>
+    <?php if ($bomNotice || $bomHasErrors || !empty($bomStats)): ?>
       <div class="notice <?= $bomError ? 'notice-error' : 'notice-success' ?> import-result">
         <?php if ($bomNotice): ?>
           <strong><?= htmlspecialchars((string)$bomNotice,ENT_QUOTES,'UTF-8') ?></strong>
+        <?php endif; ?>
+        <?php if (!empty($bomStats)): ?>
+          <ul class="import-stats">
+            <li>Nové: <strong><?= (int)($bomStats['created'] ?? 0) ?></strong></li>
+            <li>Aktualizované: <strong><?= (int)($bomStats['updated'] ?? 0) ?></strong></li>
+            <li class="<?= ((int)($bomStats['errors'] ?? 0)) === 0 ? 'text-success' : 'text-error' ?>">
+              Chyby: <strong><?= (int)($bomStats['errors'] ?? 0) ?></strong>
+            </li>
+          </ul>
         <?php endif; ?>
         <?php if ($bomHasErrors): ?>
           <div>Chyby importu:</div>
@@ -792,7 +828,23 @@ document.addEventListener('DOMContentLoaded', function () {
               <li><?= htmlspecialchars((string)$e,ENT_QUOTES,'UTF-8') ?></li>
             <?php endforeach; ?>
           </ul>
+        <?php elseif (empty($bomStats)): ?>
+          <div class="text-success">Chyby: 0</div>
         <?php endif; ?>
+      </div>
+    <?php endif; ?>
+    <?php if (!empty($bomOrphans)): ?>
+      <div class="notice notice-warning">
+        <strong>Nepřiřazené vazby (chybí produkt):</strong>
+        <ul style="margin:0.4rem 0 0 1rem;">
+          <?php foreach ($bomOrphans as $orphan): ?>
+            <li>
+              <?= htmlspecialchars($orphan['rodic_sku'],ENT_QUOTES,'UTF-8') ?>
+              → <?= htmlspecialchars($orphan['potomek_sku'],ENT_QUOTES,'UTF-8') ?>
+              (<?= $orphan['missing_parent'] ? 'chybí rodič' : '' ?><?= ($orphan['missing_parent'] && $orphan['missing_child']) ? ', ' : '' ?><?= $orphan['missing_child'] ? 'chybí potomek' : '' ?>)
+            </li>
+          <?php endforeach; ?>
+        </ul>
       </div>
     <?php endif; ?>
     <p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format((int)($bomTotal ?? 0), 0, ',', ' ') ?></strong></p>
