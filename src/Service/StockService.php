@@ -9,15 +9,36 @@ final class StockService
 {
     private static array $demandCache = [];
     private static ?array $bomCache = null;
+    private static bool $settingsColumnsVerified = false;
 
     public static function getSettings(): array
     {
-        $row = DB::pdo()->query('SELECT okno_pro_prumer_dni, spotreba_prumer_dni, zasoba_cil_dni FROM nastaveni_global WHERE id=1')->fetch(PDO::FETCH_ASSOC) ?: [];
+        $pdo = DB::pdo();
+        if (!self::$settingsColumnsVerified) {
+            self::ensureSettingsColumns($pdo);
+            self::$settingsColumnsVerified = true;
+        }
+        $row = $pdo->query('SELECT okno_pro_prumer_dni, spotreba_prumer_dni, zasoba_cil_dni FROM nastaveni_global WHERE id=1')->fetch(PDO::FETCH_ASSOC) ?: [];
         return [
             'xml_window_days' => max(1, (int)($row['okno_pro_prumer_dni'] ?? 30)),
             'consumption_days' => max(1, (int)($row['spotreba_prumer_dni'] ?? 90)),
             'stock_days' => max(1, (int)($row['zasoba_cil_dni'] ?? 30)),
         ];
+    }
+
+    private static function ensureSettingsColumns(PDO $pdo): void
+    {
+        self::ensureColumn($pdo, 'spotreba_prumer_dni', "INT NOT NULL DEFAULT 90 AFTER `okno_pro_prumer_dni`");
+        self::ensureColumn($pdo, 'zasoba_cil_dni', "INT NOT NULL DEFAULT 30 AFTER `spotreba_prumer_dni`");
+    }
+
+    private static function ensureColumn(PDO $pdo, string $column, string $definition): void
+    {
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `nastaveni_global` LIKE ?");
+        $stmt->execute([$column]);
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            $pdo->exec("ALTER TABLE `nastaveni_global` ADD COLUMN `{$column}` {$definition}");
+        }
     }
 
     /**
