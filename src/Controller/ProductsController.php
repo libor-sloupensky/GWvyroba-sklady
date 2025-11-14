@@ -109,15 +109,22 @@ final class ProductsController
         $pdo->beginTransaction();
         try {
             $header = $this->readCsvRow($fh);
-            $expected = ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
-            if (!$header || array_map('strtolower', $header) !== $expected) {
-                throw new \RuntimeException('Neplatn hlavika CSV.');
+            $expectedLegacy = ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+            $expectedExtended = $expectedLegacy;
+            array_splice($expectedExtended, 9, 0, ['nast_zasob']);
+            $normalizedHeader = $header ? array_map('strtolower', $header) : [];
+            if ($normalizedHeader === $expectedExtended) {
+                $hasStockModeColumn = true;
+            } elseif ($normalizedHeader === $expectedLegacy) {
+                $hasStockModeColumn = false;
+            } else {
+                throw new \RuntimeException('Neplatná hlavička CSV.');
             }
             $brands = $this->loadDictionary('produkty_znacky');
             $groups = $this->loadDictionary('produkty_skupiny');
             $units  = $this->loadUnitsDictionary();
             if (empty($units)) {
-                throw new \RuntimeException('Nejprve definujte povolen mrn jednotky v Nastaven.');
+                throw new \RuntimeException('Nejprve definujte povolené měrné jednotky v Nastavení.');
             }
             [$existingSkuMap, $existingAltMap] = $this->loadExistingSkuMaps();
             $pendingSku = [];
@@ -139,8 +146,13 @@ final class ProductsController
                 if (count(array_filter($row, fn($v) => trim((string)$v) !== '')) === 0) {
                     continue;
                 }
-                $row = array_pad($row, 14, '');
-                [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$note] = $row;
+                $row = array_pad($row, $hasStockModeColumn ? 15 : 14, '');
+                if ($hasStockModeColumn) {
+                    [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$mode,$md,$krok,$vdd,$act,$note] = $row;
+                } else {
+                    [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$note] = $row;
+                    $mode = '';
+                }
                 $sku = $this->toUtf8($sku);
                 $altSku = $this->toUtf8($altSku);
                 $nazev = $this->toUtf8($nazev);
@@ -198,7 +210,7 @@ final class ProductsController
                     $altSku = null;
                 }
                 $minValue = $min === '' ? 0.0 : (float)$min;
-                $stockMode = $minValue > 0 ? 'manual' : 'auto';
+                $stockMode = $hasStockModeColumn ? $this->sanitizeStockMode((string)$mode) : ($minValue > 0 ? 'manual' : 'auto');
                 if ($stockMode === 'auto') {
                     $minValue = 0.0;
                 }
@@ -394,7 +406,15 @@ final class ProductsController
             echo json_encode(['ok'=>false,'error'=>'Produkt nenalezen.']);
             return;
         }
-        echo json_encode(['ok'=>true]);
+        $response = ['ok' => true];
+        if ($field === 'nast_zasob') {
+            $response['stock_mode'] = $normalized;
+            if ($normalized === 'auto') {
+                StockService::recalcAutoSafetyStock([$sku]);
+                $response['min_zasoba'] = $this->getProductMinStock($sku);
+            }
+        }
+        echo json_encode($response);
     }
 
     public function bomTree(): void
@@ -408,6 +428,7 @@ final class ProductsController
         }
         try {
             $tree = $this->buildBomTree($sku);
+            $this->attachStatusToTree($tree);
             echo json_encode(['ok'=>true,'tree'=>$tree]);
         } catch (\Throwable $e) {
             echo json_encode(['ok'=>false,'error'=>'Nepodařilo se načíst BOM strom.']);
@@ -579,6 +600,14 @@ final class ProductsController
                 }
                 return [$id ?: null, null];
             case 'min_zasoba':
+                $row = $this->loadProductRow($currentSku);
+                if (!$row) {
+                    return [null, 'Produkt nebyl nalezen.'];
+                }
+                if (($row['nast_zasob'] ?? 'auto') === 'auto') {
+                    return [$row['min_zasoba'] ?? 0, 'Hodnota je řízena automatickým výpočtem.'];
+                }
+                return $this->normalizeDecimal($value);
             case 'min_davka':
             case 'krok_vyroby':
                 return $this->normalizeDecimal($value);
@@ -586,6 +615,8 @@ final class ProductsController
                 return $this->normalizeInteger($value);
             case 'aktivni':
                 return [(int)($value === '0' ? 0 : 1), null];
+            case 'nast_zasob':
+                return [$this->sanitizeStockMode((string)$value), null];
         }
         return [null, 'Neznámé pole.'];
     }
@@ -946,10 +977,18 @@ final class ProductsController
 
     private function loadProductRow(string $sku): ?array
     {
-        $stmt = DB::pdo()->prepare('SELECT sku, nast_zasob FROM produkty WHERE sku=? LIMIT 1');
+        $stmt = DB::pdo()->prepare('SELECT sku, nast_zasob, min_zasoba FROM produkty WHERE sku=? LIMIT 1');
         $stmt->execute([$sku]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    private function getProductMinStock(string $sku): ?float
+    {
+        $stmt = DB::pdo()->prepare('SELECT min_zasoba FROM produkty WHERE sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $value = $stmt->fetchColumn();
+        return $value === false ? null : (float)$value;
     }
 
     private function flashProductImportSuccess(string $message, array $errors, array $stats = []): void
@@ -1038,6 +1077,43 @@ final class ProductsController
                 'missing_child' => empty($row['child_sku']),
             ];
         }, $rows ?: []);
+    }
+
+    private function attachStatusToTree(array &$tree): void
+    {
+        $skus = [];
+        $this->collectTreeSkus($tree, $skus);
+        if (empty($skus)) {
+            return;
+        }
+        $status = StockService::getStatusForSkus($skus);
+        $this->applyStatusToTree($tree, $status);
+    }
+
+    private function collectTreeSkus(array $node, array &$skus): void
+    {
+        $sku = $node['sku'] ?? null;
+        if ($sku) {
+            $skus[] = $sku;
+        }
+        if (!empty($node['children'])) {
+            foreach ($node['children'] as $child) {
+                $this->collectTreeSkus($child, $skus);
+            }
+        }
+    }
+
+    private function applyStatusToTree(array &$node, array $status): void
+    {
+        $sku = $node['sku'] ?? null;
+        if ($sku && isset($status[$sku])) {
+            $node['status'] = $status[$sku];
+        }
+        if (!empty($node['children'])) {
+            foreach ($node['children'] as &$child) {
+                $this->applyStatusToTree($child, $status);
+            }
+        }
     }
 
     private function render(string $view, array $vars = []): void

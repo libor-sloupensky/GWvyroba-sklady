@@ -13,7 +13,6 @@ final class ProductionController
         $filters = $this->currentFilters();
         $hasSearch = isset($_GET['search']);
         $items = [];
-        $stockMap = [];
 
         if ($hasSearch) {
             [$searchCondition, $searchParams] = $this->buildSearchClauses(
@@ -48,15 +47,50 @@ final class ProductionController
             $stmt->execute($params);
             $items = $stmt->fetchAll();
             if ($items) {
-                $skus = array_column($items, 'sku');
-                $stockMap = StockService::buildStockMap($skus);
+                $skus = array_map('strval', array_column($items, 'sku'));
+                $graph = StockService::getBomGraph();
+                $children = $graph['children'] ?? [];
+                $descendantCache = [];
+                $statusSkus = $skus;
+                foreach ($skus as $skuValue) {
+                    $desc = $this->collectDescendants($skuValue, $children, $descendantCache);
+                    if ($desc) {
+                        $statusSkus = array_merge($statusSkus, $desc);
+                    }
+                }
+                $statusSkus = array_values(array_unique(array_filter($statusSkus)));
+                $statusMap = $statusSkus ? StockService::getStatusForSkus($statusSkus) : [];
+
                 foreach ($items as &$item) {
-                    $item['stav'] = $stockMap[$item['sku']] ?? 0.0;
+                    $sku = (string)$item['sku'];
+                    $status = $statusMap[$sku] ?? [];
+                    $item['stock'] = $status['stock'] ?? 0.0;
+                    $item['stav'] = $status['available'] ?? 0.0;
+                    $item['available'] = $status['available'] ?? 0.0;
+                    $item['reservations'] = $status['reservations'] ?? 0.0;
+                    $item['target'] = $status['target'] ?? (float)($item['min_zasoba'] ?? 0.0);
+                    $item['deficit'] = $status['deficit'] ?? 0.0;
+                    $item['ratio'] = $status['ratio'] ?? 0.0;
+                    $item['mode'] = $status['mode'] ?? 'manual';
+                    $item['daily'] = $status['daily'] ?? 0.0;
+                    $blockers = [];
+                    if ($item['deficit'] > 0.0) {
+                        $blockers = $this->detectBlockingComponents($sku, (float)$item['deficit'], $children, $statusMap);
+                    }
+                    $item['blockers'] = $blockers;
+                    $item['blocked'] = !empty($blockers);
                 }
                 unset($item);
+                usort($items, function ($a, $b) {
+                    $ratioA = $a['ratio'] ?? 0.0;
+                    $ratioB = $b['ratio'] ?? 0.0;
+                    if ($ratioA === $ratioB) {
+                        return ($b['deficit'] ?? 0.0) <=> ($a['deficit'] ?? 0.0);
+                    }
+                    return $ratioB <=> $ratioA;
+                });
             }
         }
-
         $this->render('production_plans.php', [
             'title' => 'Výroba – návrhy',
             'items' => $items,
@@ -65,11 +99,11 @@ final class ProductionController
             'types' => $this->productTypes(),
             'filters' => $filters,
             'hasSearch' => $hasSearch,
-            'resultCount' => count($items),
+            'resultCount' => $hasSearch ? count($items) : 0,
         ]);
     }
 
-public function produce(): void
+    public function produce(): void
     {
         $this->requireAuth();
         $sku = $this->toUtf8((string)($_POST['sku'] ?? ''));
@@ -136,20 +170,21 @@ public function produce(): void
             return [];
         }
         $childSkus = array_column($components, 'sku');
-        $stock = $this->loadCurrentStock($childSkus);
+        $stock = StockService::buildStockMap($childSkus);
+        $reservations = StockService::buildReservationMap($childSkus);
         $names = $this->loadProductNames($childSkus);
         $deficits = [];
         foreach ($components as $component) {
             $required = $qty * $component['koeficient'];
-            $available = $stock[$component['sku']] ?? 0.0;
-            $missing = $available - $required;
-            if ($missing < 0) {
+            $available = ($stock[$component['sku']] ?? 0.0) - ($reservations[$component['sku']] ?? 0.0);
+            $missing = $required - $available;
+            if ($missing > 0) {
                 $deficits[] = [
                     'sku' => $component['sku'],
                     'nazev' => $names[$component['sku']] ?? '',
                     'required' => $this->formatQty($required),
                     'available' => $this->formatQty($available),
-                    'missing' => $this->formatQty(abs($missing)),
+                    'missing' => $this->formatQty($missing),
                 ];
             }
         }
@@ -171,21 +206,6 @@ public function produce(): void
         return $list;
     }
 
-    private function loadCurrentStock(array $skus): array
-    {
-        if (empty($skus)) {
-            return [];
-        }
-        $placeholders = implode(',', array_fill(0, count($skus), '?'));
-        $stmt = DB::pdo()->prepare("SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE sku IN ({$placeholders}) GROUP BY sku");
-        $stmt->execute($skus);
-        $stock = [];
-        foreach ($stmt as $row) {
-            $stock[(string)$row['sku']] = (float)$row['qty'];
-        }
-        return $stock;
-    }
-
     private function loadProductNames(array $skus): array
     {
         if (empty($skus)) {
@@ -199,6 +219,95 @@ public function produce(): void
             $names[(string)$row['sku']] = (string)$row['nazev'];
         }
         return $names;
+    }
+
+    /**
+     * @param array<string,array<int,array{sku:string,koeficient:float}>> $children
+     * @param array<string,array<int,string>> $cache
+     * @return array<int,string>
+     */
+    private function collectDescendants(string $root, array $children, array &$cache): array
+    {
+        if (isset($cache[$root])) {
+            return $cache[$root];
+        }
+        $result = [];
+        $stack = [$root];
+        $visited = [$root => true];
+        while ($stack) {
+            $node = array_pop($stack);
+            foreach ($children[$node] ?? [] as $edge) {
+                $childSku = (string)$edge['sku'];
+                if ($childSku === '' || isset($visited[$childSku])) {
+                    continue;
+                }
+                $visited[$childSku] = true;
+                $result[$childSku] = true;
+                $stack[] = $childSku;
+            }
+        }
+        $cache[$root] = array_keys($result);
+        return $cache[$root];
+    }
+
+    /**
+     * @param array<string,array<int,array{sku:string,koeficient:float}>> $children
+     * @param array<string,array<string,mixed>> $statusMap
+     * @return array<int,array{sku:string,required:float,available:float,missing:float}>
+     */
+    private function detectBlockingComponents(string $rootSku, float $quantity, array $children, array $statusMap): array
+    {
+        $quantity = max(0.0, $quantity);
+        if ($quantity <= 0.0 || empty($children[$rootSku])) {
+            return [];
+        }
+        $requirements = [];
+        $path = [];
+        $this->accumulateRequirements($rootSku, $quantity, $children, $requirements, $path);
+        $blocking = [];
+        foreach ($requirements as $sku => $required) {
+            $available = $statusMap[$sku]['available'] ?? 0.0;
+            $missing = $required - $available;
+            if ($missing > 0.0005) {
+                $blocking[] = [
+                    'sku' => $sku,
+                    'required' => $required,
+                    'available' => $available,
+                    'missing' => $missing,
+                ];
+            }
+        }
+        return $blocking;
+    }
+
+    /**
+     * @param array<string,array<int,array{sku:string,koeficient:float}>> $children
+     * @param array<string,float> $requirements
+     * @param array<string,bool> $path
+     */
+    private function accumulateRequirements(string $nodeSku, float $quantity, array $children, array &$requirements, array &$path): void
+    {
+        if ($quantity <= 0.0) {
+            return;
+        }
+        $path[$nodeSku] = true;
+        foreach ($children[$nodeSku] ?? [] as $edge) {
+            $childSku = (string)$edge['sku'];
+            if ($childSku === '' || isset($path[$childSku])) {
+                continue;
+            }
+            $coef = (float)($edge['koeficient'] ?? 0.0);
+            if ($coef <= 0.0) {
+                continue;
+            }
+            $childQty = $quantity * $coef;
+            if ($childQty <= 0.0) {
+                continue;
+            }
+            $requirements[$childSku] = ($requirements[$childSku] ?? 0.0) + $childQty;
+            $this->accumulateRequirements($childSku, $childQty, $children, $requirements, $path);
+        }
+        unset($path[$nodeSku]);
     }
 
     private function collectJsonRequest(): array

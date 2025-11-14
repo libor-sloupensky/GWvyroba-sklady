@@ -252,4 +252,77 @@ final class StockService
         }
         return $map;
     }
+
+    /**
+     * @param array<int,string> $skus
+     * @return array<string,array{mode:string,daily:float,target:float,available:float,reservations:float,deficit:float,ratio:float}>
+     */
+    public static function getStatusForSkus(array $skus): array
+    {
+        $skus = array_values(array_unique(array_filter(array_map('trim', $skus))));
+        if (!$skus) {
+            return [];
+        }
+        $settings = self::getSettings();
+        $stockDays = $settings['stock_days'];
+        $consumptionDays = $settings['consumption_days'];
+        $demandMap = self::buildDemandMap($consumptionDays);
+        $stockMap = self::buildStockMap($skus);
+        $reservationMap = self::buildReservationMap($skus);
+        $meta = self::fetchProductsMeta($skus);
+        $status = [];
+        foreach ($skus as $sku) {
+            $row = $meta[$sku] ?? null;
+            $mode = $row['nast_zasob'] ?? 'manual';
+            $daily = max(0.0, (float)($demandMap[$sku] ?? 0.0));
+            if ($mode === 'auto') {
+                $effectiveDays = $stockDays + max(0, (int)($row['vyrobni_doba_dni'] ?? 0));
+                $target = $daily * $effectiveDays;
+                $minBatch = max(0.0, (float)($row['min_davka'] ?? 0.0));
+                if ($minBatch > 0.0 && $target > 0.0) {
+                    $target = max($target, $minBatch);
+                }
+            } else {
+                $target = max(0.0, (float)($row['min_zasoba'] ?? 0.0));
+            }
+            $stockQty = (float)($stockMap[$sku] ?? 0.0);
+            $reservations = max(0.0, (float)($reservationMap[$sku] ?? 0.0));
+            $available = $stockQty - $reservations;
+            $deficit = max(0.0, $target - $available);
+            $ratio = $target > 0 ? min(1.0, $deficit / $target) : ($deficit > 0 ? 1.0 : 0.0);
+            $status[$sku] = [
+                'mode' => $mode,
+                'daily' => $daily,
+                'target' => $target,
+                'stock' => $stockQty,
+                'available' => $available,
+                'reservations' => $reservations,
+                'deficit' => $deficit,
+                'ratio' => $ratio,
+            ];
+        }
+        return $status;
+    }
+
+    /**
+     * @param array<int,string> $skus
+     * @return array<string,array{nast_zasob:string,min_zasoba:float,min_davka:float,vyrobni_doba_dni:int}>
+     */
+    private static function fetchProductsMeta(array $skus): array
+    {
+        $placeholders = implode(',', array_fill(0, count($skus), '?'));
+        $stmt = DB::pdo()->prepare("SELECT sku, nast_zasob, min_zasoba, min_davka, vyrobni_doba_dni FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt->execute($skus);
+        $map = [];
+        foreach ($stmt as $row) {
+            $sku = (string)$row['sku'];
+            $map[$sku] = [
+                'nast_zasob' => (string)($row['nast_zasob'] ?? 'manual'),
+                'min_zasoba' => (float)($row['min_zasoba'] ?? 0.0),
+                'min_davka' => (float)($row['min_davka'] ?? 0.0),
+                'vyrobni_doba_dni' => (int)($row['vyrobni_doba_dni'] ?? 0),
+            ];
+        }
+        return $map;
+    }
 }

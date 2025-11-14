@@ -10,6 +10,9 @@
   if (!array_key_exists('aktivni', $formOld)) {
       $formOld['aktivni'] = '1';
   }
+  if (!array_key_exists('nast_zasob', $formOld)) {
+      $formOld['nast_zasob'] = 'auto';
+  }
 ?>
 
 <h1>Produkty</h1>
@@ -53,6 +56,36 @@
 }
 .text-success { color:#2e7d32; }
 .text-error { color:#b00020; }
+.info-icon {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:18px;
+  height:18px;
+  margin-left:0.35rem;
+  border-radius:50%;
+  background:#eceff1;
+  color:#37474f;
+  font-size:0.75rem;
+  cursor:help;
+}
+.min-stock-cell {
+  position:relative;
+}
+.min-stock-cell[data-stock-mode="auto"] {
+  color:#607d8b;
+  cursor:not-allowed;
+}
+.min-stock-cell[data-stock-mode="auto"]::after {
+  content:'auto';
+  font-size:0.7rem;
+  margin-left:0.4rem;
+  padding:0.05rem 0.4rem;
+  border-radius:999px;
+  background:#e3f2fd;
+  color:#1565c0;
+  text-transform:uppercase;
+}
 
 .product-filter-form {
   border: 1px solid #ddd;
@@ -197,7 +230,8 @@ document.addEventListener('DOMContentLoaded', function () {
       groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
       units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
       types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-      active: [{value:'1',label:'✓'},{value:'0',label:'–'}]
+      active: [{value:'1',label:'✓'},{value:'0',label:'–'}],
+      stockModes: [{value:'auto',label:'Automaticky'},{value:'manual',label:'Manuálně'}]
     };
 
     const table = document.querySelector('.products-table');
@@ -229,7 +263,11 @@ document.addEventListener('DOMContentLoaded', function () {
       const row = cell.closest('tr');
       const sku = row?.dataset.sku;
       if (!sku) return;
-      startEdit(cell, sku);
+      if (cell.dataset.lock === 'auto' && (row?.dataset.stockMode || '').toLowerCase() === 'auto') {
+        alert(cell.dataset.lockMessage || 'Pole nastavuje automatický výpočet stavů.');
+        return;
+      }
+      startEdit(cell, sku, row);
     });
 
     table.addEventListener('keydown', (event) => {
