@@ -11,36 +11,41 @@ final class ProductionController
         $pdo = DB::pdo();
         $filters = $this->currentFilters();
         $hasSearch = isset($_GET['search']);
-        [$searchCondition, $searchParams] = $this->buildSearchClauses(
-            $filters['search'],
-            ['sku','nazev','alt_sku','ean']
-        );
+        $items = [];
 
-        $conditions = ['aktivni = 1'];
-        $params = [];
+        if ($hasSearch) {
+            [$searchCondition, $searchParams] = $this->buildSearchClauses(
+                $filters['search'],
+                ['sku','nazev','alt_sku','ean']
+            );
 
-        $type = $filters['type'] !== '' ? $filters['type'] : 'produkt';
-        $conditions[] = 'typ = ?';
-        $params[] = $type;
+            $conditions = ['aktivni = 1'];
+            $params = [];
 
-        if ($filters['brand'] > 0) {
-            $conditions[] = 'COALESCE(znacka_id,0) = ?';
-            $params[] = $filters['brand'];
+            if ($filters['type'] !== '') {
+                $conditions[] = 'typ = ?';
+                $params[] = $filters['type'];
+            }
+            if ($filters['brand'] > 0) {
+                $conditions[] = 'COALESCE(znacka_id,0) = ?';
+                $params[] = $filters['brand'];
+            }
+            if ($filters['group'] > 0) {
+                $conditions[] = 'COALESCE(skupina_id,0) = ?';
+                $params[] = $filters['group'];
+            }
+            if ($searchCondition !== '') {
+                $conditions[] = '(' . $searchCondition . ')';
+                $params = array_merge($params, $searchParams);
+            }
+
+            $where = implode(' AND ', $conditions);
+            $sql = 'SELECT sku,typ,nazev,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni FROM produkty WHERE ' .
+                $where . ' ORDER BY nazev';
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $items = $stmt->fetchAll();
         }
-        if ($filters['group'] > 0) {
-            $conditions[] = 'COALESCE(skupina_id,0) = ?';
-            $params[] = $filters['group'];
-        }
-        if ($searchCondition !== '') {
-            $conditions[] = '(' . $searchCondition . ')';
-            $params = array_merge($params, $searchParams);
-        }
-
-        $sql = 'SELECT sku,nazev,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni FROM produkty WHERE ' .
-            implode(' AND ', $conditions) . ' ORDER BY nazev';
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        $items = $stmt->fetchAll();
 
         $this->render('production_plans.php', [
             'title' => 'Výroba – návrhy',

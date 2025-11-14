@@ -138,10 +138,16 @@
   </div>
 </form>
 
+<?php if (!$hasSearchActive): ?>
+  <p class="muted">Zadejte parametry a potvrďte „Vyhledat“. Výsledky se zobrazí až po vyhledání.</p>
+<?php elseif (empty($items)): ?>
+  <p class="muted">Pro zadané podmínky nebyly nalezeny žádné produkty.</p>
+<?php endif; ?>
 
 <table>
   <tr>
     <th>SKU</th>
+    <th>Typ</th>
     <th>Název</th>
     <th>Min. zásoba</th>
     <th>Min. dávka</th>
@@ -152,6 +158,7 @@
   <?php foreach (($items ?? []) as $it): ?>
   <tr>
     <td><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)($it['typ'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['min_zasoba'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?></td>
