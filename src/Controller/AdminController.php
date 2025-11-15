@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Service\MovementRebuildService;
 use App\Support\DB;
 
 final class AdminController
@@ -41,7 +42,7 @@ final class AdminController
         $this->requireAdmin();
         $email = trim((string)($_POST['email'] ?? 'admin@local'));
         if ($email === '') {
-            $this->render('admin_seed.php', ['title'=>'Admin – Seed admin účtu', 'error'=>'Zadejte e-mail.']);
+            $this->render('admin_seed.php', ['title'=>'Admin - Seed admin účtu', 'error'=>'Zadejte e-mail.']);
             return;
         }
         $pdo = DB::pdo();
@@ -50,7 +51,26 @@ final class AdminController
                 ON DUPLICATE KEY UPDATE role=VALUES(role), active=VALUES(active), password_hash=VALUES(password_hash)';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':email'=>$email, ':hash'=>$hash]);
-        $this->render('admin_seed.php', ['title'=>'Admin – Seed admin účtu', 'message'=>'Admin účet vytvořen/aktualizován: '.$email]);
+        $this->render('admin_seed.php', ['title'=>'Admin - Seed admin účtu', 'message'=>'Admin účet vytvořen/aktualizován: '.$email]);
+    }
+
+    public function rebuildMovements(): void
+    {
+        $this->requireAdmin();
+        header('Content-Type: text/plain; charset=utf-8');
+        try {
+            $result = MovementRebuildService::rebuild();
+            echo sprintf(
+                "Rebuild dokončen.\nDoklady: %d\nPoložky: %d\nPohyby: %d\nChybějící produkty: %d\n",
+                $result['documents'],
+                $result['items'],
+                $result['movements'],
+                $result['missing']
+            );
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            echo 'Chyba: ' . $e->getMessage();
+        }
     }
 
     private function requireAdmin(): void
@@ -61,7 +81,12 @@ final class AdminController
             header('Location: /login');
             exit;
         }
-        if (($u['role'] ?? 'user') !== 'admin') { http_response_code(403); echo 'Přístup jen pro admina.'; exit; }
+        $role = $u['role'] ?? 'user';
+        if (!in_array($role, ['admin','superadmin'], true)) {
+            http_response_code(403);
+            echo 'Přístup jen pro admina.';
+            exit;
+        }
     }
 
     private function render(string $view, array $vars = []): void
