@@ -99,7 +99,12 @@ final class StockService
         }
         $since = (new DateTimeImmutable("-{$days} days"))->format('Y-m-d 00:00:00');
         $pdo = DB::pdo();
-        $stmt = $pdo->prepare('SELECT sku, SUM(CASE WHEN mnozstvi < 0 THEN -mnozstvi ELSE 0 END) AS demand FROM polozky_pohyby WHERE datum >= ? GROUP BY sku');
+        $stmt = $pdo->prepare(
+            'SELECT sku, SUM(mnozstvi) AS demand
+             FROM polozky_eshop
+             WHERE duzp >= ? AND sku IS NOT NULL AND sku <> \'\'
+             GROUP BY sku'
+        );
         $stmt->execute([$since]);
         $base = [];
         foreach ($stmt as $row) {
@@ -108,6 +113,17 @@ final class StockService
                 continue;
             }
             $base[$sku] = ((float)$row['demand']) / $days;
+        }
+        if (empty($base)) {
+            $fallback = $pdo->prepare('SELECT sku, SUM(CASE WHEN mnozstvi < 0 THEN -mnozstvi ELSE 0 END) AS demand FROM polozky_pohyby WHERE datum >= ? GROUP BY sku');
+            $fallback->execute([$since]);
+            foreach ($fallback as $row) {
+                $sku = trim((string)$row['sku']);
+                if ($sku === '') {
+                    continue;
+                }
+                $base[$sku] = ((float)$row['demand']) / $days;
+            }
         }
 
         $graph = self::getBomGraph();
