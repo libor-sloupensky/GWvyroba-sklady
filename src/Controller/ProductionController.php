@@ -100,6 +100,7 @@ final class ProductionController
             'filters' => $filters,
             'hasSearch' => $hasSearch,
             'resultCount' => $hasSearch ? count($items) : 0,
+            'recentProductions' => $this->recentProductions(),
         ]);
     }
 
@@ -351,6 +352,17 @@ final class ProductionController
     {
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
+    }
+
+    private function recentProductions(int $limit = 30): array
+    {
+        $sql = "SELECT m.datum, m.sku, m.mnozstvi, p.nazev
+                FROM polozky_pohyby m
+                LEFT JOIN produkty p ON p.sku = m.sku
+                WHERE m.typ_pohybu = 'vyroba' AND m.mnozstvi > 0
+                ORDER BY m.datum DESC
+                LIMIT {$limit}";
+        return DB::pdo()->query($sql)->fetchAll();
     }
 
     private function redirect(string $path): void

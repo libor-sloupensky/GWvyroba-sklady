@@ -7,6 +7,7 @@
   $hasSearchActive = (bool)($hasSearch ?? false);
   $items = $items ?? [];
   $resultCount = (int)($resultCount ?? ($hasSearchActive ? count($items) : 0));
+  $recentProductions = $recentProductions ?? [];
   $formatQty = static function ($value, int $decimals = 3): string {
       $formatted = number_format((float)$value, $decimals, ',', ' ');
       $formatted = rtrim(rtrim($formatted, '0'), ',');
@@ -104,16 +105,6 @@
   text-align:center;
   flex-shrink:0;
 }
-.badge {
-  font-size:0.72rem;
-  padding:0.1rem 0.4rem;
-  border-radius:999px;
-  text-transform:uppercase;
-}
-.badge-blocked {
-  background:#ffdde0;
-  color:#b00020;
-}
 .qty-cell { white-space:nowrap; font-variant-numeric:tabular-nums; }
 .deficit-cell { font-weight:600; }
 .ratio-cell { min-width:120px; }
@@ -132,11 +123,6 @@
 }
 .ratio-bar span[data-state="ok"] { background:#66bb6a; }
 .ratio-bar span[data-state="warn"] { background:#ffa726; }
-.blocker-hint {
-  font-size:0.78rem;
-  color:#b00020;
-  margin-top:0.15rem;
-}
 .production-form {
   display:flex;
   gap:0.4rem;
@@ -212,6 +198,25 @@
   flex:1 1 auto;
   padding:0.5rem 0.75rem;
 }
+.production-log-table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:1.5rem;
+}
+.production-log-table th,
+.production-log-table td {
+  border:1px solid #dfe6eb;
+  padding:0.4rem 0.5rem;
+}
+.production-log-table th {
+  background:#f3f6fa;
+  text-align:left;
+}
+.production-log-title {
+  margin:1.8rem 0 0.6rem;
+  font-size:1.05rem;
+  font-weight:600;
+}
 </style>
 
 <form method="get" action="/production/plans" class="product-filter-form">
@@ -274,7 +279,7 @@
         <th>Dostupné</th>
         <th>Cílový stav</th>
         <th>Dovyrobit</th>
-        <th>Poměr</th>
+        <th>Priorita</th>
         <th>Min. dávka</th>
         <th>Krok výroby</th>
         <th>Výrobní doba (dny)</th>
@@ -294,35 +299,21 @@
         if (!empty($item['blocked'])) {
             $rowClasses[] = 'is-blocked';
         }
-        $blockersPreview = '';
-        if (!empty($item['blockers']) && is_array($item['blockers'])) {
-            $chunks = [];
-            foreach (array_slice($item['blockers'], 0, 3) as $blocker) {
-                $missingText = isset($blocker['missing']) ? $formatQty($blocker['missing']) : '';
-                $chunks[] = trim((string)$blocker['sku'] . ($missingText !== '' ? ' (−' . $missingText . ')' : ''));
-            }
-            $blockersPreview = implode(', ', $chunks);
-        }
         $ratioState = $ratio >= 0.85 ? 'critical' : ($ratio >= 0.5 ? 'warn' : 'ok');
-        $recommend = $deficit > 0 ? $formatInput($deficit) : '';
       ?>
       <tr class="<?= implode(' ', $rowClasses) ?>" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
         <td class="sku-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
           <span class="sku-toggle">▸</span>
           <span class="sku-value"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
-          <?php if ($blockersPreview !== ''): ?><span class="badge badge-blocked">Chybí materiál</span><?php endif; ?>
         </td>
         <td><?= htmlspecialchars((string)($item['typ'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
         <td class="qty-cell"><?= $formatQty($item['stock'] ?? 0) ?></td>
         <td class="qty-cell"><?= $formatQty($item['reservations'] ?? 0) ?></td>
         <td class="qty-cell"><?= $formatQty($item['available'] ?? 0) ?></td>
-        <td class="qty-cell"><?= $formatQty($item['target'] ?? 0) ?></td>
+        <td class="qty-cell"><?= $formatQty($item['target'] ?? 0, 0) ?></td>
         <td class="qty-cell deficit-cell">
-          <?= $formatQty($deficit) ?>
-          <?php if ($blockersPreview !== ''): ?>
-            <div class="blocker-hint"><?= htmlspecialchars('Chybí: ' . $blockersPreview, ENT_QUOTES, 'UTF-8') ?></div>
-          <?php endif; ?>
+          <?= $formatQty($deficit, 0) ?>
         </td>
         <td class="ratio-cell">
           <div class="ratio-value"><?= $ratioPct ?> %</div>
@@ -335,11 +326,35 @@
           <form method="post" action="/production/produce" class="production-form" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="sku" value="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>" />
             <input type="hidden" name="modus" value="odecti_subpotomky" />
-            <input type="number" step="any" name="mnozstvi" placeholder="množství" value="<?= htmlspecialchars($recommend, ENT_QUOTES, 'UTF-8') ?>" required />
+            <input type="number" step="any" name="mnozstvi" placeholder="množství" required />
             <button type="submit">Zapsat množství</button>
           </form>
         </td>
       </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+<?php endif; ?>
+
+<?php if (!empty($recentProductions)): ?>
+  <div class="production-log-title">Posledních 30 zápisů výroby</div>
+  <table class="production-log-table">
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>SKU</th>
+        <th>Název</th>
+        <th>Množství</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($recentProductions as $log): ?>
+        <tr>
+          <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
+          <td><?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?></td>
+          <td><?= htmlspecialchars((string)($log['nazev'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+          <td class="qty-cell"><?= $formatQty($log['mnozstvi'] ?? 0, 0) ?></td>
+        </tr>
       <?php endforeach; ?>
     </tbody>
   </table>
@@ -538,9 +553,9 @@
       tr.appendChild(createCell(edge.merna_jednotka || row.node.merna_jednotka));
       tr.appendChild(createCell(edge.druh_vazby));
       tr.appendChild(createCell(row.node.typ));
-      tr.appendChild(createCell(formatNumber(status ? status.available : null)));
-      tr.appendChild(createCell(formatNumber(status ? status.target : null)));
-      tr.appendChild(createCell(formatNumber(status ? status.deficit : null)));
+      tr.appendChild(createCell(formatInteger(status ? status.available : null)));
+      tr.appendChild(createCell(formatInteger(status ? status.target : null)));
+      tr.appendChild(createCell(formatInteger(status ? status.deficit : null)));
       body.appendChild(tr);
     });
     table.appendChild(body);
@@ -578,12 +593,11 @@
     return td;
   }
 
-  function formatNumber(value) {
+  function formatInteger(value) {
     if (value === null || value === undefined || isNaN(value)) {
       return '–';
     }
-    const formatted = Number(value).toFixed(3).replace(/\.?0+$/, '');
-    return formatted === '' ? '0' : formatted.replace('.', ',');
+    return String(Math.round(Number(value)));
   }
 })();
 </script>
