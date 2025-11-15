@@ -73,10 +73,16 @@
   line-height:1;
 }
 .search-reset:hover { color:#d32f2f; }
+.production-table-wrapper {
+  max-height:70vh;
+  overflow:auto;
+  margin-top:1rem;
+  border:1px solid #e0e7ef;
+  border-radius:6px;
+}
 .production-table {
   width:100%;
   border-collapse:collapse;
-  margin-top:1rem;
 }
 .production-table th,
 .production-table td {
@@ -87,6 +93,9 @@
 .production-table th {
   background:#f3f6fa;
   text-align:left;
+  position:sticky;
+  top:0;
+  z-index:2;
 }
 .production-row.needs-production { background:#fffdf7; }
 .production-row.is-blocked { background:#fff3f0; }
@@ -248,9 +257,9 @@
       <?php endforeach; ?>
     </select>
   </label>
-  <label style="flex:1 1 240px;">
-    <span>Vyhledat (SKU, název, ALT SKU, EAN)</span>
-    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="Např. \"konfeta 100\"" />
+    <label style="flex:1 1 240px;">
+    <span>Vyhledat</span>
+    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, název, ALT SKU, EAN" />
   </label>
   <div class="search-actions">
     <?php if ($hasSearchActive): ?>
@@ -268,6 +277,7 @@
 <?php elseif (empty($items)): ?>
   <div class="notice-empty">Pro zadané podmínky nejsou dostupná žádná data.</div>
 <?php else: ?>
+  <div class="production-table-wrapper">
   <table class="production-table">
     <thead>
       <tr>
@@ -334,6 +344,7 @@
       <?php endforeach; ?>
     </tbody>
   </table>
+  </div>
 <?php endif; ?>
 
 <?php if (!empty($recentProductions)): ?>
@@ -353,11 +364,12 @@
           <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)($log['nazev'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-          <td class="qty-cell"><?= $formatQty($log['mnozstvi'] ?? 0, 0) ?></td>
+          <td class="qty-cell"><?= htmlspecialchars((string)round(abs((float)($log['mnozstvi'] ?? 0))), ENT_QUOTES, 'UTF-8') ?></td>
         </tr>
       <?php endforeach; ?>
     </tbody>
   </table>
+  </div>
 <?php endif; ?>
 
 <div class="production-modal-overlay" id="production-modal">
