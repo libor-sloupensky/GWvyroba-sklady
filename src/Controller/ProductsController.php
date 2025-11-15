@@ -192,16 +192,32 @@ final class ProductsController
                     $errors[] = "dek {$line}: duplicitn SKU '{$sku}'";
                     continue;
                 }
-                $pendingSku[$skuKey] = true;
-                $conflict = isset($existingSkuMap[$skuKey]) && $existingSkuMap[$skuKey] !== $sku;
+                $pendingSku[$skuKey] = $sku;
                 if ($altSku !== '') {
                     $altKey = mb_strtolower($altSku, 'UTF-8');
-                    if (isset($existingSkuMap[$altKey]) || isset($existingAltMap[$altKey])) {
-                        $conflict = true;
+                    $altConflict = false;
+                    if ($altKey === $skuKey) {
+                        $altConflict = true;
                     }
-                    if (isset($pendingSku[$altKey]) && $pendingSku[$altKey] === true) { $conflict = true; }
-                    if (isset($pendingAlt[$altKey]) && $pendingAlt[$altKey] !== $skuKey) { $conflict = true; }
-                    if ($conflict) {
+                    if (!$altConflict && isset($existingSkuMap[$altKey])) {
+                        $owner = (string)($existingSkuMap[$altKey]['sku'] ?? '');
+                        if (strcasecmp($owner, $sku) !== 0) {
+                            $altConflict = true;
+                        }
+                    }
+                    if (!$altConflict && isset($existingAltMap[$altKey])) {
+                        $owner = (string)$existingAltMap[$altKey];
+                        if (strcasecmp($owner, $sku) !== 0) {
+                            $altConflict = true;
+                        }
+                    }
+                    if (!$altConflict && isset($pendingSku[$altKey]) && $altKey !== $skuKey) {
+                        $altConflict = true;
+                    }
+                    if (!$altConflict && isset($pendingAlt[$altKey]) && $pendingAlt[$altKey] !== $skuKey) {
+                        $altConflict = true;
+                    }
+                    if ($altConflict) {
                         $errors[] = "dek {$line}: alt_sku '{$altSku}' je ji pouito.";
                         continue;
                     }
