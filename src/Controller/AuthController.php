@@ -21,11 +21,37 @@ final class AuthController
             'error' => $error,
             'info' => $info,
             'googleReady' => $googleReady,
+            'localEnabled' => !$googleReady,
         ]);
     }
 
     public function loginSubmit(): void
     {
+        if ($this->isLoggedIn()) {
+            $this->redirect('/');
+            return;
+        }
+        if ($this->hasGoogleConfig()) {
+            $this->flashError('Použijte přihlášení přes Google.');
+            $this->redirect('/login');
+            return;
+        }
+        $username = trim((string)($_POST['username'] ?? ''));
+        $password = (string)($_POST['password'] ?? '');
+        if ($username === 'admin' && $password === 'dokola') {
+            $_SESSION['user'] = [
+                'id' => 0,
+                'email' => 'admin@local',
+                'role' => 'superadmin',
+                'name' => 'Lokální administrátor',
+            ];
+            session_regenerate_id(true);
+            $target = $_SESSION['redirect_after_login'] ?? '/';
+            unset($_SESSION['redirect_after_login']);
+            $this->redirect($target ?: '/');
+            return;
+        }
+        $this->flashError('Neplatné přihlašovací údaje.');
         $this->redirect('/login');
     }
 

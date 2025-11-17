@@ -17,4 +17,18 @@
   <p><a href="/auth/google" class="btn">Přihlásit se přes Google</a></p>
 <?php else: ?>
   <p class="muted">Integrace Google OAuth zatím není nakonfigurovaná. Kontaktujte správce systému.</p>
+  <?php if (!empty($localEnabled)): ?>
+    <form method="post" action="/login" class="login-form" style="margin-top:1rem;max-width:320px;display:flex;flex-direction:column;gap:0.6rem;">
+      <label>
+        <span>Uživatelské jméno</span>
+        <input type="text" name="username" required />
+      </label>
+      <label>
+        <span>Heslo</span>
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit" class="btn">Přihlásit se</button>
+      <small class="muted">Prozatím je dostupný pouze dočasný účet „admin / dokola“.</small>
+    </form>
+  <?php endif; ?>
 <?php endif; ?>
