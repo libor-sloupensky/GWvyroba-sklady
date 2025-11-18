@@ -1,4 +1,4 @@
-<?php
+﻿<?php
   $filters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
   $filterBrand = (int)($filters['brand'] ?? 0);
   $filterGroup = (int)($filters['group'] ?? 0);
@@ -8,6 +8,7 @@
   $items = $items ?? [];
   $resultCount = (int)($resultCount ?? ($hasSearchActive ? count($items) : 0));
   $recentProductions = $recentProductions ?? [];
+  $recentLimit = $recentLimit ?? 30;
   $formatQty = static function ($value, int $decimals = 3): string {
       $formatted = number_format((float)$value, $decimals, ',', ' ');
       $formatted = rtrim(rtrim($formatted, '0'), ',');
@@ -19,9 +20,6 @@
       return $formatted;
   };
 ?>
-
-<h1>Výroba – návrhy</h1>
-<p class="page-note">Zadejte filtry a vyhledejte produkty, u kterých chcete plánovat výrobu. Řádky jsou seřazené od nejkritičtějších položek podle poměru chybějící zásoby.</p>
 
 <style>
 .page-note { margin-top:-0.2rem; color:#546e7a; }
@@ -207,6 +205,21 @@
   flex:1 1 auto;
   padding:0.5rem 0.75rem;
 }
+.production-log-controls {
+  margin-top:1.5rem;
+  display:flex;
+  align-items:center;
+  gap:0.6rem;
+}
+.production-log-controls form {
+  display:flex;
+  align-items:center;
+  gap:0.4rem;
+}
+.production-log-controls input[type="number"] {
+  width:80px;
+  padding:0.3rem 0.4rem;
+}
 .production-log-table {
   width:100%;
   border-collapse:collapse;
@@ -231,9 +244,9 @@
 <form method="get" action="/production/plans" class="product-filter-form">
   <input type="hidden" name="search" value="1" />
   <label>
-    <span>Značka</span>
+    <span>ZnaĂ„Ĺ¤ka</span>
     <select name="znacka_id">
-      <option value="">Všechny</option>
+      <option value="">VÄąË‡echny</option>
       <?php foreach (($brands ?? []) as $brand): $bid = (int)$brand['id']; ?>
         <option value="<?= $bid ?>"<?= $filterBrand === $bid ? ' selected' : '' ?>><?= htmlspecialchars((string)$brand['nazev'], ENT_QUOTES, 'UTF-8') ?></option>
       <?php endforeach; ?>
@@ -242,7 +255,7 @@
   <label>
     <span>Skupina</span>
     <select name="skupina_id">
-      <option value="">Všechny</option>
+      <option value="">VÄąË‡echny</option>
       <?php foreach (($groups ?? []) as $group): $gid = (int)$group['id']; ?>
         <option value="<?= $gid ?>"<?= $filterGroup === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$group['nazev'], ENT_QUOTES, 'UTF-8') ?></option>
       <?php endforeach; ?>
@@ -251,7 +264,7 @@
   <label>
     <span>Typ</span>
     <select name="typ">
-      <option value="">Všechny</option>
+      <option value="">VÄąË‡echny</option>
       <?php foreach (($types ?? []) as $type): ?>
         <option value="<?= htmlspecialchars((string)$type, ENT_QUOTES, 'UTF-8') ?>"<?= $filterType === (string)$type ? ' selected' : '' ?>><?= htmlspecialchars((string)$type, ENT_QUOTES, 'UTF-8') ?></option>
       <?php endforeach; ?>
@@ -259,13 +272,13 @@
   </label>
     <label style="flex:1 1 240px;">
     <span>Vyhledat</span>
-    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, název, ALT SKU, EAN" />
+    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, nÄ‚Ë‡zev, ALT SKU, EAN" />
   </label>
   <div class="search-actions">
     <?php if ($hasSearchActive): ?>
       <div class="search-result-pill">
         Zobrazeno <?= $resultCount ?>
-        <a href="/production/plans" class="search-reset" title="Zrušit filtr">&times;</a>
+        <a href="/production/plans" class="search-reset" title="ZruÄąË‡it filtr">&times;</a>
       </div>
     <?php endif; ?>
     <button type="submit">Vyhledat</button>
@@ -273,9 +286,9 @@
 </form>
 
 <?php if (!$hasSearchActive): ?>
-  <div class="notice-empty">Zadejte parametry vyhledávání a potvrďte tlačítkem „Vyhledat“. Seznam produktů a návrh výroby se zobrazí až po vyhledání.</div>
+  <div class="notice-empty">Zadejte parametry vyhledÄ‚Ë‡vÄ‚Ë‡nÄ‚Â­ a potvrĂ„Ĺąte tlaĂ„Ĺ¤Ä‚Â­tkem Ă˘â‚¬ĹľVyhledatĂ˘â‚¬Ĺ›. Seznam produktÄąĹ» a nÄ‚Ë‡vrh vÄ‚Ëťroby se zobrazÄ‚Â­ aÄąÄľ po vyhledÄ‚Ë‡nÄ‚Â­.</div>
 <?php elseif (empty($items)): ?>
-  <div class="notice-empty">Pro zadané podmínky nejsou dostupná žádná data.</div>
+  <div class="notice-empty">Pro zadanÄ‚Â© podmÄ‚Â­nky nejsou dostupnÄ‚Ë‡ ÄąÄľÄ‚Ë‡dnÄ‚Ë‡ data.</div>
 <?php else: ?>
   <div class="production-table-wrapper">
   <table class="production-table">
@@ -283,16 +296,16 @@
       <tr>
         <th>SKU</th>
         <th>Typ</th>
-        <th>Název</th>
-        <th>Stav skladu</th>
+        <th>NĂˇzev</th>
+        <th>DostupnĂ©</th>
         <th>Rezervace</th>
-        <th>Dostupné</th>
-        <th>Cílový stav</th>
+        <th>CĂ­lovĂ˝ stav</th>
+        <th>CÄ‚Â­lovÄ‚Ëť stav</th>
         <th>Dovyrobit</th>
         <th>Priorita</th>
-        <th>Min. dávka</th>
-        <th>Krok výroby</th>
-        <th>Výrobní doba (dny)</th>
+        <th>Min. dÄ‚Ë‡vka</th>
+        <th>Krok vÄ‚Ëťroby</th>
+        <th>VÄ‚ËťrobnÄ‚Â­ doba (dny)</th>
         <th>Akce</th>
       </tr>
     </thead>
@@ -313,14 +326,13 @@
       ?>
       <tr class="<?= implode(' ', $rowClasses) ?>" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
         <td class="sku-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
-          <span class="sku-toggle">▸</span>
+          <span class="sku-toggle">Ă˘â€“Â¸</span>
           <span class="sku-value"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
         </td>
         <td><?= htmlspecialchars((string)($item['typ'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)$item['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
-        <td class="qty-cell"><?= $formatQty($item['stock'] ?? 0) ?></td>
-        <td class="qty-cell"><?= $formatQty($item['reservations'] ?? 0) ?></td>
         <td class="qty-cell"><?= $formatQty($item['available'] ?? 0) ?></td>
+        <td class="qty-cell"><?= $formatQty($item['reservations'] ?? 0) ?></td>
         <td class="qty-cell"><?= $formatQty($item['target'] ?? 0, 0) ?></td>
         <td class="qty-cell deficit-cell">
           <?= $formatQty($deficit, 0) ?>
@@ -336,8 +348,9 @@
           <form method="post" action="/production/produce" class="production-form" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="sku" value="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>" />
             <input type="hidden" name="modus" value="odecti_subpotomky" />
-            <input type="number" step="any" name="mnozstvi" placeholder="množství" required />
-            <button type="submit">Zapsat množství</button>
+            <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '/production/plans', ENT_QUOTES, 'UTF-8') ?>" />
+            <input type="number" step="any" name="mnozstvi" placeholder="mnoÄąÄľstvÄ‚Â­" required />
+            <button type="submit">Zapsat mnoÄąÄľstvÄ‚Â­</button>
           </form>
         </td>
       </tr>
@@ -347,15 +360,24 @@
   </div>
 <?php endif; ?>
 
+<div class="production-log-controls">
+  <form method="post" action="/production/recent-limit">
+    <label>PoÄŤet zobrazenĂ˝ch zĂˇznamĹŻ:
+      <input type="number" name="recent_limit" min="1" max="500" value="<?= (int)($recentLimit ?? 30) ?>" />
+    </label>
+    <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '/production/plans', ENT_QUOTES, 'UTF-8') ?>" />
+    <button type="submit">Aktualizovat</button>
+  </form>
+</div>
+
 <?php if (!empty($recentProductions)): ?>
-  <div class="production-log-title">Posledních 30 zápisů výroby</div>
   <table class="production-log-table">
     <thead>
       <tr>
         <th>Datum</th>
         <th>SKU</th>
-        <th>Název</th>
-        <th>Množství</th>
+        <th>Nďż˝ďż˝zev</th>
+        <th>Mnoďż˝ďż˝stvďż˝ďż˝</th>
       </tr>
     </thead>
     <tbody>
@@ -369,19 +391,20 @@
       <?php endforeach; ?>
     </tbody>
   </table>
-  </div>
+<?php else: ?>
+  <p class="muted">ZatĂ­m nejsou zapsanĂ© ĹľĂˇdnĂ© vĂ˝roby.</p>
 <?php endif; ?>
 
 <div class="production-modal-overlay" id="production-modal">
   <div class="production-modal">
     <h3>Nedostatek komponent</h3>
-    <p>Odečet komponent by některé položky poslal do záporného stavu. Vyberte, jak postupovat:</p>
+    <p>OdeĂ„Ĺ¤et komponent by nĂ„â€şkterÄ‚Â© poloÄąÄľky poslal do zÄ‚Ë‡pornÄ‚Â©ho stavu. Vyberte, jak postupovat:</p>
     <ul id="production-deficit-list"></ul>
-    <small>Volba „Odečíst subpotomky“ automaticky odečte všechny komponenty (i do mínusu). Volba „Odečíst do mínusu“ zapíše jen hotový produkt a komponenty je potřeba odepsat ručně.</small>
+    <small>Volba Ă˘â‚¬ĹľOdeĂ„Ĺ¤Ä‚Â­st subpotomkyĂ˘â‚¬Ĺ› automaticky odeĂ„Ĺ¤te vÄąË‡echny komponenty (i do mÄ‚Â­nusu). Volba Ă˘â‚¬ĹľOdeĂ„Ĺ¤Ä‚Â­st do mÄ‚Â­nusuĂ˘â‚¬Ĺ› zapÄ‚Â­ÄąË‡e jen hotovÄ‚Ëť produkt a komponenty je potÄąâ„˘eba odepsat ruĂ„Ĺ¤nĂ„â€ş.</small>
     <div class="production-modal-buttons">
-      <button type="button" data-action="components">Odečíst subpotomky (doporučeno)</button>
-      <button type="button" data-action="minus">Odečíst do mínusu</button>
-      <button type="button" data-action="cancel">Zrušit</button>
+      <button type="button" data-action="components">OdeĂ„Ĺ¤Ä‚Â­st subpotomky (doporuĂ„Ĺ¤eno)</button>
+      <button type="button" data-action="minus">OdeĂ„Ĺ¤Ä‚Â­st do mÄ‚Â­nusu</button>
+      <button type="button" data-action="cancel">ZruÄąË‡it</button>
     </div>
   </div>
 </div>
@@ -411,9 +434,9 @@
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const qtyField = form.querySelector('input[name="mnozstvi"]');
-      const qty = parseFloat((qtyField.value || '').replace(',', '.'));
+      const qty = parseFloat((qtyField.value || ').replace(',', '.'));
       if (!qty || qty <= 0) {
-        alert('Zadejte množství výroby.');
+        alert('Zadejte mnoÄąÄľstvÄ‚Â­ vÄ‚Ëťroby.');
         return;
       }
       const sku = form.dataset.sku || form.querySelector('input[name="sku"]').value;
@@ -427,7 +450,7 @@
             overlay.style.display = 'flex';
           }
         })
-        .catch((err) => alert('Nelze ověřit komponenty: ' + (err.message || err)));
+        .catch((err) => alert('Nelze ovĂ„â€şÄąâ„˘it komponenty: ' + (err.message || err)));
     });
   });
 
@@ -449,16 +472,16 @@
 
   function closeModal() {
     overlay.style.display = 'none';
-    listEl.innerHTML = '';
+    listEl.innerHTML = ';
     pendingForm = null;
   }
 
   function renderDeficits(deficits) {
-    listEl.innerHTML = '';
+    listEl.innerHTML = ';
     deficits.forEach((item) => {
       const li = document.createElement('li');
-      const name = item.nazev ? `${item.sku} – ${item.nazev}` : item.sku;
-      li.textContent = `${name}: potřeba ${item.required}, dostupné ${item.available}, chybí ${item.missing}`;
+      const name = item.nazev ? `${item.sku} Ă˘â‚¬â€ś ${item.nazev}` : item.sku;
+      li.textContent = `${name}: potÄąâ„˘eba ${item.required}, dostupnÄ‚Â© ${item.available}, chybÄ‚Â­ ${item.missing}`;
       listEl.appendChild(li);
     });
   }
@@ -490,13 +513,13 @@
     }
     closeTreeRow();
     const toggle = row.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▾';
+    if (toggle) toggle.textContent = 'Ă˘â€“Äľ';
     row.classList.add('bom-open');
     const detailRow = document.createElement('tr');
     detailRow.className = 'production-tree-row';
     const detailCell = document.createElement('td');
     detailCell.colSpan = row.children.length;
-    detailCell.textContent = 'Načítám strom vazeb…';
+    detailCell.textContent = 'NaĂ„Ĺ¤Ä‚Â­tÄ‚Ë‡m strom vazebĂ˘â‚¬Â¦';
     detailRow.appendChild(detailCell);
     row.parentNode.insertBefore(detailRow, row.nextSibling);
     treeState = { row, detail: detailRow };
@@ -506,7 +529,7 @@
   function closeTreeRow() {
     if (!treeState.row) return;
     const toggle = treeState.row.querySelector('.sku-toggle');
-    if (toggle) toggle.textContent = '▸';
+    if (toggle) toggle.textContent = 'Ă˘â€“Â¸';
     treeState.row.classList.remove('bom-open');
     if (treeState.detail) treeState.detail.remove();
     treeState = { row: null, detail: null };
@@ -514,15 +537,15 @@
 
   async function loadBomTree(sku, container) {
     if (!sku) {
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'ChybÄ‚Â­ SKU.';
       return;
     }
     try {
       const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst strom.');
-      container.innerHTML = '';
+      if (!data.ok) throw new Error(data.error || 'NepodaÄąâ„˘ilo se naĂ„Ĺ¤Ä‚Â­st strom.');
+      container.innerHTML = ';
       container.appendChild(buildBomTable(data.tree));
     } catch (err) {
       container.textContent = `Chyba: ${err.message || err}`;
@@ -532,12 +555,12 @@
   function buildBomTable(tree) {
     if (!tree || !Array.isArray(tree.children) || tree.children.length === 0) {
       const wrap = document.createElement('div');
-      wrap.textContent = 'Produkt nemá navázané potomky.';
+      wrap.textContent = 'Produkt nemÄ‚Ë‡ navÄ‚Ë‡zanÄ‚Â© potomky.';
       return wrap;
     }
     const table = document.createElement('table');
     table.className = 'bom-tree-table';
-    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th><th>Dostupné</th><th>Cílový stav</th><th>Chybí</th></tr></thead>';
+    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ poloÄąÄľky</th><th>DostupnÄ‚Â©</th><th>CÄ‚Â­lovÄ‚Ëť stav</th><th>ChybÄ‚Â­</th></tr></thead>';
     const body = document.createElement('tbody');
     flattenTree(tree).forEach((row) => {
       const tr = document.createElement('tr');
@@ -550,7 +573,7 @@
       if (!prefix.textContent.trim()) prefix.style.visibility = 'hidden';
       labelWrap.appendChild(prefix);
       const label = document.createElement('span');
-      label.textContent = `${row.node.sku} – ${row.node.nazev || ''}`.trim();
+      label.textContent = `${row.node.sku} Ă˘â‚¬â€ś ${row.node.nazev || '}`.trim();
       const status = row.node.status || null;
       if (status && (status.deficit || 0) > 0.0005) {
         label.className = 'bom-node-critical';
@@ -586,14 +609,14 @@
   }
 
   function buildPrefix(guides) {
-    if (!guides || !guides.length) return '';
-    let prefix = '';
+    if (!guides || !guides.length) return ';
+    let prefix = ';
     guides.forEach((guide, idx) => {
       const isLast = guide.last;
       if (idx === guides.length - 1) {
-        prefix += isLast ? '└── ' : '├── ';
+        prefix += isLast ? 'Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ ' : 'Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ ';
       } else {
-        prefix += isLast ? '    ' : '│   ';
+        prefix += isLast ? '    ' : 'Ă˘â€ťâ€š   ';
       }
     });
     return prefix;
@@ -601,13 +624,13 @@
 
   function createCell(value) {
     const td = document.createElement('td');
-    td.textContent = value ?? '–';
+    td.textContent = value ?? 'Ă˘â‚¬â€ś';
     return td;
   }
 
   function formatInteger(value) {
     if (value === null || value === undefined || isNaN(value)) {
-      return '–';
+      return 'Ă˘â‚¬â€ś';
     }
     return String(Math.round(Number(value)));
   }

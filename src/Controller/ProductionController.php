@@ -91,6 +91,7 @@ final class ProductionController
                 });
             }
         }
+        $recentLimit = $this->getRecentLimit();
         $this->render('production_plans.php', [
             'title' => 'Výroba – návrhy',
             'items' => $items,
@@ -100,7 +101,8 @@ final class ProductionController
             'filters' => $filters,
             'hasSearch' => $hasSearch,
             'resultCount' => $hasSearch ? count($items) : 0,
-            'recentProductions' => $this->recentProductions(),
+            'recentProductions' => $this->recentProductions($recentLimit),
+            'recentLimit' => $recentLimit,
         ]);
     }
 
@@ -110,8 +112,9 @@ final class ProductionController
         $sku = $this->toUtf8((string)($_POST['sku'] ?? ''));
         $qty = (float)($_POST['mnozstvi'] ?? 0);
         $mode = (string)($_POST['modus'] ?? 'odecti_subpotomky'); // odecti_subpotomky | korekce
+        $returnUrl = $this->sanitizeReturnUrl((string)($_POST['return_url'] ?? ''));
         if ($sku === '' || $qty <= 0) {
-            $this->redirect('/production/plans');
+            $this->redirect($returnUrl ?: '/production/plans');
             return;
         }
         $pdo = DB::pdo();
@@ -136,7 +139,7 @@ final class ProductionController
             $ins->execute([$sku . '*', 0, null, 'korekce', 'Komponenty k odečtu – řešit ručně', $ref]);
         }
 
-        $this->redirect('/production/plans');
+        $this->redirect($returnUrl ?: '/production/plans');
     }
 
     public function check(): void
@@ -354,6 +357,20 @@ final class ProductionController
         require __DIR__ . '/../../views/_layout.php';
     }
 
+    public function updateRecentLimit(): void
+    {
+        $this->requireAuth();
+        $limit = (int)($_POST['recent_limit'] ?? 30);
+        if ($limit < 1) {
+            $limit = 1;
+        } elseif ($limit > 500) {
+            $limit = 500;
+        }
+        $_SESSION['production_recent_limit'] = $limit;
+        $returnUrl = $this->sanitizeReturnUrl((string)($_POST['return_url'] ?? ''));
+        $this->redirect($returnUrl ?: '/production/plans');
+    }
+
     private function recentProductions(int $limit = 30): array
     {
         $sql = "SELECT m.datum, m.sku, m.mnozstvi, p.nazev
@@ -420,5 +437,22 @@ final class ProductionController
             $clauses[] = '(' . implode(' OR ', $inner) . ')';
         }
         return [implode(' AND ', $clauses), $params];
+    }
+
+    private function getRecentLimit(): int
+    {
+        $limit = isset($_SESSION['production_recent_limit']) ? (int)$_SESSION['production_recent_limit'] : 30;
+        return $limit > 0 ? $limit : 30;
+    }
+
+    private function sanitizeReturnUrl(string $url): string
+    {
+        if ($url === '') {
+            return '';
+        }
+        if (str_starts_with($url, '/')) {
+            return $url;
+        }
+        return '';
     }
 }
