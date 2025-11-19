@@ -1417,7 +1417,7 @@
     overlay.style.display = 'none';
 
 
-    listEl.innerHTML = ';
+    listEl.innerHTML = '';
 
 
     pendingForm = null;
@@ -1432,7 +1432,7 @@
   function renderDeficits(deficits) {
 
 
-    listEl.innerHTML = ';
+    listEl.innerHTML = '';
 
 
     deficits.forEach((item) => {
