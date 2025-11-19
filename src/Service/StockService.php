@@ -156,21 +156,34 @@ final class StockService
             return self::$bomCache;
         }
         $children = [];
+        $parents = [];
         $indegree = [];
-        foreach (DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient FROM bom') as $row) {
+        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient, COALESCE(NULLIF(merna_jednotka_potomka, \'\'), NULL) AS edge_mj, druh_vazby FROM bom');
+        foreach ($stmt as $row) {
             $parent = (string)$row['rodic_sku'];
             $child = (string)$row['potomek_sku'];
             if ($parent === '' || $child === '') {
                 continue;
             }
+            $coef = (float)$row['koeficient'];
+            $edgeUnit = $row['edge_mj'] === null ? null : (string)$row['edge_mj'];
+            $bond = (string)($row['druh_vazby'] ?? '');
             $children[$parent][] = [
                 'sku' => $child,
-                'koeficient' => (float)$row['koeficient'],
+                'koeficient' => $coef,
+                'edge_mj' => $edgeUnit,
+                'druh_vazby' => $bond,
+            ];
+            $parents[$child][] = [
+                'sku' => $parent,
+                'koeficient' => $coef,
+                'merna_jednotka' => $edgeUnit,
+                'druh_vazby' => $bond,
             ];
             $indegree[$child] = ($indegree[$child] ?? 0) + 1;
             $indegree[$parent] = $indegree[$parent] ?? 0;
         }
-        self::$bomCache = ['children' => $children, 'indegree' => $indegree];
+        self::$bomCache = ['children' => $children, 'parents' => $parents, 'indegree' => $indegree];
         return self::$bomCache;
     }
 

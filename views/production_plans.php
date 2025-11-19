@@ -499,6 +499,57 @@
   color:#90a4ae;
 
 
+  display:inline-block;
+
+
+  white-space:pre;
+
+
+}
+
+
+.demand-cell {
+
+
+  display:inline-flex;
+
+
+  align-items:center;
+
+
+  gap:0.35rem;
+
+
+  cursor:pointer;
+
+
+}
+
+
+.demand-cell .demand-toggle {
+
+
+  font-size:0.9rem;
+
+
+  color:#455a64;
+
+
+  width:1rem;
+
+
+  text-align:center;
+
+
+}
+
+
+.demand-cell .demand-value {
+
+
+  font-variant-numeric:tabular-nums;
+
+
 }
 
 
@@ -1006,7 +1057,28 @@
         <td class="qty-cell deficit-cell">
 
 
-          <?= $formatQty($deficit, 0) ?>
+          <?php if ($deficit > 0.0005): ?>
+
+
+            <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
+
+
+              <span class="demand-toggle">▸</span>
+
+
+              <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
+
+
+            </span>
+
+
+          <?php else: ?>
+
+
+            <?= $formatQty($deficit, 0) ?>
+
+
+          <?php endif; ?>
 
 
         </td>
@@ -1247,12 +1319,16 @@
 
 
   const bomUrl = '/products/bom-tree';
+  const demandUrl = '/production/demand-tree';
 
 
   let pendingForm = null;
 
 
   let treeState = { row: null, detail: null };
+
+
+  let demandState = { row: null, detail: null, toggle: null };
 
 
 
@@ -1262,6 +1338,24 @@
 
 
     table.addEventListener('click', (event) => {
+
+
+      const demandCell = event.target.closest('.demand-cell');
+
+
+      if (demandCell && table.contains(demandCell)) {
+
+
+        event.preventDefault();
+
+
+        toggleDemandRow(demandCell);
+
+
+        return;
+
+
+      }
 
 
       const cell = event.target.closest('.sku-cell');
@@ -1792,6 +1886,339 @@
 
 
 
+  function toggleDemandRow(cell) {
+
+
+    const row = cell.closest('tr');
+
+
+    if (demandState.row === row) {
+
+
+      closeDemandRow();
+
+
+      return;
+
+
+    }
+
+
+    openDemandRow(cell);
+
+
+  }
+
+
+
+
+
+  function openDemandRow(cell) {
+
+
+    const row = cell.closest('tr');
+
+
+    closeDemandRow();
+
+
+    const toggle = cell.querySelector('.demand-toggle');
+
+
+    if (toggle) toggle.textContent = '▾';
+
+
+    row.classList.add('demand-open');
+
+
+    const detailRow = document.createElement('tr');
+
+
+    detailRow.className = 'production-tree-row demand-tree-row';
+
+
+    const detailCell = document.createElement('td');
+
+
+    detailCell.colSpan = row.children.length;
+
+
+    detailCell.textContent = 'Načítám zdroje poptávky…';
+
+
+    detailRow.appendChild(detailCell);
+
+
+    row.parentNode.insertBefore(detailRow, row.nextSibling);
+
+
+    demandState = { row, detail: detailRow, toggle };
+
+
+    loadDemandTree(cell.dataset.sku || row.dataset.sku, detailCell);
+
+
+  }
+
+
+
+
+
+  function closeDemandRow() {
+
+
+    if (!demandState.row) return;
+
+
+    if (demandState.toggle) demandState.toggle.textContent = '▸';
+
+
+    demandState.row.classList.remove('demand-open');
+
+
+    if (demandState.detail) demandState.detail.remove();
+
+
+    demandState = { row: null, detail: null, toggle: null };
+
+
+  }
+
+
+
+
+
+  async function loadDemandTree(sku, container) {
+
+
+    if (!sku) {
+
+
+      container.textContent = 'Chybí SKU.';
+
+
+      return;
+
+
+    }
+
+
+    try {
+
+
+      const response = await fetch(`${demandUrl}?sku=${encodeURIComponent(sku)}`);
+
+
+      if (!response.ok) {
+
+
+        throw new Error(`HTTP ${response.status}`);
+
+
+      }
+
+
+      const data = await response.json();
+
+
+      if (!data.ok) {
+
+
+        throw new Error(data.error || 'Nepodařilo se načíst zdroje poptávky.');
+
+
+      }
+
+
+      if (!data.tree) {
+
+
+        container.textContent = 'Nenalezeny žádné zdroje poptávky.';
+
+
+        return;
+
+
+      }
+
+
+      container.innerHTML = '';
+
+
+      container.appendChild(buildDemandTable(data.tree));
+
+
+      if (!data.tree.children || !data.tree.children.length) {
+
+
+        const note = document.createElement('p');
+
+
+        note.className = 'muted';
+
+
+        note.textContent = 'Poptávka vzniká přímo na této položce (rezervace nebo minimální zásoba).';
+
+
+        container.appendChild(note);
+
+
+      }
+
+
+    } catch (err) {
+
+
+      container.textContent = err.message || 'Nepodařilo se načíst zdroje poptávky.';
+
+
+    }
+
+
+  }
+
+
+
+
+
+  function buildDemandTable(tree) {
+
+
+    const table = document.createElement('table');
+
+
+    table.className = 'bom-tree-table demand-tree-table';
+
+
+    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>MJ</th><th>Potřeba uzlu</th><th>Požadavek na ${tree.sku}</th><th>Koeficient</th><th>Režim</th></tr></thead>`;
+
+
+    const body = document.createElement('tbody');
+
+
+    flattenTree(tree).forEach((row) => {
+
+
+      const tr = document.createElement('tr');
+
+
+      const labelCell = document.createElement('td');
+
+
+      const labelWrap = document.createElement('div');
+
+
+      labelWrap.className = 'bom-tree-label';
+
+
+      const prefix = document.createElement('span');
+
+
+      prefix.className = 'bom-tree-prefix';
+
+
+      prefix.textContent = buildPrefix(row.guides);
+
+
+      if (!prefix.textContent.trim()) prefix.style.visibility = 'hidden';
+
+
+      labelWrap.appendChild(prefix);
+
+
+      const label = document.createElement('span');
+
+
+      label.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
+
+
+      labelWrap.appendChild(label);
+
+
+      labelCell.appendChild(labelWrap);
+
+
+      tr.appendChild(labelCell);
+
+
+      tr.appendChild(createCell(row.node.merna_jednotka || ''));
+
+
+      tr.appendChild(createCell(formatNumber(row.node.needed)));
+
+
+      tr.appendChild(createCell(formatNumber(row.node.contribution)));
+
+
+      tr.appendChild(createCell(formatDemandEdge(row.node.edge)));
+
+
+      const mode = row.node.status && row.node.status.mode ? row.node.status.mode : '—';
+
+
+      tr.appendChild(createCell(mode));
+
+
+      body.appendChild(tr);
+
+
+    });
+
+
+    table.appendChild(body);
+
+
+    return table;
+
+
+  }
+
+
+
+
+
+  function formatDemandEdge(edge) {
+
+
+    if (!edge || !edge.koeficient) {
+
+
+      return '—';
+
+
+    }
+
+
+    let text = formatNumber(edge.koeficient);
+
+
+    if (edge.merna_jednotka) {
+
+
+      text += ` ${edge.merna_jednotka}`;
+
+
+    }
+
+
+    if (edge.druh_vazby) {
+
+
+      text += ` (${edge.druh_vazby})`;
+
+
+    }
+
+
+    return text;
+
+
+  }
+
+
+
+
+
   function flattenTree(node, guides = []) {
 
 
@@ -1877,6 +2304,44 @@
 
 
     return td;
+
+
+  }
+
+
+
+
+  function formatNumber(value, decimals = 3) {
+
+
+    if (value === null || value === undefined || value === '') {
+
+
+      return '—';
+
+
+    }
+
+
+    const num = Number(value);
+
+
+    if (!Number.isFinite(num)) {
+
+
+      return '—';
+
+
+    }
+
+
+    const fixed = num.toFixed(decimals);
+
+
+    const trimmed = fixed.replace(/\.?0+$/, '');
+
+
+    return trimmed === '' ? '0' : trimmed;
 
 
   }

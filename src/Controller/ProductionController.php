@@ -157,6 +157,40 @@ final class ProductionController
         echo json_encode(['ok'=>true,'deficits'=>$deficits]);
     }
 
+    public function demandTree(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json');
+        $sku = $this->toUtf8((string)($_GET['sku'] ?? ''));
+        if ($sku === '') {
+            echo json_encode(['ok' => false, 'error' => 'Chybí SKU.']);
+            return;
+        }
+        try {
+            $graph = StockService::getBomGraph();
+            $parentsMap = $graph['parents'] ?? [];
+            $relevant = $this->collectDemandAncestors($sku, $parentsMap);
+            if (empty($relevant)) {
+                $relevant = [$sku];
+            }
+            $statusMap = StockService::getStatusForSkus($relevant);
+            $basics = $this->fetchBasicsForSkus($relevant);
+            $rootNeed = max(0.0, (float)($statusMap[$sku]['deficit'] ?? 0.0));
+            $tree = $this->buildDemandTreeNode(
+                $sku,
+                $parentsMap,
+                $statusMap,
+                $basics,
+                [],
+                $rootNeed,
+                null
+            );
+            echo json_encode(['ok' => true, 'tree' => $tree]);
+        } catch (\Throwable $e) {
+            echo json_encode(['ok' => false, 'error' => 'Nepodařilo se načíst zdroje poptávky.']);
+        }
+    }
+
     public function deleteRecord(): void
     {
         $this->requireAuth();
@@ -312,6 +346,131 @@ final class ProductionController
             $this->accumulateRequirements($childSku, $childQty, $children, $requirements, $path);
         }
         unset($path[$nodeSku]);
+    }
+
+    /**
+     * @param array<string,array<int,array{sku:string,koeficient:float,merna_jednotka:?string,druh_vazby:string}>> $parents
+     * @return array<int,string>
+     */
+    private function collectDemandAncestors(string $sku, array $parents): array
+    {
+        $queue = [$sku];
+        $result = [];
+        while ($queue) {
+            $current = array_shift($queue);
+            $norm = mb_strtolower($current, 'UTF-8');
+            if (isset($result[$norm])) {
+                continue;
+            }
+            $result[$norm] = $current;
+            foreach ($parents[$current] ?? [] as $edge) {
+                $queue[] = (string)$edge['sku'];
+            }
+        }
+        return array_values($result);
+    }
+
+    /**
+     * @param array<string,array<int,array{sku:string,koeficient:float,merna_jednotka:?string,druh_vazby:string}>> $parents
+     * @param array<string,array<string,mixed>> $statusMap
+     * @param array<string,array{sku:string,nazev:string,typ:string,merna_jednotka:string}> $meta
+     * @param array<string,bool> $path
+     */
+    private function buildDemandTreeNode(
+        string $sku,
+        array $parents,
+        array $statusMap,
+        array $meta,
+        array $path,
+        float $contribution,
+        ?array $edge
+    ): array {
+        $info = $meta[$sku] ?? [
+            'sku' => $sku,
+            'nazev' => '(neznámý produkt)',
+            'typ' => '',
+            'merna_jednotka' => '',
+        ];
+        $status = $statusMap[$sku] ?? [];
+        $needed = max(0.0, (float)($status['deficit'] ?? 0.0));
+        $node = [
+            'sku' => $info['sku'],
+            'nazev' => $info['nazev'],
+            'typ' => $info['typ'],
+            'merna_jednotka' => $info['merna_jednotka'],
+            'status' => $status,
+            'needed' => $needed,
+            'contribution' => $contribution,
+            'edge' => $edge,
+            'children' => [],
+        ];
+        $path[$sku] = true;
+        foreach ($parents[$sku] ?? [] as $parentEdge) {
+            $parentSku = (string)$parentEdge['sku'];
+            $edgeUnit = $parentEdge['merna_jednotka'] ?? '';
+            if ($edgeUnit === '') {
+                $edgeUnit = $meta[$sku]['merna_jednotka'] ?? '';
+            }
+            $edgePayload = [
+                'koeficient' => (float)($parentEdge['koeficient'] ?? 0.0),
+                'merna_jednotka' => $edgeUnit,
+                'druh_vazby' => (string)($parentEdge['druh_vazby'] ?? ''),
+            ];
+            if (isset($path[$parentSku])) {
+                $node['children'][] = [
+                    'sku' => $parentSku,
+                    'nazev' => $meta[$parentSku]['nazev'] ?? $parentSku,
+                    'typ' => $meta[$parentSku]['typ'] ?? '',
+                    'merna_jednotka' => $meta[$parentSku]['merna_jednotka'] ?? '',
+                    'status' => $statusMap[$parentSku] ?? [],
+                    'needed' => max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0)),
+                    'contribution' => max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0)) * $edgePayload['koeficient'],
+                    'edge' => $edgePayload,
+                    'cycle' => true,
+                    'children' => [],
+                ];
+                continue;
+            }
+            $parentNeeded = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
+            if ($parentNeeded <= 0.0) {
+                continue;
+            }
+            $childContribution = $parentNeeded * $edgePayload['koeficient'];
+            $node['children'][] = $this->buildDemandTreeNode(
+                $parentSku,
+                $parents,
+                $statusMap,
+                $meta,
+                $path,
+                $childContribution,
+                $edgePayload
+            );
+        }
+        return $node;
+    }
+
+    /**
+     * @return array<string,array{sku:string,nazev:string,typ:string,merna_jednotka:string}>
+     */
+    private function fetchBasicsForSkus(array $skus): array
+    {
+        $skus = array_values(array_filter(array_map('strval', array_unique($skus))));
+        if (empty($skus)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($skus), '?'));
+        $stmt = DB::pdo()->prepare("SELECT sku,nazev,typ,merna_jednotka FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt->execute($skus);
+        $map = [];
+        foreach ($stmt as $row) {
+            $map[(string)$row['sku']] = [
+                'sku' => (string)$row['sku'],
+                'nazev' => (string)($row['nazev'] ?? ''),
+                'typ' => (string)($row['typ'] ?? ''),
+                'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+            ];
+        }
+        return $map;
     }
 
     private function collectJsonRequest(): array
