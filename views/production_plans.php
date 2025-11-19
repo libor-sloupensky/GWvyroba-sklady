@@ -1303,7 +1303,7 @@
       const qtyField = form.querySelector('input[name="mnozstvi"]');
 
 
-      const qty = parseFloat((qtyField.value || ').replace(',', '.'));
+      const qty = parseFloat((qtyField.value || '').replace(',', '.'));
 
 
       if (!qty || qty <= 0) {
@@ -1636,7 +1636,7 @@
       if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst strom.');
 
 
-      container.innerHTML = ';
+      container.innerHTML = '';
 
 
       container.appendChild(buildBomTable(data.tree));
@@ -1828,10 +1828,10 @@
   function buildPrefix(guides) {
 
 
-    if (!guides || !guides.length) return ';
+    if (!guides || !guides.length) return '';
 
 
-    let prefix = ';
+    let prefix = '';
 
 
     guides.forEach((guide, idx) => {
