@@ -301,7 +301,12 @@ PROMPT;
         if ($env !== false && $env !== '') {
             return (string)$env;
         }
-        return (string)($_ENV['OPENAI_API_KEY'] ?? '');
+        if (!empty($_ENV['OPENAI_API_KEY'])) {
+            return (string)$_ENV['OPENAI_API_KEY'];
+        }
+        // Fallback na config/openai, pokud není proměnná prostředí
+        $cfg = include __DIR__ . '/../../config/config.php';
+        return (string)($cfg['openai']['api_key'] ?? '');
     }
 
     private function collectJson(): array
