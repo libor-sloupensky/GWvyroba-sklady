@@ -618,7 +618,10 @@ final class InventoryController
     private function forbidden(string $message): void
     {
         http_response_code(403);
-        $this->render('forbidden.php', ['title' => 'Přístup odepřen', 'message' => $message]);
+        $this->render('forbidden.php', [
+            'title' => 'Přístup odepřen',
+            'message' => $message,
+        ]);
         exit;
     }
 

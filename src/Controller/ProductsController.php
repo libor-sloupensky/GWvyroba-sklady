@@ -2087,7 +2087,7 @@ final class ProductsController
         $role = $_SESSION['user']['role'] ?? 'user';
 
         if (!in_array($role, ['admin','superadmin'], true)) {
-            $this->forbidden('P??stup jen pro administr?tory.');
+            $this->forbidden('Přístup jen pro administrátory.');
         }
 
     }
@@ -2277,7 +2277,10 @@ final class ProductsController
     private function forbidden(string $message): void
     {
         http_response_code(403);
-        $this->render('forbidden.php', ['title' => 'Přístup odepřen', 'message' => $message]);
+        $this->render('forbidden.php', [
+            'title' => 'Přístup odepřen',
+            'message' => $message,
+        ]);
         exit;
     }
 

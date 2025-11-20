@@ -84,7 +84,10 @@ final class AdminController
         $role = $u['role'] ?? 'user';
         if (!in_array($role, ['admin','superadmin'], true)) {
             http_response_code(403);
-            echo 'Přístup jen pro admina.';
+            $this->render('forbidden.php', [
+                'title' => 'Přístup odepřen',
+                'message' => 'Přístup jen pro administrátory.',
+            ]);
             exit;
         }
     }

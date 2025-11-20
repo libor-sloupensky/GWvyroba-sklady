@@ -715,7 +715,9 @@ final class ImportController
             header('Location: /login');
             exit;
         }
-        if (!in_array(($u['role'] ?? 'user'), ['admin', 'superadmin'], true)) { $this->forbidden('P??stup jen pro administr?tory.'); }
+        if (!in_array(($u['role'] ?? 'user'), ['admin', 'superadmin'], true)) {
+            $this->forbidden('Přístup jen pro administrátory.');
+        }
     }
 
     private function render(string $view, array $vars = []): void
@@ -727,7 +729,10 @@ final class ImportController
     private function forbidden(string $message): void
     {
         http_response_code(403);
-        $this->render('forbidden.php', ['title' => 'Přístup odepřen', 'message' => $message]);
+        $this->render('forbidden.php', [
+            'title' => 'Přístup odepřen',
+            'message' => $message,
+        ]);
         exit;
     }
 }
