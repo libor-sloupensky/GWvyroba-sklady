@@ -59,13 +59,11 @@ $currentUser = $_SESSION['user'] ?? null;
       <a href="/">Domů</a>
       <a href="/import" title="Nahrát XML a spustit import">Import</a>
       <a href="/products" title="Kmenová karta produktů, CSV import/export">Produkty</a>
-      <a href="/products#bom-import" title="Vazby BOM: karton/sada">BOM</a>
       <a href="/inventory" title="Záznam inventury a korekcí">Inventura</a>
       <a href="/reservations" title="Rezervace hotových produktů">Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného">Výroba</a>
       <a href="/analytics/revenue" title="Analytické dotazy přes AI">Analýza</a>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení">Nastavení</a>
-      <a href="/plany" title="Seznam naplánovaných funkcí">Plány</a>
       <span class="nav-user">
         <?php if ($currentUser): ?>
           <?= htmlspecialchars((string)$currentUser['email'], ENT_QUOTES, 'UTF-8') ?>

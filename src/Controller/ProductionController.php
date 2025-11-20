@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 namespace App\Controller;
 
 use App\Service\StockService;
@@ -93,7 +93,7 @@ final class ProductionController
         }
         $recentLimit = $this->getRecentLimit();
         $this->render('production_plans.php', [
-            'title' => 'Výroba – návrhy',
+            'title' => 'VĂ˝roba â€“ nĂˇvrhy',
             'items' => $items,
             'brands' => $this->fetchBrands(),
             'groups' => $this->fetchGroups(),
@@ -131,12 +131,12 @@ final class ProductionController
                     -1 * $required,
                     $component['merna_jednotka'],
                     'vyroba',
-                    'odečíst komponenty',
+                    'odeÄŤĂ­st komponenty',
                     $ref
                 ]);
             }
         } else {
-            $ins->execute([$sku . '*', 0, null, 'korekce', 'Komponenty k odečtu – řešit ručně', $ref]);
+            $ins->execute([$sku . '*', 0, null, 'korekce', 'Komponenty k odeÄŤtu â€“ Ĺ™eĹˇit ruÄŤnÄ›', $ref]);
         }
 
         $this->redirect($returnUrl ?: '/production/plans');
@@ -150,7 +150,7 @@ final class ProductionController
         $sku = $this->toUtf8((string)($data['sku'] ?? ''));
         $qty = (float)($data['mnozstvi'] ?? 0);
         if ($sku === '' || $qty <= 0) {
-            echo json_encode(['ok'=>false,'error'=>'Zadejte platné SKU i množství.']);
+            echo json_encode(['ok'=>false,'error'=>'Zadejte platnĂ© SKU i mnoĹľstvĂ­.']);
             return;
         }
         $deficits = $this->calculateDeficits($sku, $qty);
@@ -163,7 +163,7 @@ final class ProductionController
         header('Content-Type: application/json');
         $sku = $this->toUtf8((string)($_GET['sku'] ?? ''));
         if ($sku === '') {
-            echo json_encode(['ok' => false, 'error' => 'Chybí SKU.']);
+            echo json_encode(['ok' => false, 'error' => 'ChybĂ­ SKU.']);
             return;
         }
         try {
@@ -187,7 +187,7 @@ final class ProductionController
             );
             echo json_encode(['ok' => true, 'tree' => $tree]);
         } catch (\Throwable $e) {
-            echo json_encode(['ok' => false, 'error' => 'Nepodařilo se načíst zdroje poptávky.']);
+            echo json_encode(['ok' => false, 'error' => 'NepodaĹ™ilo se naÄŤĂ­st zdroje poptĂˇvky.']);
         }
     }
 
@@ -387,7 +387,7 @@ final class ProductionController
     ): array {
         $info = $meta[$sku] ?? [
             'sku' => $sku,
-            'nazev' => '(neznámý produkt)',
+            'nazev' => '(neznĂˇmĂ˝ produkt)',
             'typ' => '',
             'merna_jednotka' => '',
         ];

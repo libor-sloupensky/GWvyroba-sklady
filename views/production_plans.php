@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 
   $filters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
@@ -787,13 +787,13 @@
   <label>
 
 
-    <span>Značka</span>
+    <span>ZnaÄŤka</span>
 
 
     <select name="znacka_id">
 
 
-      <option value="">Všechny</option>
+      <option value="">VĹˇechny</option>
 
 
       <?php foreach (($brands ?? []) as $brand): $bid = (int)$brand['id']; ?>
@@ -820,7 +820,7 @@
     <select name="skupina_id">
 
 
-      <option value="">Všechny</option>
+      <option value="">VĹˇechny</option>
 
 
       <?php foreach (($groups ?? []) as $group): $gid = (int)$group['id']; ?>
@@ -847,7 +847,7 @@
     <select name="typ">
 
 
-      <option value="">Všechny</option>
+      <option value="">VĹˇechny</option>
 
 
       <?php foreach (($types ?? []) as $type): ?>
@@ -871,7 +871,7 @@
     <span>Vyhledat</span>
 
 
-    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, název, ALT SKU, EAN" />
+    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, nĂˇzev, ALT SKU, EAN" />
 
 
   </label>
@@ -889,7 +889,7 @@
         Zobrazeno <?= $resultCount ?>
 
 
-        <a href="/production/plans" class="search-reset" title="Zrušit filtr">&times;</a>
+        <a href="/production/plans" class="search-reset" title="ZruĹˇit filtr">&times;</a>
 
 
       </div>
@@ -913,13 +913,13 @@
 <?php if (!$hasSearchActive): ?>
 
 
-  <div class="notice-empty">Zadejte parametry vyhledávání a potvrďte tlačítkem Vyhledat. Seznam produktů a návrh výroby se zobrazí až po vyhledání.</div>
+  <div class="notice-empty">Zadejte parametry vyhledĂˇvĂˇnĂ­ a potvrÄŹte tlaÄŤĂ­tkem Vyhledat. Seznam produktĹŻ a nĂˇvrh vĂ˝roby se zobrazĂ­ aĹľ po vyhledĂˇnĂ­.</div>
 
 
 <?php elseif (empty($items)): ?>
 
 
-  <div class="notice-empty">Pro zadané podmínky nejsou dostupná žádná data.</div>
+  <div class="notice-empty">Pro zadanĂ© podmĂ­nky nejsou dostupnĂˇ ĹľĂˇdnĂˇ data.</div>
 
 
 <?php else: ?>
@@ -943,16 +943,16 @@
         <th>Typ</th>
 
 
-        <th>Název</th>
+        <th>NĂˇzev</th>
 
 
-        <th>Dostupné</th>
+        <th>DostupnĂ©</th>
 
 
         <th>Rezervace</th>
 
 
-        <th>Cílový stav</th>
+        <th>CĂ­lovĂ˝ stav</th>
 
 
         <th>Dovyrobit</th>
@@ -961,13 +961,13 @@
         <th>Priorita</th>
 
 
-        <th>Min. dávka</th>
+        <th>Min. dĂˇvka</th>
 
 
-        <th>Krok výroby</th>
+        <th>Krok vĂ˝roby</th>
 
 
-        <th>Výrobní doba (dny)</th>
+        <th>VĂ˝robnĂ­ doba (dny)</th>
 
 
         <th>Akce</th>
@@ -1030,7 +1030,7 @@
         <td class="sku-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
 
 
-          <span class="sku-toggle">▸</span>
+          <span class="sku-toggle">â–¸</span>
 
 
           <span class="sku-value"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
@@ -1063,7 +1063,7 @@
             <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
 
 
-              <span class="demand-toggle">▸</span>
+              <span class="demand-toggle">â–¸</span>
 
 
               <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
@@ -1120,10 +1120,10 @@
             <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '/production/plans', ENT_QUOTES, 'UTF-8') ?>" />
 
 
-            <input type="number" step="any" name="mnozstvi" placeholder="Množství" required />
+            <input type="number" step="any" name="mnozstvi" placeholder="MnoĹľstvĂ­" required />
 
 
-            <button type="submit">Zapsat množství</button>
+            <button type="submit">Zapsat mnoĹľstvĂ­</button>
 
 
           </form>
@@ -1159,7 +1159,7 @@
   <form method="post" action="/production/recent-limit">
 
 
-    <label>Počet zobrazených záznamů:
+    <label>PoÄŤet zobrazenĂ˝ch zĂˇznamĹŻ:
 
 
       <input type="number" name="recent_limit" min="1" max="500" value="<?= (int)($recentLimit ?? 30) ?>" />
@@ -1201,10 +1201,10 @@
         <th>SKU</th>
 
 
-        <th>Název</th>
+        <th>NĂˇzev</th>
 
 
-        <th>Množství</th>
+        <th>MnoĹľstvĂ­</th>
 
 
       </tr>
@@ -1249,7 +1249,7 @@
 <?php else: ?>
 
 
-  <p class="muted">Zatím nejsou zapsané žádné výroby.</p>
+  <p class="muted">ZatĂ­m nejsou zapsanĂ© ĹľĂˇdnĂ© vĂ˝roby.</p>
 
 
 <?php endif; ?>
@@ -1267,25 +1267,25 @@
     <h3>Nedostatek komponent</h3>
 
 
-    <p>Odečet komponent by některé položky poslal do záporného stavu. Vyberte, jak postupovat:</p>
+    <p>OdeÄŤet komponent by nÄ›kterĂ© poloĹľky poslal do zĂˇpornĂ©ho stavu. Vyberte, jak postupovat:</p>
 
 
     <ul id="production-deficit-list"></ul>
 
 
-    <small>Volba "Odečíst subpotomky" automaticky odečte všechny komponenty (i do mínusu). Volba "Odečíst do mínusu" zapíše jen hotový produkt a komponenty je potřeba odepsat ručně.</small>
+    <small>Volba "OdeÄŤĂ­st subpotomky" automaticky odeÄŤte vĹˇechny komponenty (i do mĂ­nusu). Volba "OdeÄŤĂ­st do mĂ­nusu" zapĂ­Ĺˇe jen hotovĂ˝ produkt a komponenty je potĹ™eba odepsat ruÄŤnÄ›.</small>
 
 
     <div class="production-modal-buttons">
 
 
-      <button type="button" data-action="components">Odečíst subpotomky (doporučeno)</button>
+      <button type="button" data-action="components">OdeÄŤĂ­st subpotomky (doporuÄŤeno)</button>
 
 
-      <button type="button" data-action="minus">Odečíst do mínusu</button>
+      <button type="button" data-action="minus">OdeÄŤĂ­st do mĂ­nusu</button>
 
 
-      <button type="button" data-action="cancel">Zrušit</button>
+      <button type="button" data-action="cancel">ZruĹˇit</button>
 
 
     </div>
@@ -1403,7 +1403,7 @@
       if (!qty || qty <= 0) {
 
 
-        alert('Zadejte množství výroby.');
+        alert('Zadejte mnoĹľstvĂ­ vĂ˝roby.');
 
 
         return;
@@ -1445,7 +1445,7 @@
         })
 
 
-        .catch((err) => alert('Nelze ověřit komponenty: ' + (err.message || err)));
+        .catch((err) => alert('Nelze ovÄ›Ĺ™it komponenty: ' + (err.message || err)));
 
 
     });
@@ -1535,10 +1535,10 @@
       const li = document.createElement('li');
 
 
-      const name = item.nazev ? `${item.sku} – ${item.nazev}` : item.sku;
+      const name = item.nazev ? `${item.sku} â€“ ${item.nazev}` : item.sku;
 
 
-      li.textContent = `${name}: potřeba ${item.required}, dostupné ${item.available}, chybí ${item.missing}`;
+      li.textContent = `${name}: potĹ™eba ${item.required}, dostupnĂ© ${item.available}, chybĂ­ ${item.missing}`;
 
 
       listEl.appendChild(li);
@@ -1634,7 +1634,7 @@
     const toggle = row.querySelector('.sku-toggle');
 
 
-    if (toggle) toggle.textContent = '▾';
+    if (toggle) toggle.textContent = 'â–ľ';
 
 
     row.classList.add('bom-open');
@@ -1652,7 +1652,7 @@
     detailCell.colSpan = row.children.length;
 
 
-    detailCell.textContent = 'Načítám strom vazeb…';
+    detailCell.textContent = 'NaÄŤĂ­tĂˇm strom vazebâ€¦';
 
 
     detailRow.appendChild(detailCell);
@@ -1682,7 +1682,7 @@
     const toggle = treeState.row.querySelector('.sku-toggle');
 
 
-    if (toggle) toggle.textContent = '▸';
+    if (toggle) toggle.textContent = 'â–¸';
 
 
     treeState.row.classList.remove('bom-open');
@@ -1706,7 +1706,7 @@
     if (!sku) {
 
 
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'ChybĂ­ SKU.';
 
 
       return;
@@ -1727,7 +1727,7 @@
       const data = await response.json();
 
 
-      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst strom.');
+      if (!data.ok) throw new Error(data.error || 'NepodaĹ™ilo se naÄŤĂ­st strom.');
 
 
       container.innerHTML = '';
@@ -1760,7 +1760,7 @@
       const wrap = document.createElement('div');
 
 
-      wrap.textContent = 'Produkt nemá navázané potomky.';
+      wrap.textContent = 'Produkt nemĂˇ navĂˇzanĂ© potomky.';
 
 
       return wrap;
@@ -1775,7 +1775,7 @@
     table.className = 'bom-tree-table';
 
 
-    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th><th>Dostupné</th><th>Cílový stav</th><th>Chybí</th></tr></thead>';
+    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ poloĹľky</th><th>DostupnĂ©</th><th>CĂ­lovĂ˝ stav</th><th>ChybĂ­</th></tr></thead>';
 
 
     const body = document.createElement('tbody');
@@ -1814,7 +1814,7 @@
       const label = document.createElement('span');
 
 
-      label.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
+      label.textContent = `${row.node.sku}${row.node.nazev ? ` â€“ ${row.node.nazev}` : ''}`.trim();
 
 
       const status = row.node.status || null;
@@ -1925,7 +1925,7 @@
     const toggle = cell.querySelector('.demand-toggle');
 
 
-    if (toggle) toggle.textContent = '▾';
+    if (toggle) toggle.textContent = 'â–ľ';
 
 
     row.classList.add('demand-open');
@@ -1943,7 +1943,7 @@
     detailCell.colSpan = row.children.length;
 
 
-    detailCell.textContent = 'Načítám zdroje poptávky…';
+    detailCell.textContent = 'NaÄŤĂ­tĂˇm zdroje poptĂˇvkyâ€¦';
 
 
     detailRow.appendChild(detailCell);
@@ -1970,7 +1970,7 @@
     if (!demandState.row) return;
 
 
-    if (demandState.toggle) demandState.toggle.textContent = '▸';
+    if (demandState.toggle) demandState.toggle.textContent = 'â–¸';
 
 
     demandState.row.classList.remove('demand-open');
@@ -1994,7 +1994,7 @@
     if (!sku) {
 
 
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'ChybĂ­ SKU.';
 
 
       return;
@@ -2024,7 +2024,7 @@
       if (!data.ok) {
 
 
-        throw new Error(data.error || 'Nepodařilo se načíst zdroje poptávky.');
+        throw new Error(data.error || 'NepodaĹ™ilo se naÄŤĂ­st zdroje poptĂˇvky.');
 
 
       }
@@ -2033,7 +2033,7 @@
       if (!data.tree) {
 
 
-        container.textContent = 'Nenalezeny žádné zdroje poptávky.';
+        container.textContent = 'Nenalezeny ĹľĂˇdnĂ© zdroje poptĂˇvky.';
 
 
         return;
@@ -2057,7 +2057,7 @@
         note.className = 'muted';
 
 
-        note.textContent = 'Poptávka vzniká přímo na této položce (rezervace nebo minimální zásoba).';
+        note.textContent = 'PoptĂˇvka vznikĂˇ pĹ™Ă­mo na tĂ©to poloĹľce (rezervace nebo minimĂˇlnĂ­ zĂˇsoba).';
 
 
         container.appendChild(note);
@@ -2069,7 +2069,7 @@
     } catch (err) {
 
 
-      container.textContent = err.message || 'Nepodařilo se načíst zdroje poptávky.';
+      container.textContent = err.message || 'NepodaĹ™ilo se naÄŤĂ­st zdroje poptĂˇvky.';
 
 
     }
@@ -2090,7 +2090,7 @@
     table.className = 'bom-tree-table demand-tree-table';
 
 
-    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>MJ</th><th>Potřeba uzlu</th><th>Požadavek na ${tree.sku}</th><th>Koeficient</th><th>Režim</th></tr></thead>`;
+    table.innerHTML = `<thead><tr><th>Strom poptĂˇvky</th><th>MJ</th><th>PotĹ™eba uzlu</th><th>PoĹľadavek na ${tree.sku}</th><th>Koeficient</th><th>ReĹľim</th></tr></thead>`;
 
 
     const body = document.createElement('tbody');
@@ -2129,7 +2129,7 @@
       const label = document.createElement('span');
 
 
-      label.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
+      label.textContent = `${row.node.sku}${row.node.nazev ? ` â€“ ${row.node.nazev}` : ''}`.trim();
 
 
       labelWrap.appendChild(label);
@@ -2153,7 +2153,7 @@
       tr.appendChild(createCell(formatDemandEdge(row.node.edge)));
 
 
-      const mode = row.node.status && row.node.status.mode ? row.node.status.mode : '—';
+      const mode = row.node.status && row.node.status.mode ? row.node.status.mode : 'â€”';
 
 
       tr.appendChild(createCell(mode));
@@ -2183,7 +2183,7 @@
     if (!edge || !edge.koeficient) {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2270,13 +2270,13 @@
       if (idx === guides.length - 1) {
 
 
-        prefix += isLast ? '└── ' : '├── ';
+        prefix += isLast ? 'â””â”€â”€ ' : 'â”śâ”€â”€ ';
 
 
       } else {
 
 
-        prefix += isLast ? '    ' : '│   ';
+        prefix += isLast ? '    ' : 'â”‚   ';
 
 
       }
@@ -2300,7 +2300,7 @@
     const td = document.createElement('td');
 
 
-    td.textContent = value ?? '—';
+    td.textContent = value ?? 'â€”';
 
 
     return td;
@@ -2317,7 +2317,7 @@
     if (value === null || value === undefined || value === '') {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2329,7 +2329,7 @@
     if (!Number.isFinite(num)) {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2356,7 +2356,7 @@
     if (value === null || value === undefined || isNaN(value)) {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
