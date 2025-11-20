@@ -948,7 +948,7 @@ document.addEventListener('DOMContentLoaded', function () {
 </div>
 
 <?php if (!$hasSearchActive): ?>
-  <p class="muted">Zadejte parametry vyhledávání a potvrďte tlačítkem "Vyhledat". Seznam produktů se zobrazí až po vyhledání.</p>
+  <p class="muted">Zadejte parametry vyhledávání a potvrďte tlačítkem „Vyhledat“. Seznam produktů se zobrazí až po vyhledání.</p>
 <?php elseif (empty($items)): ?>
   <p class="muted">Žádné produkty neodpovídají zadaným filtrům.</p>
 <?php else: ?>
