@@ -1,3 +1,4 @@
+<!-- Google-only login screen -->
 <h1>Přihlášení</h1>
 <?php if (!empty($error ?? null)): ?>
   <div class="notice" style="border-color:#ffcdd2;background:#ffebee;color:#b71c1c;">
