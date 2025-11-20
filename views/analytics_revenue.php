@@ -3,14 +3,16 @@
 /** @var array $sharedFavorites */
 /** @var string $openAiStatus */
 /** @var bool $openAiReady */
-$upcomingSteps = [
-    'Provázat role uživatelů s dostupnými pohledy (finanční, výroba, management).',
-    'Rozšířit audit logy – ukládat každý prompt + SQL + výsledky.',
-    'Doplnit možnost vypnout sdílení konkrétního oblíbeného promptu.',
-];
 ?>
 <h1>Analýza (AI)</h1>
-<p class="muted">Napište dotaz běžnou češtinou. AI připraví dotazy do databáze a vrátí výsledek jako text, tabulku nebo graf podle zadání.</p>
+<div class="analysis-guidelines">
+  <strong>Tipy pro zadání:</strong>
+  <ul>
+    <li>Co chcete vidět (metrika, tabulka nebo graf).</li>
+    <li>Období/filtry (např. poslední měsíc, konkrétní e-shop).</li>
+    <li>Preferovanou formu výstupu (text, tabulka, graf).</li>
+  </ul>
+</div>
 
 <style>
 .analysis-layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:1.2rem; }
@@ -62,14 +64,6 @@ $upcomingSteps = [
       </div>
       <label for="prompt">Znění dotazu</label>
       <textarea id="prompt" placeholder="Popište, co chcete zjistit, za jaké období a v jaké formě výstup zobrazit (text/tabulka/graf)."></textarea>
-      <div class="analysis-guidelines">
-        <strong>Tipy pro zadání:</strong>
-        <ul>
-          <li>Co chcete vidět (metrika, tabulka nebo graf).</li>
-          <li>Období/filtry (např. poslední měsíc, konkrétní e-shop).</li>
-          <li>Preferovanou formu výstupu (text, tabulka, graf).</li>
-        </ul>
-      </div>
       <button type="submit" id="analysis-submit" class="primary" <?= $openAiReady ? '' : 'disabled' ?>><?= $openAiReady ? 'Odeslat dotaz' : 'OpenAI není připraveno' ?></button>
       <div id="analysis-status" class="analysis-status <?= $openAiReady ? 'ready' : 'warn' ?>"><?= htmlspecialchars($openAiStatus, ENT_QUOTES, 'UTF-8') ?></div>
       <div id="analysis-error" class="error-banner" style="display:none;"></div>
@@ -80,19 +74,11 @@ $upcomingSteps = [
       <div id="analysis-outputs"></div>
     </div>
 
-    <div class="info-block">
-      <strong>Další kroky:</strong>
-      <ul class="todo-list">
-        <?php foreach ($upcomingSteps as $item): ?>
-          <li><?= htmlspecialchars($item, ENT_QUOTES, 'UTF-8') ?></li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
   </section>
 
   <section class="analysis-panel">
     <h2>Oblíbené prompty</h2>
-    <p class="muted">Prompt uložíte až po spuštění dotazu – tlačítkem hvězdičky. Kliknutím na cizí prompt se obsah načte do formuláře; uložit jako vlastní jej můžete po zobrazení výsledků.</p>
+    <!-- Hláška o ukládání odstraněna na přání -->
 
     <h3>Moje</h3>
     <ul class="favorite-list" id="favorite-mine">
@@ -230,6 +216,13 @@ $upcomingSteps = [
         btn.textContent = 'Načíst';
         btn.addEventListener('click', () => loadFavorite(fav));
         actions.appendChild(btn);
+        if (container === mineList) {
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.textContent = 'Smazat';
+          del.addEventListener('click', () => deleteFavorite(fav.id));
+          actions.appendChild(del);
+        }
         li.appendChild(wrap);
         li.appendChild(actions);
         container.appendChild(li);
@@ -248,6 +241,24 @@ $upcomingSteps = [
     starBtn.classList.remove('active');
     starBtn.disabled = true;
     starBtn.textContent = '☆';
+  }
+
+  function deleteFavorite(id) {
+    if (!id) return;
+    fetch('/analytics/favorite/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.ok) { throw new Error(data.error || 'Smazání selhalo.'); }
+        state.favorites = data.favorites;
+        renderFavorites();
+      })
+      .catch((err) => {
+        renderError(err.message || 'Smazání selhalo.');
+      });
   }
 
   function renderError(message) {

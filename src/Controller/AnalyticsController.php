@@ -180,6 +180,22 @@ final class AnalyticsController
         $stmt->execute([$userId, $title, $prompt]);
     }
 
+    public function deleteFavoriteAjax(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $payload = $this->collectJson();
+        $id = (int)($payload['id'] ?? 0);
+        if ($id <= 0) {
+            echo json_encode(['ok' => false, 'error' => 'Neplatné ID.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $userId = $this->currentUserId();
+        $st = DB::pdo()->prepare('DELETE FROM ai_prompts WHERE id = ? AND user_id = ? LIMIT 1');
+        $st->execute([$id, $userId]);
+        echo json_encode(['ok' => true, 'favorites' => $this->loadFavorites()], JSON_UNESCAPED_UNICODE);
+    }
+
     private function parseAiPlan(string $content): ?array
     {
         $data = json_decode($content, true);
@@ -204,6 +220,7 @@ final class AnalyticsController
 
     private function runSelect(string $sql, array $tables = []): array
     {
+        $sql = $this->sanitizeSql($sql);
         $this->validateSqlIsSafe($sql);
         $sql = $this->appendLimit($sql);
         $stmt = DB::pdo()->query($sql);
@@ -317,8 +334,14 @@ PROMPT;
         }
         return [
             'ready' => true,
-            'message' => 'OpenAI klíč je načten a rozhraní je připraveno.',
+            'message' => '',
         ];
+    }
+
+    private function sanitizeSql(string $sql): string
+    {
+        // Odebereme koncové středníky a whitespace, interní středníky dál blokuje validateSqlIsSafe
+        return rtrim($sql, " \r\n\t;");
     }
 
     private function resolveOpenAiKey(): string
