@@ -232,44 +232,44 @@ final class SettingsController
         $active = isset($_POST['active']) ? 1 : 0;
         $allowedRoles = ['superadmin','admin','employee'];
 
-        // Nelze upravovat vlastn? ??et (mus? to ud?lat jin? superadmin)
+        // Vlastní účet musí upravit jiný superadmin
         if ($id > 0 && $this->currentUserId() === $id) {
-            $_SESSION['settings_error'] = 'Nelze upravit vlastn? ??et. Po??dejte jin?ho superadmina.';
+            $_SESSION['settings_error'] = 'Nelze upravit vlastní účet. Požádejte jiného superadmina.';
             header('Location: /settings');
             return;
         }
 
         if (!in_array($role, $allowedRoles, true)) {
-            $_SESSION['settings_error'] = 'Nezn?m? role.';
+            $_SESSION['settings_error'] = 'Neznámá role.';
             header('Location: /settings');
             return;
         }
 
         if ($id > 0) {
             if ($this->currentUserId() === $id && $active === 0) {
-                $_SESSION['settings_error'] = 'Nem??ete deaktivovat vlastn? ??et.';
+                $_SESSION['settings_error'] = 'Nemůžete deaktivovat vlastní účet.';
                 header('Location: /settings');
                 return;
             }
             $stmt = $pdo->prepare('UPDATE users SET role=?, active=? WHERE id=?');
             $stmt->execute([$role, $active, $id]);
-            $_SESSION['settings_message'] = 'U?ivatel byl upraven.';
+            $_SESSION['settings_message'] = 'Uživatel byl upraven.';
         } else {
             if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $_SESSION['settings_error'] = 'Zadejte platn? e-mail.';
+                $_SESSION['settings_error'] = 'Zadejte platný e-mail.';
                 header('Location: /settings');
                 return;
             }
             $exists = $pdo->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
             $exists->execute([$email]);
             if ($exists->fetchColumn()) {
-                $_SESSION['settings_error'] = 'U?ivatel s t?mto e-mailem ji? existuje.';
+                $_SESSION['settings_error'] = 'Uživatel s tímto e-mailem již existuje.';
                 header('Location: /settings');
                 return;
             }
             $stmt = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?,?,?)');
             $stmt->execute([$email, $role, $active ?: 1]);
-            $_SESSION['settings_message'] = 'U?ivatel byl p?id?n.';
+            $_SESSION['settings_message'] = 'Uživatel byl přidán.';
         }
         header('Location: /settings');
     }
