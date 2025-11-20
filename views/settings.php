@@ -231,7 +231,6 @@
   <select name="role">
     <option value="admin">Admin</option>
     <option value="superadmin">Superadmin</option>
-    <option value="employee">Zamestnanec</option>
   </select>
   <label>
     <input type="checkbox" name="active" checked /> Aktivní
