@@ -17,6 +17,9 @@ return [
     'client_secret' => getenv('GOOGLE_CLIENT_SECRET') ?: '',
     'redirect_uri' => getenv('GOOGLE_REDIRECT_URI') ?: 'https://gworm.wormup.com/auth/google/callback',
   ],
+  'openai' => [
+    'api_key' => getenv('OPENAI_API_KEY') ?: '',
+  ],
   'auth' => [
     'superadmins' => ['sloupensky@grig.cz'],
     'allowed_domain' => '', // pokud chcete omezit na doménu, nastavte např. wormup.com
