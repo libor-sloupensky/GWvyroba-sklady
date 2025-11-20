@@ -192,6 +192,7 @@ final class AnalyticsController
 
     private function runSelect(string $sql): array
     {
+        $this->validateSqlIsSafe($sql);
         $sql = $this->appendLimit($sql);
         $stmt = DB::pdo()->query($sql);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -213,17 +214,23 @@ final class AnalyticsController
         if (!preg_match('/^select/i', $trimmed)) {
             return false;
         }
-        if (preg_match('/;/', $trimmed)) {
-            return false;
+        return true;
+    }
+
+    private function validateSqlIsSafe(string $sql): void
+    {
+        $clean = strtolower(preg_replace('/\\s+/', ' ', $sql));
+        // musí to být select a bez středníků
+        if (!preg_match('/^select\\s+/i', $sql) || str_contains($sql, ';')) {
+            throw new \RuntimeException('Povoleny jsou jen dotazy SELECT bez středníků.');
         }
-        $blocked = ['insert ', 'update ', 'delete ', 'drop ', 'alter ', 'truncate ', 'create ', 'into '];
-        $lower = strtolower($trimmed);
+        // blokuj DML/DDL klíčová slova
+        $blocked = [' insert ', ' update ', ' delete ', ' drop ', ' alter ', ' truncate ', ' create ', ' into ', ' outfile ', ' infile ', ' grant ', ' revoke '];
         foreach ($blocked as $word) {
-            if (str_contains($lower, $word) && $word !== 'select ') {
-                return false;
+            if (str_contains($clean, $word)) {
+                throw new \RuntimeException('Dotaz musí být pouze SELECT nad reportovacími daty.');
             }
         }
-        return true;
     }
 
     private function buildSystemPrompt(string $schema): string
