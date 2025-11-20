@@ -1,14 +1,16 @@
 <?php
+
 namespace App\Controller;
 
 use App\Support\DB;
+use App\Service\AnalyticsSchema;
 use PDO;
 
 final class AnalyticsController
 {
     public function revenue(): void
     {
-        $this->requireRole(['admin','superadmin']);
+        $this->requireRole(['admin', 'superadmin']);
         $favorites = $this->loadFavorites();
         $status = $this->openAiStatus();
         $this->render('analytics_revenue.php', [
@@ -22,8 +24,9 @@ final class AnalyticsController
 
     public function ai(): void
     {
-        $this->requireRole(['admin','superadmin']);
+        $this->requireRole(['admin', 'superadmin']);
         header('Content-Type: application/json; charset=utf-8');
+
         $payload = $this->collectJson();
         $prompt = trim((string)($payload['prompt'] ?? ''));
         $title = trim((string)($payload['title'] ?? ''));
@@ -41,8 +44,8 @@ final class AnalyticsController
         }
 
         $model = getenv('OPENAI_MODEL') ?: ($_ENV['OPENAI_MODEL'] ?? 'gpt-4o-mini');
-        $schema = $this->schemaDigest();
-        $systemPrompt = $this->buildSystemPrompt($schema);
+        $schema = $this->schemaProvider();
+        $systemPrompt = $this->buildSystemPrompt($schema->summary());
 
         $requestBody = [
             'model' => $model,
@@ -74,12 +77,21 @@ final class AnalyticsController
                 continue;
             }
             try {
-                $rows = $this->runSelect($sql);
+                $tables = $schema->extractTables($sql);
+                $rows = $this->runSelect($sql, $tables);
             } catch (\Throwable $e) {
+                $message = $e->getMessage();
+                $missingCol = $schema->extractMissingColumn($message);
+                if ($missingCol) {
+                    $suggest = $schema->suggestColumns($missingCol, $tables);
+                    if (!empty($suggest)) {
+                        $message = "Neznámý sloupec '{$missingCol}'. Zkuste: " . implode(', ', $suggest);
+                    }
+                }
                 $renderedOutputs[] = [
                     'type' => 'error',
                     'title' => $output['title'] ?? 'Dotaz nelze spustit',
-                    'message' => $e->getMessage(),
+                    'message' => $message,
                 ];
                 continue;
             }
@@ -147,7 +159,7 @@ final class AnalyticsController
 
     public function saveFavoriteAjax(): void
     {
-        $this->requireRole(['admin','superadmin']);
+        $this->requireRole(['admin', 'superadmin']);
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $title = trim((string)($payload['title'] ?? ''));
@@ -190,7 +202,7 @@ final class AnalyticsController
         ];
     }
 
-    private function runSelect(string $sql): array
+    private function runSelect(string $sql, array $tables = []): array
     {
         $this->validateSqlIsSafe($sql);
         $sql = $this->appendLimit($sql);
@@ -211,20 +223,15 @@ final class AnalyticsController
     private function isSelectQuery(string $sql): bool
     {
         $trimmed = ltrim($sql);
-        if (!preg_match('/^select/i', $trimmed)) {
-            return false;
-        }
-        return true;
+        return (bool)preg_match('/^select/i', $trimmed);
     }
 
     private function validateSqlIsSafe(string $sql): void
     {
-        $clean = strtolower(preg_replace('/\\s+/', ' ', $sql));
-        // musí to být select a bez středníků
-        if (!preg_match('/^select\\s+/i', $sql) || str_contains($sql, ';')) {
+        $clean = strtolower(preg_replace('/\s+/', ' ', $sql));
+        if (!preg_match('/^select\s+/i', $sql) || str_contains($sql, ';')) {
             throw new \RuntimeException('Povoleny jsou jen dotazy SELECT bez středníků.');
         }
-        // blokuj DML/DDL klíčová slova
         $blocked = [' insert ', ' update ', ' delete ', ' drop ', ' alter ', ' truncate ', ' create ', ' into ', ' outfile ', ' infile ', ' grant ', ' revoke '];
         foreach ($blocked as $word) {
             if (str_contains($clean, $word)) {
@@ -236,15 +243,15 @@ final class AnalyticsController
     private function buildSystemPrompt(string $schema): string
     {
         return <<<PROMPT
-Jsi datový analytik ve firmě WormUP. Máš přístup pouze k databázi MySQL uvedené níže. Odpověď drž v jazyce, ve kterém přišel uživatelský dotaz.
+Jsi datový analytik ve firmě WormUP. Máš přístup pouze k databázi MySQL uvedené níže. Odpovídej ve stejném jazyce jako uživatel.
 
-Výstup vracej jako platný JSON objekt (používáme response_format json_object) s klíči:
+Výstup vracej jako platný JSON objekt (response_format json_object) s klíči:
 - "language": kód jazyka odpovědi (např. "cs" nebo "en"),
-- "explanation": krátké shrnutí zjištění v přirozeném jazyce,
+- "explanation": krátké srozumitelné shrnutí výsledků,
 - "outputs": pole objektů popisujících tabulky nebo grafy, každý ve tvaru:
   {
     "type": "table" | "line_chart",
-    "title": "Titulek výstupu",
+    "title": "Titulek",
     "sql": "SELECT ...",
     "columns": [{"key":"nazev_sloupce","label":"Titulek"}],
     "x_column": "sloupec_osa_x_pro_graf",
@@ -253,29 +260,15 @@ Výstup vracej jako platný JSON objekt (používáme response_format json_objec
   }
 
 Instrukce:
-- Připrav jen SQL dotazy typu SELECT, nic jiného (žádné DML/DDL).
-- U každé tabulky/grafu přidej LIMIT tak, aby výstup byl přehledný (např. LIMIT 200).
-- Pokud uživatel neurčí formu, použij tabulku; graf doporuč jen když dává smysl.
+- Používej jen SELECT nad tabulkami/sloupci uvedenými níže, nic jiného (žádné DML/DDL).
+- Přidej LIMIT (např. 200) pro přehlednost.
+- Pokud chybí upřesnění (produkt, období, e-shop), zvol rozumné výchozí omezení (např. posledních 12 měsíců) a ve vysvětlení napiš, co by se hodilo zpřesnit.
+- Graf použij, jen když dává smysl (časové řady, porovnání), jinak tabulku.
+- Dodrž strukturu JSON, aby šel výstup strojově zpracovat.
 
-Dostupná schémata:
+Dostupné tabulky a sloupce:
 {$schema}
 PROMPT;
-    }
-
-    private function schemaDigest(): string
-    {
-        $pdo = DB::pdo();
-        $stmt = $pdo->query("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = DATABASE() ORDER BY table_name, ordinal_position");
-        $map = [];
-        foreach ($stmt as $row) {
-            $table = (string)$row['table_name'];
-            $map[$table][] = $row['column_name'] . ' (' . $row['data_type'] . ')';
-        }
-        $chunks = [];
-        foreach ($map as $table => $columns) {
-            $chunks[] = $table . ': ' . implode(', ', $columns);
-        }
-        return implode("\n", $chunks);
     }
 
     private function callOpenAi(string $apiKey, array $body): string
@@ -329,7 +322,6 @@ PROMPT;
         if (!empty($_ENV['OPENAI_API_KEY'])) {
             return (string)$_ENV['OPENAI_API_KEY'];
         }
-        // Fallback na config/openai, pokud není proměnná prostředí
         $cfg = include __DIR__ . '/../../config/config.php';
         return (string)($cfg['openai']['api_key'] ?? '');
     }
@@ -352,6 +344,15 @@ PROMPT;
     private function currentUserId(): int
     {
         return (int)($_SESSION['user']['id'] ?? 0);
+    }
+
+    private function schemaProvider(): AnalyticsSchema
+    {
+        static $schema;
+        if ($schema === null) {
+            $schema = new AnalyticsSchema();
+        }
+        return $schema;
     }
 
     private function requireRole(array $allowed): void
@@ -378,7 +379,3 @@ PROMPT;
         require __DIR__ . '/../../views/_layout.php';
     }
 }
-
-
-
-
