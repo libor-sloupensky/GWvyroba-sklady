@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 
   $filters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
@@ -553,6 +553,66 @@
 }
 
 
+.bom-tree-label.is-root {
+
+
+  font-weight:700;
+
+
+  color:#1a237e;
+
+
+}
+
+
+.demand-direct-note {
+
+
+  margin-top:0.6rem;
+
+
+  padding:0.6rem 0.8rem;
+
+
+  background:#f4f8fb;
+
+
+  border:1px solid #dbe3ea;
+
+
+  border-radius:6px;
+
+
+  color:#37474f;
+
+
+  font-size:0.9rem;
+
+
+}
+
+
+.demand-direct-note ul {
+
+
+  margin:0.2rem 0 0 1.2rem;
+
+
+  padding:0;
+
+
+}
+
+
+.demand-direct-note li {
+
+
+  margin:0.15rem 0;
+
+
+}
+
+
 .bom-node-critical { color:#b00020; font-weight:600; }
 
 
@@ -787,13 +847,13 @@
   <label>
 
 
-    <span>Značka</span>
+    <span>ZnaÄŤka</span>
 
 
     <select name="znacka_id">
 
 
-      <option value="">Všechny</option>
+      <option value="">VĹˇechny</option>
 
 
       <?php foreach (($brands ?? []) as $brand): $bid = (int)$brand['id']; ?>
@@ -820,7 +880,7 @@
     <select name="skupina_id">
 
 
-      <option value="">Všechny</option>
+      <option value="">VĹˇechny</option>
 
 
       <?php foreach (($groups ?? []) as $group): $gid = (int)$group['id']; ?>
@@ -847,7 +907,7 @@
     <select name="typ">
 
 
-      <option value="">Všechny</option>
+      <option value="">VĹˇechny</option>
 
 
       <?php foreach (($types ?? []) as $type): ?>
@@ -871,7 +931,7 @@
     <span>Vyhledat</span>
 
 
-    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, název, ALT SKU, EAN" />
+    <input type="text" name="q" value="<?= htmlspecialchars($filterSearch, ENT_QUOTES, 'UTF-8') ?>" placeholder="SKU, nĂˇzev, ALT SKU, EAN" />
 
 
   </label>
@@ -889,7 +949,7 @@
         Zobrazeno <?= $resultCount ?>
 
 
-        <a href="/production/plans" class="search-reset" title="Zrušit filtr">&times;</a>
+        <a href="/production/plans" class="search-reset" title="ZruĹˇit filtr">&times;</a>
 
 
       </div>
@@ -913,13 +973,13 @@
 <?php if (!$hasSearchActive): ?>
 
 
-  <div class="notice-empty">Zadejte parametry vyhledávání a potvrďte tlačítkem Vyhledat. Seznam produktů a návrh výroby se zobrazí až po vyhledání.</div>
+  <div class="notice-empty">Zadejte parametry vyhledĂˇvĂˇnĂ­ a potvrÄŹte tlaÄŤĂ­tkem Vyhledat. Seznam produktĹŻ a nĂˇvrh vĂ˝roby se zobrazĂ­ aĹľ po vyhledĂˇnĂ­.</div>
 
 
 <?php elseif (empty($items)): ?>
 
 
-  <div class="notice-empty">Pro zadané podmínky nejsou dostupná žádná data.</div>
+  <div class="notice-empty">Pro zadanĂ© podmĂ­nky nejsou dostupnĂˇ ĹľĂˇdnĂˇ data.</div>
 
 
 <?php else: ?>
@@ -943,16 +1003,16 @@
         <th>Typ</th>
 
 
-        <th>Název</th>
+        <th>NĂˇzev</th>
 
 
-        <th>Dostupné</th>
+        <th>DostupnĂ©</th>
 
 
         <th>Rezervace</th>
 
 
-        <th>Cílový stav</th>
+        <th>CĂ­lovĂ˝ stav</th>
 
 
         <th>Dovyrobit</th>
@@ -961,13 +1021,13 @@
         <th>Priorita</th>
 
 
-        <th>Min. dávka</th>
+        <th>Min. dĂˇvka</th>
 
 
-        <th>Krok výroby</th>
+        <th>Krok vĂ˝roby</th>
 
 
-        <th>Výrobní doba (dny)</th>
+        <th>VĂ˝robnĂ­ doba (dny)</th>
 
 
         <th>Akce</th>
@@ -1120,10 +1180,10 @@
             <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '/production/plans', ENT_QUOTES, 'UTF-8') ?>" />
 
 
-            <input type="number" step="any" name="mnozstvi" placeholder="Množství" required />
+            <input type="number" step="any" name="mnozstvi" placeholder="MnoĹľstvĂ­" required />
 
 
-            <button type="submit">Zapsat množství</button>
+            <button type="submit">Zapsat mnoĹľstvĂ­</button>
 
 
           </form>
@@ -1159,7 +1219,7 @@
   <form method="post" action="/production/recent-limit">
 
 
-    <label>Počet zobrazených záznamů:
+    <label>PoÄŤet zobrazenĂ˝ch zĂˇznamĹŻ:
 
 
       <input type="number" name="recent_limit" min="1" max="500" value="<?= (int)($recentLimit ?? 30) ?>" />
@@ -1201,10 +1261,10 @@
         <th>SKU</th>
 
 
-        <th>Název</th>
+        <th>NĂˇzev</th>
 
 
-        <th>Množství</th>
+        <th>MnoĹľstvĂ­</th>
 
 
       </tr>
@@ -1249,7 +1309,7 @@
 <?php else: ?>
 
 
-  <p class="muted">Zatím nejsou zapsané žádné výroby.</p>
+  <p class="muted">ZatĂ­m nejsou zapsanĂ© ĹľĂˇdnĂ© vĂ˝roby.</p>
 
 
 <?php endif; ?>
@@ -1267,25 +1327,25 @@
     <h3>Nedostatek komponent</h3>
 
 
-    <p>Odečet komponent by některé položky poslal do záporného stavu. Vyberte, jak postupovat:</p>
+    <p>OdeÄŤet komponent by nÄ›kterĂ© poloĹľky poslal do zĂˇpornĂ©ho stavu. Vyberte, jak postupovat:</p>
 
 
     <ul id="production-deficit-list"></ul>
 
 
-    <small>Volba "Odečíst subpotomky" automaticky odečte všechny komponenty (i do mínusu). Volba "Odečíst do mínusu" zapíše jen hotový produkt a komponenty je potřeba odepsat ručně.</small>
+    <small>Volba "OdeÄŤĂ­st subpotomky" automaticky odeÄŤte vĹˇechny komponenty (i do mĂ­nusu). Volba "OdeÄŤĂ­st do mĂ­nusu" zapĂ­Ĺˇe jen hotovĂ˝ produkt a komponenty je potĹ™eba odepsat ruÄŤnÄ›.</small>
 
 
     <div class="production-modal-buttons">
 
 
-      <button type="button" data-action="components">Odečíst subpotomky (doporučeno)</button>
+      <button type="button" data-action="components">OdeÄŤĂ­st subpotomky (doporuÄŤeno)</button>
 
 
-      <button type="button" data-action="minus">Odečíst do mínusu</button>
+      <button type="button" data-action="minus">OdeÄŤĂ­st do mĂ­nusu</button>
 
 
-      <button type="button" data-action="cancel">Zrušit</button>
+      <button type="button" data-action="cancel">ZruĹˇit</button>
 
 
     </div>
@@ -1403,7 +1463,7 @@
       if (!qty || qty <= 0) {
 
 
-        alert('Zadejte množství výroby.');
+        alert('Zadejte mnoĹľstvĂ­ vĂ˝roby.');
 
 
         return;
@@ -1445,7 +1505,7 @@
         })
 
 
-        .catch((err) => alert('Nelze ověřit komponenty: ' + (err.message || err)));
+        .catch((err) => alert('Nelze ovÄ›Ĺ™it komponenty: ' + (err.message || err)));
 
 
     });
@@ -1535,10 +1595,10 @@
       const li = document.createElement('li');
 
 
-      const name = item.nazev ? `${item.sku} – ${item.nazev}` : item.sku;
+      const name = item.nazev ? `${item.sku} â€“ ${item.nazev}` : item.sku;
 
 
-      li.textContent = `${name}: potřeba ${item.required}, dostupné ${item.available}, chybí ${item.missing}`;
+      li.textContent = `${name}: potĹ™eba ${item.required}, dostupnĂ© ${item.available}, chybĂ­ ${item.missing}`;
 
 
       listEl.appendChild(li);
@@ -1652,7 +1712,7 @@
     detailCell.colSpan = row.children.length;
 
 
-    detailCell.textContent = 'Načítám strom vazeb…';
+    detailCell.textContent = 'NaÄŤĂ­tĂˇm strom vazebâ€¦';
 
 
     detailRow.appendChild(detailCell);
@@ -1706,7 +1766,7 @@
     if (!sku) {
 
 
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'ChybĂ­ SKU.';
 
 
       return;
@@ -1727,7 +1787,7 @@
       const data = await response.json();
 
 
-      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst strom.');
+      if (!data.ok) throw new Error(data.error || 'NepodaĹ™ilo se naÄŤĂ­st strom.');
 
 
       container.innerHTML = '';
@@ -1760,7 +1820,7 @@
       const wrap = document.createElement('div');
 
 
-      wrap.textContent = 'Produkt nemá navázané potomky.';
+      wrap.textContent = 'Produkt nemĂˇ navĂˇzanĂ© potomky.';
 
 
       return wrap;
@@ -1775,7 +1835,7 @@
     table.className = 'bom-tree-table';
 
 
-    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th><th>Dostupné</th><th>Cílový stav</th><th>Chybí</th></tr></thead>';
+    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ poloĹľky</th><th>DostupnĂ©</th><th>CĂ­lovĂ˝ stav</th><th>ChybĂ­</th></tr></thead>';
 
 
     const body = document.createElement('tbody');
@@ -1814,7 +1874,16 @@
       const label = document.createElement('span');
 
 
-      label.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
+      label.textContent = `${row.node.sku}${row.node.nazev ? ` â€“ ${row.node.nazev}` : ''}`.trim();
+
+
+      if (row.node.is_root) {
+
+
+        labelWrap.classList.add('is-root');
+
+
+      }
 
 
       const status = row.node.status || null;
@@ -1823,13 +1892,13 @@
       if (status && (status.deficit || 0) > 0.0005) {
 
 
-        label.className = 'bom-node-critical';
+        label.classList.add('bom-node-critical');
 
 
       } else if (status && (status.ratio || 0) > 0.4) {
 
 
-        label.className = 'bom-node-warning';
+        label.classList.add('bom-node-warning');
 
 
       }
@@ -1943,7 +2012,7 @@
     detailCell.colSpan = row.children.length;
 
 
-    detailCell.textContent = 'Načítám zdroje poptávky…';
+    detailCell.textContent = 'NaÄŤĂ­tĂˇm zdroje poptĂˇvkyâ€¦';
 
 
     detailRow.appendChild(detailCell);
@@ -1994,7 +2063,7 @@
     if (!sku) {
 
 
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'ChybĂ­ SKU.';
 
 
       return;
@@ -2021,22 +2090,10 @@
       const data = await response.json();
 
 
-      if (!data.ok) {
+      if (!data.ok || !data.tree) {
 
 
-        throw new Error(data.error || 'Nepodařilo se načíst zdroje poptávky.');
-
-
-      }
-
-
-      if (!data.tree) {
-
-
-        container.textContent = 'Nenalezeny žádné zdroje poptávky.';
-
-
-        return;
+        throw new Error(data.error || 'NepodaĹ™ilo se naÄŤĂ­st zdroje poptĂˇvky.');
 
 
       }
@@ -2045,22 +2102,16 @@
       container.innerHTML = '';
 
 
-      container.appendChild(buildDemandTable(data.tree));
+      const oriented = orientDemandTree(data.tree);
+
+
+      container.appendChild(buildDemandTable(oriented, data.tree.sku));
 
 
       if (!data.tree.children || !data.tree.children.length) {
 
 
-        const note = document.createElement('p');
-
-
-        note.className = 'muted';
-
-
-        note.textContent = 'Poptávka vzniká přímo na této položce (rezervace nebo minimální zásoba).';
-
-
-        container.appendChild(note);
+        container.appendChild(renderDirectDemandNote(data.tree.status || {}));
 
 
       }
@@ -2069,7 +2120,7 @@
     } catch (err) {
 
 
-      container.textContent = err.message || 'Nepodařilo se načíst zdroje poptávky.';
+      container.textContent = err.message || 'NepodaĹ™ilo se naÄŤĂ­st zdroje poptĂˇvky.';
 
 
     }
@@ -2081,7 +2132,7 @@
 
 
 
-  function buildDemandTable(tree) {
+  function buildDemandTable(tree, rootSku) {
 
 
     const table = document.createElement('table');
@@ -2090,13 +2141,23 @@
     table.className = 'bom-tree-table demand-tree-table';
 
 
-    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>MJ</th><th>Potřeba uzlu</th><th>Požadavek na ${tree.sku}</th><th>Koeficient</th><th>Režim</th></tr></thead>`;
+    table.innerHTML = `<thead><tr><th>Strom poptĂˇvky</th><th>MJ</th><th>PotĹ™eba uzlu</th><th>PoĹľadavek na ${rootSku}</th><th>Koeficient</th><th>ReĹľim</th></tr></thead>`;
 
 
     const body = document.createElement('tbody');
 
 
+    const skipGuide = !tree.node || !tree.node.sku;
     flattenTree(tree).forEach((row) => {
+
+
+      if (!row.node || !row.node.sku) {
+
+
+        return;
+
+
+      }
 
 
       const tr = document.createElement('tr');
@@ -2117,7 +2178,10 @@
       prefix.className = 'bom-tree-prefix';
 
 
-      prefix.textContent = buildPrefix(row.guides);
+      const guides = skipGuide ? row.guides.slice(1) : row.guides;
+
+
+      prefix.textContent = buildPrefix(guides);
 
 
       if (!prefix.textContent.trim()) prefix.style.visibility = 'hidden';
@@ -2129,10 +2193,37 @@
       const label = document.createElement('span');
 
 
-      label.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
+      label.textContent = `${row.node.sku}${row.node.nazev ? ` â€“ ${row.node.nazev}` : ''}`.trim();
+
+
+      if (row.node.is_root) {
+
+
+        labelWrap.classList.add('is-root');
+
+
+      }
 
 
       labelWrap.appendChild(label);
+
+
+      const status = row.node.status || null;
+
+
+      if (status && (status.deficit || 0) > 0.0005) {
+
+
+        label.classList.add('bom-node-critical');
+
+
+      } else if (status && (status.ratio || 0) > 0.4) {
+
+
+        label.classList.add('bom-node-warning');
+
+
+      }
 
 
       labelCell.appendChild(labelWrap);
@@ -2153,7 +2244,7 @@
       tr.appendChild(createCell(formatDemandEdge(row.node.edge)));
 
 
-      const mode = row.node.status && row.node.status.mode ? row.node.status.mode : '—';
+      const mode = row.node.status && row.node.status.mode ? row.node.status.mode : 'â€”';
 
 
       tr.appendChild(createCell(mode));
@@ -2183,7 +2274,7 @@
     if (!edge || !edge.koeficient) {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2211,6 +2302,207 @@
 
 
     return text;
+
+
+  }
+
+
+
+
+
+  function orientDemandTree(tree) {
+
+
+    if (!tree) {
+
+
+      return { node: null, children: [] };
+
+
+    }
+
+
+    const paths = [];
+
+
+    collectDemandPaths(tree, [], paths);
+
+
+    if (!paths.length) {
+
+
+      paths.push([tree]);
+
+
+    }
+
+
+    const root = { node: null, children: [] };
+
+
+    paths.forEach((path) => {
+
+
+      const reversed = path.slice().reverse();
+
+
+      let cursor = root;
+
+
+      reversed.forEach((nodeData) => {
+
+
+        if (!nodeData || !nodeData.sku) {
+
+
+          return;
+
+
+        }
+
+
+        let child = cursor.children.find((entry) => entry.node && entry.node.sku === nodeData.sku);
+
+
+        if (!child) {
+
+
+          child = { node: cloneDemandNode(nodeData), children: [] };
+
+
+          cursor.children.push(child);
+
+
+        }
+
+
+        cursor = child;
+
+
+      });
+
+
+    });
+
+
+    return root;
+
+
+  }
+
+
+
+
+
+  function collectDemandPaths(node, path, bucket) {
+
+
+    const nextPath = [...path, node];
+
+
+    if (!node.children || !node.children.length) {
+
+
+      bucket.push(nextPath);
+
+
+      return;
+
+
+    }
+
+
+    node.children.forEach((child) => collectDemandPaths(child, nextPath, bucket));
+
+
+  }
+
+
+
+
+
+  function cloneDemandNode(node) {
+
+
+    return {
+
+
+      sku: node.sku,
+
+
+      nazev: node.nazev,
+
+
+      typ: node.typ,
+
+
+      merna_jednotka: node.merna_jednotka,
+
+
+      status: node.status || null,
+
+
+      needed: node.needed || 0,
+
+
+      contribution: node.contribution || 0,
+
+
+      edge: node.edge || null,
+
+
+      is_root: !!node.is_root,
+
+
+      children: [],
+
+
+    };
+
+
+  }
+
+
+
+
+
+  function renderDirectDemandNote(status) {
+
+
+    const wrap = document.createElement('div');
+
+
+    wrap.className = 'demand-direct-note';
+
+
+    const stock = Number(status.stock || 0);
+
+
+    const target = Number(status.target || 0);
+
+
+    const reservations = Math.max(0, Number(status.reservations || 0));
+
+
+    const deficit = Math.max(0, Number(status.deficit || 0));
+
+
+    const minGap = Math.max(0, target - stock);
+
+
+    const reservationGap = Math.max(0, deficit - minGap);
+
+
+    wrap.innerHTML = `
+      <p><strong>PĹ™Ă­mĂ© dĹŻvody poptĂˇvky:</strong></p>
+      <ul>
+        <li>Rezervace / otevĹ™enĂ© objednĂˇvky: <strong>${formatNumber(reservationGap, 3)}</strong></li>
+        <li>MinimĂˇlnĂ­ zĂˇsoba / cĂ­lovĂ˝ stav: <strong>${formatNumber(minGap, 3)}</strong></li>
+      </ul>
+    `;
+
+
+    return wrap;
 
 
   }
@@ -2270,13 +2562,13 @@
       if (idx === guides.length - 1) {
 
 
-        prefix += isLast ? '└── ' : '├── ';
+        prefix += isLast ? 'â””â”€â”€ ' : 'â”śâ”€â”€ ';
 
 
       } else {
 
 
-        prefix += isLast ? '    ' : '│   ';
+        prefix += isLast ? '    ' : 'â”‚   ';
 
 
       }
@@ -2300,7 +2592,7 @@
     const td = document.createElement('td');
 
 
-    td.textContent = value ?? '—';
+    td.textContent = value ?? 'â€”';
 
 
     return td;
@@ -2317,7 +2609,7 @@
     if (value === null || value === undefined || value === '') {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2329,7 +2621,7 @@
     if (!Number.isFinite(num)) {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2356,7 +2648,7 @@
     if (value === null || value === undefined || isNaN(value)) {
 
 
-      return '—';
+      return 'â€”';
 
 
     }
@@ -2372,6 +2664,7 @@
 
 
 </script>
+
 
 
 

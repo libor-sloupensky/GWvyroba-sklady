@@ -443,7 +443,7 @@ final class ProductsController
             return;
         }
         try {
-            $tree = $this->buildBomTree($sku);
+            $tree = $this->buildBomTree($sku, [], true);
             $this->attachStatusToTree($tree);
             echo json_encode(['ok'=>true,'tree'=>$tree]);
         } catch (\Throwable $e) {
@@ -759,12 +759,13 @@ final class ProductsController
     /**
      * @return array{sku:string,nazev:string,typ:string,merna_jednotka:string,edge:mixed,children:array<int,array>}
      */
-    private function buildBomTree(string $sku, array $visited = []): array
+    private function buildBomTree(string $sku, array $visited = [], bool $isRoot = false): array
     {
         $key = mb_strtolower($sku, 'UTF-8');
         $visited[$key] = true;
         $product = $this->loadProductInfo($sku);
         $product['edge'] = null;
+        $product['is_root'] = $isRoot;
         $children = [];
         foreach ($this->loadBomChildren($sku) as $child) {
             $childKey = mb_strtolower($child['sku'], 'UTF-8');
@@ -781,10 +782,11 @@ final class ProductsController
                     ],
                     'cycle' => true,
                     'children' => [],
+                    'is_root' => false,
                 ];
                 continue;
             }
-            $subtree = $this->buildBomTree($child['sku'], $visited);
+            $subtree = $this->buildBomTree($child['sku'], $visited, false);
             $subtree['edge'] = [
                 'koeficient' => $child['koeficient'],
                 'merna_jednotka' => $child['edge_mj'] ?: $subtree['merna_jednotka'],

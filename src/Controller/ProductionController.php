@@ -183,7 +183,8 @@ final class ProductionController
                 $basics,
                 [],
                 $rootNeed,
-                null
+                null,
+                true
             );
             echo json_encode(['ok' => true, 'tree' => $tree]);
         } catch (\Throwable $e) {
@@ -383,7 +384,8 @@ final class ProductionController
         array $meta,
         array $path,
         float $contribution,
-        ?array $edge
+        ?array $edge,
+        bool $isRoot = false
     ): array {
         $info = $meta[$sku] ?? [
             'sku' => $sku,
@@ -402,6 +404,7 @@ final class ProductionController
             'needed' => $needed,
             'contribution' => $contribution,
             'edge' => $edge,
+            'is_root' => $isRoot,
             'children' => [],
         ];
         $path[$sku] = true;
@@ -443,7 +446,8 @@ final class ProductionController
                 $meta,
                 $path,
                 $childContribution,
-                $edgePayload
+                $edgePayload,
+                false
             );
         }
         return $node;
