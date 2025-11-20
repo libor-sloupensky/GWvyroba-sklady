@@ -145,6 +145,21 @@ final class AnalyticsController
         ];
     }
 
+    public function saveFavoriteAjax(): void
+    {
+        $this->requireRole(['admin','superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $payload = $this->collectJson();
+        $title = trim((string)($payload['title'] ?? ''));
+        $prompt = trim((string)($payload['prompt'] ?? ''));
+        if ($title === '' || $prompt === '') {
+            echo json_encode(['ok' => false, 'error' => 'Název i text promptu jsou povinné.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $this->saveFavorite($title, $prompt);
+        echo json_encode(['ok' => true, 'favorites' => $this->loadFavorites()], JSON_UNESCAPED_UNICODE);
+    }
+
     private function saveFavorite(string $title, string $prompt): void
     {
         $userId = $this->currentUserId();
@@ -214,27 +229,28 @@ final class AnalyticsController
     private function buildSystemPrompt(string $schema): string
     {
         return <<<PROMPT
-Jsi analytik v syst?mu WormUP. M?? p??stup pouze k datab?zi MySQL popsan? n??e. Odpov?dej v?dy ve stejn?m jazyce, ve kter?m je u?ivatelsk? dotaz.
+Jsi datový analytik ve firmě WormUP. Máš přístup pouze k databázi MySQL uvedené níže. Odpověď drž v jazyce, ve kterém přišel uživatelský dotaz.
 
-V?stup mus? b?t platn? JSON objekt s kl??i "language", "explanation" a "outputs" (pou??v?me response_format typu json_object).
+Výstup vracej jako platný JSON objekt (používáme response_format json_object) s klíči:
+- "language": kód jazyka odpovědi (např. "cs" nebo "en"),
+- "explanation": krátké shrnutí zjištění v přirozeném jazyce,
+- "outputs": pole objektů popisujících tabulky nebo grafy, každý ve tvaru:
+  {
+    "type": "table" | "line_chart",
+    "title": "Titulek výstupu",
+    "sql": "SELECT ...",
+    "columns": [{"key":"nazev_sloupce","label":"Titulek"}],
+    "x_column": "sloupec_osa_x_pro_graf",
+    "y_column": "sloupec_osa_y_pro_graf",
+    "series_label": "Legenda_série"
+  }
 
-Zad?n?:
-- P?iprav SQL dotazy typu SELECT, kter? vr?t? po?adovan? data. Nikdy nepou??vej jin? p??kazy.
-- Ka?d? v?stup popi? v poli "outputs" s t?mto form?tem:
-    {
-      "type": "table" | "line_chart",
-      "title": "Titulek",
-      "sql": "SELECT ...",
-      "columns": [{"key":"nazev_sloupce","label":"Titulek"}],
-      "x_column": "pro graf",
-      "y_column": "pro graf",
-      "series_label": "N?zev s?rie"
-    }
-- Tabulky a grafy omez na rozumn? po?et ??dk? (doporu? LIMIT 200).
-- P?idej souhrn do kl??e "explanation".
-- Do kl??e "language" uve? jazyk odpov?di (nap?. "cs" nebo "en").
+Instrukce:
+- Připrav jen SQL dotazy typu SELECT, nic jiného (žádné DML/DDL).
+- U každé tabulky/grafu přidej LIMIT tak, aby výstup byl přehledný (např. LIMIT 200).
+- Pokud uživatel neurčí formu, použij tabulku; graf doporuč jen když dává smysl.
 
-Dostupn? sch?mata:
+Dostupná schémata:
 {$schema}
 PROMPT;
     }

@@ -10,7 +10,7 @@ $upcomingSteps = [
 ];
 ?>
 <h1>Analýza (AI)</h1>
-<p class="muted">Dotazník umožňuje zadat přirozený jazyk, AI připraví SQL SELECT dotazy, spustí je nad databází a vrátí text, tabulky nebo spojnicové grafy.</p>
+<p class="muted">Napište dotaz běžnou češtinou. AI připraví dotazy do databáze a vrátí výsledek jako text, tabulku nebo graf podle zadání.</p>
 
 <style>
 .analysis-layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:1.2rem; }
@@ -22,11 +22,10 @@ $upcomingSteps = [
 .analysis-form button.primary { padding:0.55rem 1.3rem; border:none; border-radius:6px; background:#1e88e5; color:#fff; cursor:pointer; font-size:1rem; }
 .analysis-form button.primary:disabled { background:#90caf9; cursor:not-allowed; }
 .title-row { display:flex; gap:0.4rem; align-items:center; }
-.star-toggle { border:1px solid #ffca28; color:#ffca28; background:#fff8e1; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:1.1rem; }
+.star-toggle { border:1px solid #ffca28; color:#ffca28; background:#fff8e1; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:1.05rem; }
 .star-toggle.active { background:#ffca28; color:#4e342e; }
 .analysis-guidelines { margin:0.8rem 0; background:#f4f6f8; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.95rem; }
 .analysis-guidelines ul { margin:0.4rem 0 0 1.2rem; }
-.analysis-note { margin-top:0.6rem; font-size:0.9rem; color:#546e7a; }
 .analysis-status { margin-top:0.5rem; font-size:0.95rem; }
 .analysis-status.ready { color:#2e7d32; }
 .analysis-status.warn { color:#c62828; }
@@ -56,19 +55,19 @@ $upcomingSteps = [
   <section class="analysis-panel">
     <h2>AI dotaz</h2>
     <form id="analysis-form" class="analysis-form" action="javascript:void(0);">
-      <label for="prompt-title">Název promptu (pro uložení)</label>
+      <label for="prompt-title">Název (uložíte až po ověření výsledku)</label>
       <div class="title-row">
         <input type="text" id="prompt-title" placeholder="Např. Top objednávky">
-        <button type="button" id="prompt-star" class="star-toggle" title="Označit jako oblíbené">☆</button>
+        <button type="button" id="prompt-star" class="star-toggle" title="Uložit jako oblíbené" disabled>☆</button>
       </div>
       <label for="prompt">Znění dotazu</label>
-      <textarea id="prompt" placeholder="Popište, jaká data chcete, jaké období platí a v jaké formě výsledek zobrazit."></textarea>
+      <textarea id="prompt" placeholder="Popište, co chcete zjistit, za jaké období a v jaké formě výstup zobrazit (text/tabulka/graf)."></textarea>
       <div class="analysis-guidelines">
-        <strong>Co by měl prompt obsahovat:</strong>
+        <strong>Tipy pro zadání:</strong>
         <ul>
-          <li>cíl dotazu (metrika, text, tabulka nebo graf),</li>
-          <li>filtry / období / e-shop, kterých se analýza týká,</li>
-          <li>preferovanou formu výstupu (text, tabulka, spojnicový graf nebo kombinaci).</li>
+          <li>Co chcete vidět (metrika, tabulka nebo graf).</li>
+          <li>Období/filtry (např. poslední měsíc, konkrétní e-shop).</li>
+          <li>Preferovanou formu výstupu (text, tabulka, graf).</li>
         </ul>
       </div>
       <button type="submit" id="analysis-submit" class="primary" <?= $openAiReady ? '' : 'disabled' ?>><?= $openAiReady ? 'Odeslat dotaz' : 'OpenAI není připraveno' ?></button>
@@ -93,7 +92,7 @@ $upcomingSteps = [
 
   <section class="analysis-panel">
     <h2>Oblíbené prompty</h2>
-    <p class="muted">Prompt se uloží pouze tehdy, když při odeslání svítí hvězdička. Historie všech dotazů se nevede. Kliknutím na cizí prompt se obsah jen načte do formuláře – teprve poté jej můžete uložit jako vlastní.</p>
+    <p class="muted">Prompt uložíte až po spuštění dotazu – tlačítkem hvězdičky. Kliknutím na cizí prompt se obsah načte do formuláře; uložit jako vlastní jej můžete po zobrazení výsledků.</p>
 
     <h3>Moje</h3>
     <ul class="favorite-list" id="favorite-mine">
@@ -139,8 +138,10 @@ $upcomingSteps = [
 <script>
 (function(){
   const state = {
-    star: false,
+    starReady: false,
     submitting: false,
+    lastPrompt: '',
+    lastTitle: '',
     favorites: {
       mine: <?= json_encode($myFavorites, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
       shared: <?= json_encode($sharedFavorites, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>
@@ -160,9 +161,43 @@ $upcomingSteps = [
   const apiReady = <?= $openAiReady ? 'true' : 'false' ?>;
 
   starBtn.addEventListener('click', () => {
-    state.star = !state.star;
-    starBtn.classList.toggle('active', state.star);
-    starBtn.textContent = state.star ? '★' : '☆';
+    if (!state.starReady) {
+      renderError('Nejprve odešlete dotaz a zobrazte výsledek.');
+      return;
+    }
+    const title = titleInput.value.trim();
+    const prompt = state.lastPrompt.trim();
+    if (!prompt) {
+      renderError('Nejprve odešlete dotaz.');
+      return;
+    }
+    if (!title) {
+      renderError('Doplňte název promptu pro uložení.');
+      titleInput.focus();
+      return;
+    }
+    renderError('');
+    starBtn.disabled = true;
+    starBtn.textContent = 'Ukládám...';
+    fetch('/analytics/favorite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, prompt })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.ok) { throw new Error(data.error || 'Uložení selhalo.'); }
+        state.favorites = data.favorites;
+        renderFavorites();
+        starBtn.classList.add('active');
+        starBtn.textContent = '★ Uloženo';
+      })
+      .catch((err) => {
+        renderError(err.message || 'Uložení selhalo.');
+      })
+      .finally(() => {
+        starBtn.disabled = false;
+      });
   });
 
   function renderFavorites() {
@@ -184,7 +219,8 @@ $upcomingSteps = [
         title.textContent = fav.title;
         const excerpt = document.createElement('p');
         excerpt.className = 'muted';
-        excerpt.textContent = fav.prompt.slice(0, 160) + (fav.prompt.length > 160 ? '…' : '');
+        const text = fav.prompt || '';
+        excerpt.textContent = text.slice(0, 160) + (text.length > 160 ? '…' : '');
         wrap.appendChild(title);
         wrap.appendChild(excerpt);
         const actions = document.createElement('div');
@@ -204,14 +240,14 @@ $upcomingSteps = [
   }
 
   function loadFavorite(fav) {
-    titleInput.value = fav.title;
-    promptInput.value = fav.prompt;
-    if (state.star) {
-      state.star = false;
-      starBtn.classList.remove('active');
-      starBtn.textContent = '☆';
-    }
-    promptInput.focus();
+    promptInput.value = fav.prompt || '';
+    titleInput.value = fav.title || '';
+    textBox.textContent = '';
+    outputsBox.innerHTML = '';
+    state.starReady = false;
+    starBtn.classList.remove('active');
+    starBtn.disabled = true;
+    starBtn.textContent = '☆';
   }
 
   function renderError(message) {
@@ -327,13 +363,13 @@ $upcomingSteps = [
     }
     renderError('');
     state.submitting = true;
+    state.starReady = false;
+    starBtn.disabled = true;
+    starBtn.classList.remove('active');
+    starBtn.textContent = '☆';
     submitBtn.disabled = true;
     submitBtn.textContent = 'Odesílám...';
-    const body = {
-      prompt,
-      title: titleInput.value.trim(),
-      saveFavorite: state.star && titleInput.value.trim() !== ''
-    };
+    const body = { prompt, title: titleInput.value.trim(), saveFavorite: false };
     fetch('/analytics/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -341,19 +377,17 @@ $upcomingSteps = [
     })
       .then((res) => res.json())
       .then((data) => {
-        if (!data.ok) {
-          throw new Error(data.error || 'Neznámá chyba');
-        }
+        if (!data.ok) { throw new Error(data.error || 'Neznámá chyba'); }
         renderOutputs(data);
         if (data.favorites) {
           state.favorites = data.favorites;
           renderFavorites();
         }
-        if (state.star && body.saveFavorite) {
-          state.star = false;
-          starBtn.classList.remove('active');
-          starBtn.textContent = '☆';
-        }
+        state.lastPrompt = prompt;
+        state.lastTitle = titleInput.value.trim();
+        state.starReady = true;
+        starBtn.disabled = false;
+        starBtn.textContent = '☆ Uložit';
       })
       .catch((err) => {
         renderError(err.message || 'Dotaz nelze zpracovat.');

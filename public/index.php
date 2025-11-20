@@ -78,6 +78,7 @@ $router->post('/production/recent-limit', [ProductionController::class, 'updateR
 // Analytics
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
 $router->post('/analytics/ai', [AnalyticsController::class, 'ai']);
+$router->post('/analytics/favorite', [AnalyticsController::class, 'saveFavoriteAjax']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
