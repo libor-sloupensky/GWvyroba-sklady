@@ -1,4 +1,4 @@
-<h1>Nastavení</h1>
+<h1>Nastavenâ”śĹź</h1>
 
 <?php if (!empty($flashError)): ?>
   <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
@@ -11,18 +11,18 @@
   </div>
 <?php endif; ?>
 
-<h2>Fakturační řady</h2>
+<h2>Fakturaâ”€Ĺąnâ”śĹź â”ĽĂ–ady</h2>
 <form method="post" action="/settings/series" id="series-form">
   <input type="hidden" name="id" value="" />
   <label>E-shop</label>
   <input type="text" name="eshop_source" required />
   <label>Prefix</label>
   <input type="text" name="prefix" />
-  <label>Číslo od</label>
+  <label>â”€Ă®â”śĹźslo od</label>
   <input type="text" name="cislo_od" />
-  <label>Číslo do</label>
+  <label>â”€Ă®â”śĹźslo do</label>
   <input type="text" name="cislo_do" />
-  <button type="submit">Uložit</button>
+  <button type="submit">Uloâ”ĽĹĽit</button>
 </form>
 <table>
   <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Akce</th></tr>
@@ -44,10 +44,10 @@
       <?php if (empty($s['has_imports'])): ?>
         <form method="post" action="/settings/series/delete" style="display:inline;margin-left:8px;">
           <input type="hidden" name="id" value="<?= (int)$s['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop">✕</button>
+          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop">Ă”ĹĄÄ˝</button>
         </form>
       <?php else: ?>
-        <span class="muted" title="E-shop má importovaná data, nejde smazat.">nelze smazat</span>
+        <span class="muted" title="E-shop mâ”śĂ­ importovanâ”śĂ­ data, nejde smazat.">nelze smazat</span>
       <?php endif; ?>
     </td>
   </tr>
@@ -79,11 +79,11 @@
 })();
 </script>
 
-<h2>Ignorované položky</h2>
+<h2>Ignorovanâ”śÄ™ poloâ”ĽĹĽky</h2>
 <form method="post" action="/settings/ignore">
-  <label>Glob vzor (např. *SHIPPING*)</label>
+  <label>Glob vzor (napâ”ĽĂ–. *SHIPPING*)</label>
   <input type="text" name="vzor" required />
-  <button type="submit">Přidat</button>
+  <button type="submit">Pâ”ĽĂ–idat</button>
 </form>
 <ul>
   <?php foreach (($ignores ?? []) as $i): ?>
@@ -91,20 +91,20 @@
       <span><?= htmlspecialchars((string)$i['vzor'], ENT_QUOTES, 'UTF-8') ?></span>
       <form method="post" action="/settings/ignore/delete" style="display:inline;margin-left:8px;">
         <input type="hidden" name="id" value="<?= (int)$i['id'] ?>" />
-        <button type="submit" class="link-danger" title="Odebrat vzor" aria-label="Odebrat vzor">✕</button>
+        <button type="submit" class="link-danger" title="Odebrat vzor" aria-label="Odebrat vzor">Ă”ĹĄÄ˝</button>
       </form>
     </li>
   <?php endforeach; ?>
 </ul>
 
-<h2>Značky produktů</h2>
+<h2>Znaâ”€Ĺąky produktâ”ĽÂ»</h2>
 <form method="post" action="/settings/brand">
-  <label>Název značky</label>
+  <label>Nâ”śĂ­zev znaâ”€Ĺąky</label>
   <input type="text" name="nazev" required />
-  <button type="submit">Přidat značku</button>
+  <button type="submit">Pâ”ĽĂ–idat znaâ”€Ĺąku</button>
 </form>
 <table>
-  <tr><th>Značka</th><th>Akce</th></tr>
+  <tr><th>Znaâ”€Ĺąka</th><th>Akce</th></tr>
   <?php foreach (($brands ?? []) as $b): ?>
   <tr>
     <td><?= htmlspecialchars((string)$b['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -112,7 +112,7 @@
       <?php if ((int)($b['used_count'] ?? 0) === 0): ?>
         <form method="post" action="/settings/brand/delete" style="display:inline;">
           <input type="hidden" name="id" value="<?= (int)$b['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat značku" aria-label="Smazat značku">✕</button>
+          <button type="submit" class="link-danger" title="Smazat znaâ”€Ĺąku" aria-label="Smazat znaâ”€Ĺąku">Ă”ĹĄÄ˝</button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= (int)$b['used_count'] ?>)</span>
@@ -122,11 +122,11 @@
   <?php endforeach; ?>
 </table>
 
-<h2>Skupiny produktů</h2>
+<h2>Skupiny produktâ”ĽÂ»</h2>
 <form method="post" action="/settings/group">
-  <label>Název skupiny</label>
+  <label>Nâ”śĂ­zev skupiny</label>
   <input type="text" name="nazev" required />
-  <button type="submit">Přidat skupinu</button>
+  <button type="submit">Pâ”ĽĂ–idat skupinu</button>
 </form>
 <table>
   <tr><th>Skupina</th><th>Akce</th></tr>
@@ -137,7 +137,7 @@
       <?php if ((int)($g['used_count'] ?? 0) === 0): ?>
         <form method="post" action="/settings/group/delete" style="display:inline;">
           <input type="hidden" name="id" value="<?= (int)$g['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat skupinu" aria-label="Smazat skupinu">✕</button>
+          <button type="submit" class="link-danger" title="Smazat skupinu" aria-label="Smazat skupinu">Ă”ĹĄÄ˝</button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= (int)$g['used_count'] ?>)</span>
@@ -147,11 +147,11 @@
   <?php endforeach; ?>
 </table>
 
-<h2>Měrné jednotky</h2>
+<h2>Mâ”€Ĺ¤rnâ”śÄ™ jednotky</h2>
 <form method="post" action="/settings/unit">
-  <label>Kód jednotky (např. ks, kg)</label>
+  <label>Kâ”śâ”‚d jednotky (napâ”ĽĂ–. ks, kg)</label>
   <input type="text" name="kod" required />
-  <button type="submit">Přidat jednotku</button>
+  <button type="submit">Pâ”ĽĂ–idat jednotku</button>
 </form>
 <table>
   <tr><th>Jednotka</th><th>Akce</th></tr>
@@ -162,7 +162,7 @@
       <?php if ((int)($u['used_count'] ?? 0) === 0): ?>
         <form method="post" action="/settings/unit/delete" style="display:inline;">
           <input type="hidden" name="id" value="<?= (int)$u['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat jednotku" aria-label="Smazat jednotku">✕</button>
+          <button type="submit" class="link-danger" title="Smazat jednotku" aria-label="Smazat jednotku">Ă”ĹĄÄ˝</button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= (int)$u['used_count'] ?>)</span>
@@ -172,7 +172,7 @@
   <?php endforeach; ?>
 </table>
 
-<h2>Globální nastavení</h2>
+<h2>Globâ”śĂ­lnâ”śĹź nastavenâ”śĹź</h2>
 <style>
 .info-icon {
   display: inline-flex;
@@ -200,29 +200,29 @@
 </style>
 <form method="post" action="/settings/global" class="global-settings-form">
   <label>
-    Počet dní sledování chyb importu XML
-    <span class="info-icon" title="Kolik dní zpětně se v importu XML vyhodnocují nenapárované položky.">i</span>
+    Poâ”€Ĺąet dnâ”śĹź sledovâ”śĂ­nâ”śĹź chyb importu XML
+    <span class="info-icon" title="Kolik dnâ”śĹź zpâ”€Ĺ¤tnâ”€Ĺ¤ se v importu XML vyhodnocujâ”śĹź nenapâ”śĂ­rovanâ”śÄ™ poloâ”ĽĹĽky.">i</span>
   </label>
   <input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" min="1" />
 
   <label>
-    Počet dní pro výpočet průměrné spotřeby
-    <span class="info-icon" title="Délka okna pro výpočet průměrného denního odběru (např. 90 dní ≈ 3 měsíce).">i</span>
+    Poâ”€Ĺąet dnâ”śĹź pro vâ”śĹ»poâ”€Ĺąet prâ”ĽÂ»mâ”€Ĺ¤rnâ”śÄ™ spotâ”ĽĂ–eby
+    <span class="info-icon" title="Dâ”śÄ™lka okna pro vâ”śĹ»poâ”€Ĺąet prâ”ĽÂ»mâ”€Ĺ¤rnâ”śÄ™ho dennâ”śĹźho odbâ”€Ĺ¤ru (napâ”ĽĂ–. 90 dnâ”śĹź Ă”Ă«Ĺ‚ 3 mâ”€Ĺ¤sâ”śĹźce).">i</span>
   </label>
   <input type="number" name="spotreba_prumer_dni" value="<?= (int)($glob['spotreba_prumer_dni'] ?? 90) ?>" min="1" />
 
   <label>
-    Počet dní skladových zásob
-    <span class="info-icon" title="Na kolik dní dopředu mají být sklady naplněny (cílový stav hotových produktů).">i</span>
+    Poâ”€Ĺąet dnâ”śĹź skladovâ”śĹ»ch zâ”śĂ­sob
+    <span class="info-icon" title="Na kolik dnâ”śĹź dopâ”ĽĂ–edu majâ”śĹź bâ”śĹ»t sklady naplnâ”€Ĺ¤ny (câ”śĹźlovâ”śĹ» stav hotovâ”śĹ»ch produktâ”ĽÂ»).">i</span>
   </label>
   <input type="number" name="zasoba_cil_dni" value="<?= (int)($glob['zasoba_cil_dni'] ?? 30) ?>" min="1" />
 
-  <button type="submit">Uložit</button>
+  <button type="submit">Uloâ”ĽĹĽit</button>
 </form>
 
 <?php if (!empty($canManageUsers)): ?>
-<h2>Uživatelé (superadmin)</h2>
-<p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu jej povolíte, odebrání provedete deaktivací účtu.</p>
+<h2>Uâ”ĽĹĽivatelâ”śÄ™ (superadmin)</h2>
+<p class="muted">Pâ”ĽĂ–ihlâ”śĂ­â”ĽĂ­enâ”śĹź probâ”śĹźhâ”śĂ­ pâ”ĽĂ–es Google Workspace. Pâ”ĽĂ–idâ”śĂ­nâ”śĹźm e-mailu jej povolâ”śĹźte, odebrâ”śĂ­nâ”śĹź provedete deaktivacâ”śĹź â”śâ•‘â”€Ĺątu.</p>
 <form method="post" action="/settings/users/save" id="user-form">
   <input type="hidden" name="id" value="" />
   <label>E-mail</label>
@@ -233,17 +233,17 @@
     <option value="superadmin">Superadmin</option>
   </select>
   <label>
-    <input type="checkbox" name="active" checked /> Aktivní
+    <input type="checkbox" name="active" checked /> Aktivnâ”śĹź
   </label>
-  <button type="submit">Uložit uživatele</button>
+  <button type="submit">Uloâ”ĽĹĽit uâ”ĽĹĽivatele</button>
 </form>
 <table>
-  <tr><th>E-mail</th><th>Role</th><th>Stav</th><th>Vytvořen</th><th>Akce</th></tr>
+  <tr><th>E-mail</th><th>Role</th><th>Stav</th><th>Vytvoâ”ĽĂ–en</th><th>Akce</th></tr>
   <?php foreach (($users ?? []) as $user): ?>
   <tr>
     <td><?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$user['role'], ENT_QUOTES, 'UTF-8') ?></td>
-    <td><?= (int)$user['active'] ? 'aktivní' : 'blokován' ?></td>
+    <td><?= (int)$user['active'] ? 'aktivnâ”śĹź' : 'blokovâ”śĂ­n' ?></td>
     <td><?= htmlspecialchars((string)$user['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
     <td>
       <button type="button" class="js-edit-user"
