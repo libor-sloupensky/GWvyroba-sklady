@@ -1,4 +1,4 @@
-﻿<?php
+<?php
   $activeFilters = $filters ?? ['brand'=>0,'group'=>0,'type'=>'','search'=>''];
   $filterBrand = (int)($activeFilters['brand'] ?? 0);
   $filterGroup = (int)($activeFilters['group'] ?? 0);
@@ -230,8 +230,8 @@ document.addEventListener('DOMContentLoaded', function () {
       groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
       units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
       types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-      active: [{value:'1',label:'Ôťô'},{value:'0',label:'ÔÇô'}],
-      stockModes: [{value:'auto',label:'Automaticky'},{value:'manual',label:'Manu├íln─Ť'}]
+      active: [{value:'1',label:'✓'},{value:'0',label:'–'}],
+      stockModes: [{value:'auto',label:'Automaticky'},{value:'manual',label:'Manuálně'}]
     };
 
     const table = document.querySelector('.products-table');
@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const sku = row?.dataset.sku;
       if (!sku) return;
       if (cell.dataset.lock === 'auto' && (row?.dataset.stockMode || '').toLowerCase() === 'auto') {
-        alert(cell.dataset.lockMessage || 'Pole nastavuje automatick├Ż v├Żpo─Źet stav┼».');
+        alert(cell.dataset.lockMessage || 'Pole nastavuje automatický výpočet stavů.');
         return;
       }
       startEdit(cell, sku, row);
@@ -285,13 +285,13 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       closeBomRow();
       const toggle = cell.querySelector('.sku-toggle');
-      if (toggle) toggle.textContent = 'Ôľż';
+      if (toggle) toggle.textContent = '▾';
       row.classList.add('bom-open');
       const detailRow = document.createElement('tr');
       detailRow.className = 'bom-tree-row';
       const detailCell = document.createElement('td');
       detailCell.colSpan = row.children.length;
-      detailCell.textContent = 'Na─Ź├şt├ímÔÇŽ';
+      detailCell.textContent = 'Načítám…';
       detailRow.appendChild(detailCell);
       row.parentNode.insertBefore(detailRow, row.nextSibling);
       bomState = { row, detail: detailRow };
@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeBomRow() {
       if (!bomState.row) return;
       const toggle = bomState.row.querySelector('.sku-toggle');
-      if (toggle) toggle.textContent = 'ÔľŞ';
+      if (toggle) toggle.textContent = '▸';
       bomState.row.classList.remove('bom-open');
       if (bomState.detail) bomState.detail.remove();
       bomState = { row: null, detail: null };
@@ -310,14 +310,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function loadBomTree(sku, container) {
       if (!sku) {
-        container.textContent = 'Chyb├ş SKU.';
+        container.textContent = 'Chybí SKU.';
         return;
       }
       try {
         const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        if (!data.ok) throw new Error(data.error || 'Nepoda┼Öilo se na─Ź├şst BOM strom.');
+        if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst BOM strom.');
         container.innerHTML = '';
         const refresh = () => loadBomTree(sku, container);
         container.appendChild(buildBomTable(data.tree, refresh));
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function buildBomTable(tree, refresh) {
       const table = document.createElement('table');
       table.className = 'bom-tree-table';
-      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ polo┼żky</th><th>Akce</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th><th>Akce</th></tr></thead>';
       const body = document.createElement('tbody');
       const rows = flattenBomTree(tree);
       rows.forEach((rowData) => {
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (rowData.node.cycle) {
           const badge = document.createElement('span');
           badge.className = 'bom-tree-note';
-          badge.textContent = 'Ôč│ cyklus';
+          badge.textContent = '⟳ cyklus';
           first.appendChild(badge);
         }
         tr.appendChild(first);
@@ -366,14 +366,14 @@ document.addEventListener('DOMContentLoaded', function () {
         addBtn.type = 'button';
         addBtn.className = 'bom-action-btn';
         addBtn.textContent = '+';
-        addBtn.title = 'P┼Öidat potomka';
+        addBtn.title = 'Přidat potomka';
         addBtn.addEventListener('click', () => openBomAddForm(tr, rowData, refresh));
         actions.appendChild(addBtn);
         if (rowData.parentSku) {
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
           delBtn.className = 'bom-action-btn bom-action-btn--danger';
-          delBtn.textContent = '├Ś';
+          delBtn.textContent = '×';
           delBtn.title = 'Smazat vazbu';
           delBtn.addEventListener('click', () => deleteBomLink(rowData.parentSku, rowData.node.sku, refresh));
           actions.appendChild(delBtn);
@@ -403,30 +403,30 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!Array.isArray(guides) || !guides.length) return '';
     let out = '';
     for (let i = 0; i < guides.length - 1; i++) {
-      out += guides[i] ? '   ' : 'Ôöé  ';
+      out += guides[i] ? '   ' : '│  ';
     }
-    out += guides[guides.length - 1] ? 'ÔööÔöÇ ' : 'ÔöťÔöÇ ';
+    out += guides[guides.length - 1] ? '└─ ' : '├─ ';
     return out;
   }
 
     function formatNodeLabel(node) {
       const sku = node.sku || '(bez SKU)';
-      return node.nazev ? `${sku} ÔÇô ${node.nazev}` : sku;
+      return node.nazev ? `${sku} – ${node.nazev}` : sku;
     }
 
     function createValueCell(value) {
       const td = document.createElement('td');
-      td.textContent = value === undefined || value === null || value === '' ? 'ÔÇô' : value;
+      td.textContent = value === undefined || value === null || value === '' ? '–' : value;
       return td;
     }
 
     function displayValue(value) {
-      if (value === undefined || value === null || value === '') return 'ÔÇô';
+      if (value === undefined || value === null || value === '') return '–';
       return String(value);
     }
 
     function formatNumber(value) {
-      if (value === undefined || value === null || value === '') return 'ÔÇô';
+      if (value === undefined || value === null || value === '') return '–';
       const num = Number(value);
       if (Number.isNaN(num)) return String(value);
       return Number.isInteger(num) ? String(num) : num.toString().replace('.', ',');
@@ -442,12 +442,12 @@ document.addEventListener('DOMContentLoaded', function () {
         .then((r) => r.json())
         .then((data) => {
           if (!data.ok) {
-            alert(data.error || 'Smaz├ín├ş se nezda┼Öilo.');
+            alert(data.error || 'Smazání se nezdařilo.');
             return;
           }
           refresh();
         })
-        .catch(() => alert('Smaz├ín├ş se nezda┼Öilo.'));
+        .catch(() => alert('Smazání se nezdařilo.'));
     }
 
     function openBomAddForm(targetRow, rowData, refresh) {
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="bom-add-fields">
           <div class="field">
             <label>Potomek*</label>
-            <input type="text" class="bom-child-search" placeholder="SKU, n├ízev, EAN" autocomplete="off" />
+            <input type="text" class="bom-child-search" placeholder="SKU, název, EAN" autocomplete="off" />
             <input type="hidden" class="bom-child-sku" />
             <div class="bom-search-results"></div>
           </div>
@@ -484,10 +484,10 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
         </div>
         <div class="bom-add-actions">
-          <strong>Rodi─Ź:</strong> <span>${rowData.node.sku || ''}</span>
+          <strong>Rodič:</strong> <span>${rowData.node.sku || ''}</span>
           <span class="bom-add-error"></span>
-          <button type="submit">Ulo┼żit</button>
-          <button type="button" class="bom-add-cancel">Zru┼íit</button>
+          <button type="submit">Uložit</button>
+          <button type="button" class="bom-add-cancel">Zrušit</button>
         </div>
       `;
       cell.appendChild(form);
@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(`${productSearchUrl}?q=${encodeURIComponent(term)}`)
           .then((r) => r.json())
           .then((data) => renderSearchResults(data.items || []))
-          .catch(() => { resultsBox.innerHTML = '<span class="bom-search-empty">Chyba vyhled├ív├ín├ş</span>'; });
+          .catch(() => { resultsBox.innerHTML = '<span class="bom-search-empty">Chyba vyhledávání</span>'; });
       }
 
       function renderSearchResults(items) {
@@ -548,10 +548,10 @@ document.addEventListener('DOMContentLoaded', function () {
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'bom-search-option';
-          btn.textContent = `${item.sku} ÔÇô ${item.nazev}`;
+          btn.textContent = `${item.sku} – ${item.nazev}`;
           btn.addEventListener('click', () => {
             skuInput.value = item.sku;
-            searchInput.value = `${item.sku} ÔÇô ${item.nazev}`;
+            searchInput.value = `${item.sku} – ${item.nazev}`;
             unitInput.value = item.merna_jednotka || '';
             resultsBox.innerHTML = '';
           });
@@ -569,7 +569,7 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
         if (!Number.isFinite(coef) || coef <= 0) {
-          errorBox.textContent = 'Koeficient mus├ş b├Żt kladn├ę ─Ź├şslo.';
+          errorBox.textContent = 'Koeficient musí být kladné číslo.';
           return;
         }
         const payload = {
@@ -587,13 +587,13 @@ document.addEventListener('DOMContentLoaded', function () {
           .then((r) => r.json())
           .then((data) => {
             if (!data.ok) {
-              errorBox.textContent = data.error || 'Ulo┼żen├ş se nezda┼Öilo.';
+              errorBox.textContent = data.error || 'Uložení se nezdařilo.';
               return;
             }
             closeBomAddForm();
             refresh();
           })
-          .catch(() => { errorBox.textContent = 'Ulo┼żen├ş se nezda┼Öilo.'; });
+          .catch(() => { errorBox.textContent = 'Uložení se nezdařilo.'; });
       });
 
       cancelBtn.addEventListener('click', (event) => {
@@ -669,13 +669,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function appendOptions(select, options) {
       select.innerHTML = '';
-      select.appendChild(new Option('ÔÇô', ''));
+      select.appendChild(new Option('–', ''));
       options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
     }
 
     function formatDisplay(field, value) {
-      if (!value) return 'ÔÇô';
-      if (field === 'aktivni') return value === '1' ? 'Ôťô' : 'ÔÇô';
+      if (!value) return '–';
+      if (field === 'aktivni') return value === '1' ? '✓' : '–';
       if (field === 'znacka_id') return lookupLabel(meta.brands, value);
       if (field === 'skupina_id') return lookupLabel(meta.groups, value);
       return value;
@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function lookupLabel(list, value) {
       const found = list.find((item) => item.value === String(value));
-      return found ? found.label : 'ÔÇô';
+      return found ? found.label : '–';
     }
 
     async function saveChange(sku, field, value) {
@@ -695,12 +695,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const data = await response.json();
         if (!data.ok) {
-          alert(data.error || 'Ulo┼żen├ş se nezda┼Öilo.');
+          alert(data.error || 'Uložení se nezdařilo.');
           return false;
         }
         return true;
       } catch (err) {
-        alert('Chyba p┼Öi ukl├íd├ín├ş.');
+        alert('Chyba při ukládání.');
         return false;
       }
     }
@@ -714,45 +714,45 @@ document.addEventListener('DOMContentLoaded', function () {
 <?php endif; ?>
 
 <details class="collapsible" id="product-create-panel">
-  <summary>P┼Öidat produkt</summary>
+  <summary>Přidat produkt</summary>
   <div class="collapsible-body">
     <section class="collapsible-block">
-      <h3 class="collapsible-heading">N├ípov─Ťda ÔÇô CSV a pole produktu</h3>
-      <p><strong>Popis sloupc┼» CSV (odd─Ťlova─Ź st┼Öedn├şk):</strong></p>
+      <h3 class="collapsible-heading">Nápověda – CSV a pole produktu</h3>
+      <p><strong>Popis sloupců CSV (oddělovač středník):</strong></p>
       <ul>
-        <li><code>sku</code> ÔÇô povinn├Ż intern├ş k├│d produktu.</li>
-        <li><code>alt_sku</code> ÔÇô voliteln├Ż alternativn├ş k├│d (unik├ítn├ş, nesm├ş b├Żt shodn├ę se SKU).</li>
-        <li><code>ean</code> ÔÇô voliteln├Ż EAN / ─Ź├írov├Ż k├│d.</li>
-        <li><code>zna─Źka</code> / <code>skupina</code> ÔÇô n├ízvy definovan├ę v Nastaven├ş.</li>
-        <li><code>typ</code> ÔÇô jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balen├ş</code>, <code>karton</code>.</li>
-        <li><code>m─Ťrn├í_jednotka</code> ÔÇô k├│d jednotky z Nastaven├ş (nap┼Ö. <code>ks</code>, <code>kg</code>).</li>
-        <li><code>n├ízev</code> ÔÇô povinn├Ż n├ízev polo┼żky.</li>
-        <li><code>min_z├ísoba</code> ÔÇô bezpe─Źn├í z├ísoba; pl├ínov├ín├ş ji m├í dr┼żet alespo┼ł na t├ęto hodnot─Ť.</li>
-        <li><code>min_d├ívka</code> ÔÇô minim├íln├ş v├Żrobn├ş d├ívka. Men┼í├ş mno┼żstv├ş se nevyr├íb├ş.</li>
-        <li><code>krok_v├Żroby</code> ÔÇô o kolik lze d├ívku navy┼íovat nad minimum (nap┼Ö. krok 50 Ôçĺ 200, 250, 300ÔÇŽ).</li>
-        <li><code>v├Żrobn├ş_doba_dn┼»</code> ÔÇô d├ęlka v├Żroby v kalend├í┼Ön├şch dnech.</li>
-        <li><code>aktivn├ş</code> ÔÇô 1 = aktivn├ş, 0 = skryt├Ż produkt.</li>
-        <li><code>pozn├ímka</code> ÔÇô libovoln├Ż text.</li>
+        <li><code>sku</code> – povinný interní kód produktu.</li>
+        <li><code>alt_sku</code> – volitelný alternativní kód (unikátní, nesmí být shodné se SKU).</li>
+        <li><code>ean</code> – volitelný EAN / čárový kód.</li>
+        <li><code>značka</code> / <code>skupina</code> – názvy definované v Nastavení.</li>
+        <li><code>typ</code> – jedna z hodnot <code>produkt</code>, <code>obal</code>, <code>etiketa</code>, <code>surovina</code>, <code>balení</code>, <code>karton</code>.</li>
+        <li><code>měrná_jednotka</code> – kód jednotky z Nastavení (např. <code>ks</code>, <code>kg</code>).</li>
+        <li><code>název</code> – povinný název položky.</li>
+        <li><code>min_zásoba</code> – bezpečná zásoba; plánování ji má držet alespoň na této hodnotě.</li>
+        <li><code>min_dávka</code> – minimální výrobní dávka. Menší množství se nevyrábí.</li>
+        <li><code>krok_výroby</code> – o kolik lze dávku navyšovat nad minimum (např. krok 50 ⇒ 200, 250, 300…).</li>
+        <li><code>výrobní_doba_dnů</code> – délka výroby v kalendářních dnech.</li>
+        <li><code>aktivní</code> – 1 = aktivní, 0 = skrytý produkt.</li>
+        <li><code>poznámka</code> – libovolný text.</li>
       </ul>
-      <p>Desetinn├ę hodnoty pi┼íte s te─Źkou. CSV mus├ş b├Żt v UTF-8.</p>
+      <p>Desetinné hodnoty pište s tečkou. CSV musí být v UTF-8.</p>
     </section>
 
     <section class="collapsible-block">
-      <h3 class="collapsible-heading">Nov├Ż produkt</h3>
+      <h3 class="collapsible-heading">Nový produkt</h3>
       <form method="post" action="/products/create" class="product-create-form">
         <label>SKU*</label><input type="text" name="sku" value="<?= htmlspecialchars((string)($formOld['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
         <label>Alt SKU</label><input type="text" name="alt_sku" value="<?= htmlspecialchars((string)($formOld['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
         <label>EAN</label><input type="text" name="ean" value="<?= htmlspecialchars((string)($formOld['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Zna─Źka</label>
+        <label>Značka</label>
         <select name="znacka_id">
-          <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>V┼íechny</option>
+          <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
           <?php foreach (($brands ?? []) as $b): $id=(int)$b['id']; ?>
             <option value="<?= $id ?>"<?= (int)($formOld['znacka_id'] ?? 0) === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
           <?php endforeach; ?>
         </select>
         <label>Skupina</label>
         <select name="skupina_id">
-          <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>V┼íechny</option>
+          <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
           <?php foreach (($groups ?? []) as $g): $gid=(int)$g['id']; ?>
             <option value="<?= $gid ?>"<?= (int)($formOld['skupina_id'] ?? 0) === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
           <?php endforeach; ?>
@@ -763,29 +763,29 @@ document.addEventListener('DOMContentLoaded', function () {
             <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $selected ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
           <?php endforeach; ?>
         </select>
-        <label>M─Ťrn├í jednotka*</label>
+        <label>Měrná jednotka*</label>
         <select name="merna_jednotka" required>
           <?php foreach (($units ?? []) as $u): $code = (string)$u['kod']; ?>
             <option value="<?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?>"<?= ((string)($formOld['merna_jednotka'] ?? '') === $code) ? ' selected' : '' ?>><?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?></option>
           <?php endforeach; ?>
         </select>
-        <label>N├ízev*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
-        <label>Min. z├ísoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Min. d├ívka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Krok v├Żroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>V├Żrobn├ş doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Aktivn├ş*</label>
+        <label>Název*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
+        <label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Aktivní*</label>
         <select name="aktivni">
-          <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivn├ş</option>
+          <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
           <option value="0"<?= (string)($formOld['aktivni'] ?? '1') === '0' ? ' selected' : '' ?>>Skryto</option>
         </select>
-        <label>Pozn├ímka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea>
-        <button type="submit">Ulo┼żit produkt</button>
+        <label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea>
+        <button type="submit">Uložit produkt</button>
       </form>
     </section>
 
     <section class="collapsible-block" id="product-import">
-      <h3 class="collapsible-heading">Import a ├║prava produkt┼»</h3>
+      <h3 class="collapsible-heading">Import a úprava produktů</h3>
       <?php if (!empty($importMessage) || !empty($importStats) || !empty($importErrors)): ?>
         <?php $importHasErrors = !empty($importErrors); ?>
         <div class="notice <?= $importHasErrors ? 'notice-error' : 'notice-success' ?> import-result">
@@ -794,9 +794,9 @@ document.addEventListener('DOMContentLoaded', function () {
           <?php endif; ?>
           <?php if (!empty($importStats)): ?>
             <ul class="import-stats">
-              <li>Nov├ę: <strong><?= (int)($importStats['created'] ?? 0) ?></strong></li>
-              <li>Aktualizovan├ę: <strong><?= (int)($importStats['updated'] ?? 0) ?></strong></li>
-              <li>Beze zm─Ťny: <strong><?= (int)($importStats['unchanged'] ?? 0) ?></strong></li>
+              <li>Nové: <strong><?= (int)($importStats['created'] ?? 0) ?></strong></li>
+              <li>Aktualizované: <strong><?= (int)($importStats['updated'] ?? 0) ?></strong></li>
+              <li>Beze změny: <strong><?= (int)($importStats['unchanged'] ?? 0) ?></strong></li>
               <li class="<?= ((int)($importStats['errors'] ?? 0)) === 0 ? 'text-success' : 'text-error' ?>">
                 Chyby: <strong><?= (int)($importStats['errors'] ?? 0) ?></strong>
               </li>
@@ -814,13 +814,13 @@ document.addEventListener('DOMContentLoaded', function () {
           <?php endif; ?>
         </div>
       <?php endif; ?>
-      <p><a href="/products/export">St├íhnout CSV (aktu├íln├ş)</a></p>
+      <p><a href="/products/export">Stáhnout CSV (aktuální)</a></p>
       <form method="post" action="/products/import" enctype="multipart/form-data">
-        <label>Nahr├ít CSV</label><br>
+        <label>Nahrát CSV</label><br>
         <input type="file" name="csv" accept=".csv" required />
         <br>
         <button type="submit">Importovat</button>
-        <span class="muted">Pou┼ż├şvejte UTF-8 a st┼Öedn├şk jako odd─Ťlova─Ź.</span>
+        <span class="muted">Používejte UTF-8 a středník jako oddělovač.</span>
       </form>
     </section>
   </div>
@@ -830,16 +830,16 @@ document.addEventListener('DOMContentLoaded', function () {
   <summary>Import BOM (karton / sada)</summary>
   <div class="collapsible-body">
     <section class="collapsible-block" id="bom-import">
-      <h3 class="collapsible-heading">N├ípov─Ťda ÔÇô BOM import</h3>
-      <p><strong>Popis sloupc┼» (odd─Ťlova─Ź st┼Öedn├şk):</strong></p>
+      <h3 class="collapsible-heading">Nápověda – BOM import</h3>
+      <p><strong>Popis sloupců (oddělovač středník):</strong></p>
       <ul>
-        <li><code>rodic_sku</code> ÔÇô fin├íln├ş produkt nebo karton, pro kter├Ż skl├íd├íte recepturu.</li>
-        <li><code>potomek_sku</code> ÔÇô komponenta, kter├í do rodi─Źe vstupuje.</li>
-        <li><code>koeficient</code> ÔÇô mno┼żstv├ş potomka na 1 jednotku rodi─Źe (ve stejn├ę MJ jako m├í potomek).</li>
-        <li><code>merna_jednotka_potomka</code> ÔÇô voliteln├ę; pr├ízdn├ę pole p┼Öevezme MJ potomka z kmenov├Żch produkt┼».</li>
-        <li><code>druh_vazby</code> ÔÇô <code>karton</code> pouze pro rodi─Źe typu karton; ve v┼íech ostatn├şch p┼Ö├şpadech zvolte <em>sada</em>. Pr├ízdn├ę pole syst├ęm dopo─Ź├şt├í stejn─Ť.</li>
+        <li><code>rodic_sku</code> – finální produkt nebo karton, pro který skládáte recepturu.</li>
+        <li><code>potomek_sku</code> – komponenta, která do rodiče vstupuje.</li>
+        <li><code>koeficient</code> – množství potomka na 1 jednotku rodiče (ve stejné MJ jako má potomek).</li>
+        <li><code>merna_jednotka_potomka</code> – volitelné; prázdné pole převezme MJ potomka z kmenových produktů.</li>
+        <li><code>druh_vazby</code> – <code>karton</code> pouze pro rodiče typu karton; ve všech ostatních případech zvolte <em>sada</em>. Prázdné pole systém dopočítá stejně.</li>
       </ul>
-      <p>Desetinn├ę hodnoty zad├ívejte s te─Źkou. Ka┼żdou vazbu lze nahr├ít kdykoliv ÔÇô rodi─Ź i potomek mus├ş existovat v tabulce produkt┼».</p>
+      <p>Desetinné hodnoty zadávejte s tečkou. Každou vazbu lze nahrát kdykoliv – rodič i potomek musí existovat v tabulce produktů.</p>
     </section>
     <?php
       $bomHasErrors = !empty($bomErrors);
@@ -852,8 +852,8 @@ document.addEventListener('DOMContentLoaded', function () {
         <?php endif; ?>
         <?php if (!empty($bomStats)): ?>
           <ul class="import-stats">
-            <li>Nov├ę: <strong><?= (int)($bomStats['created'] ?? 0) ?></strong></li>
-            <li>Aktualizovan├ę: <strong><?= (int)($bomStats['updated'] ?? 0) ?></strong></li>
+            <li>Nové: <strong><?= (int)($bomStats['created'] ?? 0) ?></strong></li>
+            <li>Aktualizované: <strong><?= (int)($bomStats['updated'] ?? 0) ?></strong></li>
             <li class="<?= ((int)($bomStats['errors'] ?? 0)) === 0 ? 'text-success' : 'text-error' ?>">
               Chyby: <strong><?= (int)($bomStats['errors'] ?? 0) ?></strong>
             </li>
@@ -873,26 +873,26 @@ document.addEventListener('DOMContentLoaded', function () {
     <?php endif; ?>
     <?php if (!empty($bomOrphans)): ?>
       <div class="notice notice-warning">
-        <strong>Nep┼Öi┼Öazen├ę vazby (chyb├ş produkt):</strong>
+        <strong>Nepřiřazené vazby (chybí produkt):</strong>
         <ul style="margin:0.4rem 0 0 1rem;">
           <?php foreach ($bomOrphans as $orphan): ?>
             <li>
               <?= htmlspecialchars($orphan['rodic_sku'],ENT_QUOTES,'UTF-8') ?>
-              Ôćĺ <?= htmlspecialchars($orphan['potomek_sku'],ENT_QUOTES,'UTF-8') ?>
-              (<?= $orphan['missing_parent'] ? 'chyb├ş rodi─Ź' : '' ?><?= ($orphan['missing_parent'] && $orphan['missing_child']) ? ', ' : '' ?><?= $orphan['missing_child'] ? 'chyb├ş potomek' : '' ?>)
+              → <?= htmlspecialchars($orphan['potomek_sku'],ENT_QUOTES,'UTF-8') ?>
+              (<?= $orphan['missing_parent'] ? 'chybí rodič' : '' ?><?= ($orphan['missing_parent'] && $orphan['missing_child']) ? ', ' : '' ?><?= $orphan['missing_child'] ? 'chybí potomek' : '' ?>)
             </li>
           <?php endforeach; ?>
         </ul>
       </div>
     <?php endif; ?>
     <p class="muted-note">Celkem vazeb v tabulce BOM: <strong><?= number_format((int)($bomTotal ?? 0), 0, ',', ' ') ?></strong></p>
-    <p><a href="/bom/export">St├íhnout CSV (aktu├íln├ş)</a></p>
+    <p><a href="/bom/export">Stáhnout CSV (aktuální)</a></p>
     <form method="post" action="/bom/import" enctype="multipart/form-data">
-      <label>Nahr├ít CSV</label><br>
+      <label>Nahrát CSV</label><br>
       <input type="file" name="csv" accept=".csv" required />
       <br>
       <button type="submit">Importovat</button>
-      <span class="muted">Tip: pou┼ż├şvejte UTF-8; odd─Ťlova─Ź je st┼Öedn├şk.</span>
+      <span class="muted">Tip: používejte UTF-8; oddělovač je středník.</span>
     </form>
   </div>
 </details>
@@ -903,9 +903,9 @@ document.addEventListener('DOMContentLoaded', function () {
   <form method="get" action="/products" class="product-filter-form">
     <input type="hidden" name="search" value="1" />
     <label>
-      <span>Zna─Źka</span>
+      <span>Značka</span>
       <select name="znacka_id">
-        <option value="">V┼íechny</option>
+        <option value="">Všechny</option>
         <?php foreach (($brands ?? []) as $b): $id = (int)$b['id']; ?>
           <option value="<?= $id ?>"<?= $filterBrand === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
@@ -914,7 +914,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <label>
       <span>Skupina</span>
       <select name="skupina_id">
-        <option value="">V┼íechny</option>
+        <option value="">Všechny</option>
         <?php foreach (($groups ?? []) as $g): $id = (int)$g['id']; ?>
           <option value="<?= $id ?>"<?= $filterGroup === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
@@ -923,7 +923,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <label>
       <span>Typ</span>
       <select name="typ">
-        <option value="">V┼íechny</option>
+        <option value="">Všechny</option>
         <?php foreach (($types ?? []) as $t): ?>
           <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $filterType === $t ? ' selected' : '' ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
         <?php endforeach; ?>
@@ -931,54 +931,54 @@ document.addEventListener('DOMContentLoaded', function () {
     </label>
     <label>
       <span>Hledat</span>
-      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / n├ízev / EAN" />
+      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / název / EAN" />
     </label>
     <div class="search-actions">
       <button type="submit">Vyhledat</button>
       <?php if ($hasSearchActive): ?>
         <span class="search-result-pill">Zobrazeno <?= $resultCount ?></span>
-        <a href="/products" class="search-reset" title="Zru┼íit filtr" aria-label="Zru┼íit filtr">├Ś</a>
+        <a href="/products" class="search-reset" title="Zrušit filtr" aria-label="Zrušit filtr">×</a>
       <?php endif; ?>
     </div>
   </form>
 </div>
 
 <?php if (!$hasSearchActive): ?>
-  <p class="muted">Zadejte parametry vyhled├ív├ín├ş a potvr─Ćte tla─Ź├ştkem ÔÇ×VyhledatÔÇť. Seznam produkt┼» se zobraz├ş a┼ż po vyhled├ín├ş.</p>
+  <p class="muted">Zadejte parametry vyhledávání a potvrďte tlačítkem „Vyhledat“. Seznam produktů se zobrazí až po vyhledání.</p>
 <?php elseif (empty($items)): ?>
-  <p class="muted">┼Ż├ídn├ę produkty neodpov├şdaj├ş zadan├Żm filtr┼»m.</p>
+  <p class="muted">Žádné produkty neodpovídají zadaným filtrům.</p>
 <?php else: ?>
 <table class="products-table">
   <tr>
     <th>SKU</th>
     <th>Alt SKU</th>
     <th>EAN</th>
-    <th>Zna─Źka</th>
+    <th>Značka</th>
     <th>Skupina</th>
     <th>Typ</th>
     <th>MJ</th>
-    <th>N├ízev</th>
-    <th>Min. z├ísoba</th>
-    <th>Min. d├ívka</th>
-    <th>Krok v├Żroby</th>
-    <th>V├Żrobn├ş doba</th>
-    <th>Aktivn├ş</th>
-    <th>Pozn├ímka</th>
+    <th>Název</th>
+    <th>Min. zásoba</th>
+    <th>Min. dávka</th>
+    <th>Krok výroby</th>
+    <th>Výrobní doba</th>
+    <th>Aktivní</th>
+    <th>Poznámka</th>
   </tr>
   <?php foreach (($items ?? []) as $it): ?>
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
     <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-      <span class="sku-toggle">ÔľŞ</span>
+      <span class="sku-toggle">▸</span>
       <span><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
     </td>
     <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : 'ÔÇô' ?>
+      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '–' ?>
     </td>
     <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : 'ÔÇô' ?>
+      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '–' ?>
     </td>
-    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? 'ÔÇô'),ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? 'ÔÇô'),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? '–'),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? '–'),ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="merna_jednotka" data-type="select" data-options="units" data-value="<?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="nazev" data-type="text" data-value="<?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
@@ -986,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_davka'] ?></td>
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? 'Ôťô' : 'ÔÇô' ?></td>
+    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '✓' : '–' ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
   </tr>
   <?php endforeach; ?>

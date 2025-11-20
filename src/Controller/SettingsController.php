@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 namespace App\Controller;
 
 use App\Service\StockService;
@@ -22,7 +22,7 @@ final class SettingsController
         $flashMessage = $_SESSION['settings_message'] ?? null;
         unset($_SESSION['settings_error'], $_SESSION['settings_message']);
         $this->render('settings.php', [
-            'title' => 'NastavenĂ­',
+            'title' => 'Nastavení',
             'series' => $series,
             'ignores' => $ignores,
             'glob' => $glob,
@@ -46,7 +46,7 @@ final class SettingsController
         $from = trim((string)($_POST['cislo_od'] ?? ''));
         $to = trim((string)($_POST['cislo_do'] ?? ''));
         if ($eshop === '') {
-            $_SESSION['settings_error'] = 'Zadejte nĂˇzev e-shopu.';
+            $_SESSION['settings_error'] = 'Zadejte název e-shopu.';
             header('Location: /settings');
             return;
         }
@@ -61,7 +61,7 @@ final class SettingsController
         } else {
             $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do) VALUES (?,?,?,?)');
             $st->execute([$eshop, $prefix, $from, $to]);
-            $_SESSION['settings_message'] = "E-shop {$eshop} byl pĹ™idĂˇn.";
+            $_SESSION['settings_message'] = "E-shop {$eshop} byl přidán.";
         }
         header('Location: /settings');
     }
@@ -72,7 +72,7 @@ final class SettingsController
         $pdo = DB::pdo();
         $id = (int)($_POST['id'] ?? 0);
         if ($id <= 0) {
-            $_SESSION['settings_error'] = 'NeplatnĂ˝ poĹľadavek na smazĂˇnĂ­.';
+            $_SESSION['settings_error'] = 'Neplatný požadavek na smazání.';
             header('Location: /settings');
             return;
         }
@@ -80,19 +80,19 @@ final class SettingsController
         $st->execute([$id]);
         $row = $st->fetch();
         if (!$row) {
-            $_SESSION['settings_error'] = 'ZadanĂ˝ e-shop neexistuje.';
+            $_SESSION['settings_error'] = 'Zadaný e-shop neexistuje.';
             header('Location: /settings');
             return;
         }
         $eshop = (string)$row['eshop_source'];
         if ($this->seriesHasImports($eshop)) {
-            $_SESSION['settings_error'] = "E-shop {$eshop} mĂˇ importovanĂˇ data a nelze ho smazat.";
+            $_SESSION['settings_error'] = "E-shop {$eshop} má importovaná data a nelze ho smazat.";
             header('Location: /settings');
             return;
         }
         $del = $pdo->prepare('DELETE FROM nastaveni_rady WHERE id=?');
         $del->execute([$id]);
-        $_SESSION['settings_message'] = "E-shop {$eshop} byl smazĂˇn.";
+        $_SESSION['settings_message'] = "E-shop {$eshop} byl smazán.";
         header('Location: /settings');
     }
 
@@ -121,12 +121,12 @@ final class SettingsController
         $this->requireAdmin();
         $nazev = trim((string)($_POST['nazev'] ?? ''));
         if ($nazev === '') {
-            $_SESSION['settings_error'] = 'Zadejte nĂˇzev znaÄŤky.';
+            $_SESSION['settings_error'] = 'Zadejte název značky.';
             header('Location: /settings');
             return;
         }
         DB::pdo()->prepare('INSERT INTO produkty_znacky (nazev) VALUES (?)')->execute([$nazev]);
-        $_SESSION['settings_message'] = 'ZnaÄŤka byla pĹ™idĂˇna.';
+        $_SESSION['settings_message'] = 'Značka byla přidána.';
         header('Location: /settings');
     }
 
@@ -138,10 +138,10 @@ final class SettingsController
             $count = DB::pdo()->prepare('SELECT COUNT(*) FROM produkty WHERE znacka_id=?');
             $count->execute([$id]);
             if ($count->fetchColumn()) {
-                $_SESSION['settings_error'] = 'ZnaÄŤku nelze smazat, protoĹľe je pĹ™iĹ™azena k produktĹŻm.';
+                $_SESSION['settings_error'] = 'Značku nelze smazat, protože je přiřazena k produktům.';
             } else {
                 DB::pdo()->prepare('DELETE FROM produkty_znacky WHERE id=?')->execute([$id]);
-                $_SESSION['settings_message'] = 'ZnaÄŤka byla smazĂˇna.';
+                $_SESSION['settings_message'] = 'Značka byla smazána.';
             }
         }
         header('Location: /settings');
@@ -152,12 +152,12 @@ final class SettingsController
         $this->requireAdmin();
         $nazev = trim((string)($_POST['nazev'] ?? ''));
         if ($nazev === '') {
-            $_SESSION['settings_error'] = 'Zadejte nĂˇzev skupiny.';
+            $_SESSION['settings_error'] = 'Zadejte název skupiny.';
             header('Location: /settings');
             return;
         }
         DB::pdo()->prepare('INSERT INTO produkty_skupiny (nazev) VALUES (?)')->execute([$nazev]);
-        $_SESSION['settings_message'] = 'Skupina byla pĹ™idĂˇna.';
+        $_SESSION['settings_message'] = 'Skupina byla přidána.';
         header('Location: /settings');
     }
 
@@ -169,10 +169,10 @@ final class SettingsController
             $count = DB::pdo()->prepare('SELECT COUNT(*) FROM produkty WHERE skupina_id=?');
             $count->execute([$id]);
             if ($count->fetchColumn()) {
-                $_SESSION['settings_error'] = 'Skupinu nelze smazat, protoĹľe je pĹ™iĹ™azena k produktĹŻm.';
+                $_SESSION['settings_error'] = 'Skupinu nelze smazat, protože je přiřazena k produktům.';
             } else {
                 DB::pdo()->prepare('DELETE FROM produkty_skupiny WHERE id=?')->execute([$id]);
-                $_SESSION['settings_message'] = 'Skupina byla smazĂˇna.';
+                $_SESSION['settings_message'] = 'Skupina byla smazána.';
             }
         }
         header('Location: /settings');
@@ -183,12 +183,12 @@ final class SettingsController
         $this->requireAdmin();
         $kod = trim((string)($_POST['kod'] ?? ''));
         if ($kod === '') {
-            $_SESSION['settings_error'] = 'Zadejte kĂłd jednotky.';
+            $_SESSION['settings_error'] = 'Zadejte kód jednotky.';
             header('Location: /settings');
             return;
         }
         DB::pdo()->prepare('INSERT INTO produkty_merne_jednotky (kod) VALUES (?)')->execute([$kod]);
-        $_SESSION['settings_message'] = 'Jednotka byla pĹ™idĂˇna.';
+        $_SESSION['settings_message'] = 'Jednotka byla přidána.';
         header('Location: /settings');
     }
 
@@ -200,10 +200,10 @@ final class SettingsController
             $count = DB::pdo()->prepare('SELECT COUNT(*) FROM produkty WHERE merna_jednotka=(SELECT kod FROM produkty_merne_jednotky WHERE id=? LIMIT 1)');
             $count->execute([$id]);
             if ($count->fetchColumn()) {
-                $_SESSION['settings_error'] = 'Jednotku nelze smazat, protoĹľe je pouĹľĂ­vĂˇna v produktech.';
+                $_SESSION['settings_error'] = 'Jednotku nelze smazat, protože je používána v produktech.';
             } else {
                 DB::pdo()->prepare('DELETE FROM produkty_merne_jednotky WHERE id=?')->execute([$id]);
-                $_SESSION['settings_message'] = 'Jednotka byla smazĂˇna.';
+                $_SESSION['settings_message'] = 'Jednotka byla smazána.';
             }
         }
         header('Location: /settings');
@@ -218,7 +218,7 @@ final class SettingsController
         DB::pdo()->prepare('UPDATE nastaveni_global SET okno_pro_prumer_dni=?, spotreba_prumer_dni=?, zasoba_cil_dni=? WHERE id=1')
             ->execute([$okno, $spotreba, $zasoba]);
         StockService::recalcAutoSafetyStock();
-        $_SESSION['settings_message'] = 'GlobĂˇlnĂ­ nastavenĂ­ bylo upraveno.';
+        $_SESSION['settings_message'] = 'Globální nastavení bylo upraveno.';
         header('Location: /settings');
     }
 
@@ -230,42 +230,37 @@ final class SettingsController
         $email = strtolower(trim((string)($_POST['email'] ?? '')));
         $role = (string)($_POST['role'] ?? 'admin');
         $active = isset($_POST['active']) ? 1 : 0;
-        $allowedRoles = ['superadmin','admin','employee'];
-        if ($id > 0 && $this->currentUserId() === $id) {
-            $_SESSION['settings_error'] = 'Nelze upravit vlastnĂ­ ĂşÄŤet. PoĹľĂˇdejte jinĂ©ho superadmina.';
-            header('Location: /settings');
-            return;
-        }
+        $allowedRoles = ['superadmin','admin'];
         if (!in_array($role, $allowedRoles, true)) {
-            $_SESSION['settings_error'] = 'NeznĂˇmĂˇ role.';
+            $_SESSION['settings_error'] = 'Neznámá role.';
             header('Location: /settings');
             return;
         }
         if ($id > 0) {
             if ($this->currentUserId() === $id && $active === 0) {
-                $_SESSION['settings_error'] = 'NemĹŻĹľete deaktivovat vlastnĂ­ ĂşÄŤet.';
+                $_SESSION['settings_error'] = 'Nemůžete deaktivovat vlastní účet.';
                 header('Location: /settings');
                 return;
             }
             $stmt = $pdo->prepare('UPDATE users SET role=?, active=? WHERE id=?');
             $stmt->execute([$role, $active, $id]);
-            $_SESSION['settings_message'] = 'UĹľivatel byl upraven.';
+            $_SESSION['settings_message'] = 'Uživatel byl upraven.';
         } else {
             if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $_SESSION['settings_error'] = 'Zadejte platnĂ˝ e-mail.';
+                $_SESSION['settings_error'] = 'Zadejte platný e-mail.';
                 header('Location: /settings');
                 return;
             }
             $exists = $pdo->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
             $exists->execute([$email]);
             if ($exists->fetchColumn()) {
-                $_SESSION['settings_error'] = 'UĹľivatel s tĂ­mto e-mailem jiĹľ existuje.';
+                $_SESSION['settings_error'] = 'Uživatel s tímto e-mailem již existuje.';
                 header('Location: /settings');
                 return;
             }
             $stmt = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?,?,1)');
             $stmt->execute([$email, $role]);
-            $_SESSION['settings_message'] = 'UĹľivatel byl pĹ™idĂˇn.';
+            $_SESSION['settings_message'] = 'Uživatel byl přidán.';
         }
         header('Location: /settings');
     }
@@ -280,7 +275,7 @@ final class SettingsController
         $role = $_SESSION['user']['role'] ?? 'user';
         if (!in_array($role, ['admin','superadmin'], true)) {
             http_response_code(403);
-            echo 'PĹ™Ă­stup jen pro administrĂˇtory.';
+            echo 'Přístup jen pro administrátory.';
             exit;
         }
     }
@@ -289,7 +284,7 @@ final class SettingsController
     {
         if (!$this->isSuperAdmin()) {
             http_response_code(403);
-            echo 'Akce je povolena pouze superadministrĂˇtorĹŻm.';
+            echo 'Akce je povolena pouze superadministrátorům.';
             exit;
         }
     }
@@ -331,4 +326,3 @@ final class SettingsController
         return (bool)$check->fetchColumn();
     }
 }
-
