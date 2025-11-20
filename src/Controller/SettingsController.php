@@ -292,10 +292,18 @@ final class SettingsController
         }
         $role = $_SESSION['user']['role'] ?? 'user';
         if (!in_array($role, ['admin', 'superadmin'], true)) {
-            $_SESSION['auth_error'] = 'Přístup jen pro administrátory.';
-            header('Location: /');
-            exit;
+            $this->forbidden('Přístup jen pro administrátory.');
         }
+    }
+
+    private function forbidden(string $message): void
+    {
+        http_response_code(403);
+        $this->render('forbidden.php', [
+            'title' => 'Přístup odepřen',
+            'message' => $message,
+        ]);
+        exit;
     }
 
     private function requireSuperAdmin(): void
