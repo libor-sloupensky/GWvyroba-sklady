@@ -341,7 +341,10 @@ PROMPT;
         $role = $_SESSION['user']['role'] ?? 'user';
         if (!in_array($role, $allowed, true)) {
             http_response_code(403);
-            $this->render('forbidden.php', ['title' => 'P??stup odep?en', 'message' => 'Nem?te opr?vn?n? pro Anal?zu.']);
+            $this->render('forbidden.php', [
+                'title' => 'Přístup odepřen',
+                'message' => 'Nemáte oprávnění pro Analýzu.',
+            ]);
             exit;
         }
     }
