@@ -158,16 +158,27 @@ final class AuthController
 
     private function resolveUser(string $email): ?array
     {
+        $superadmins = $this->authConfig()['superadmins'] ?? [];
+
         $user = $this->findUser($email);
         if ($user) {
+            // Pokud je na whitelistu superadminů, povýšíme roli a aktivujeme.
+            if (in_array($email, $superadmins, true) && $user['role'] !== 'superadmin') {
+                $stmt = DB::pdo()->prepare('UPDATE users SET role=?, active=1 WHERE id=?');
+                $stmt->execute(['superadmin', (int)$user['id']]);
+                $user['role'] = 'superadmin';
+                $user['active'] = 1;
+            }
             return $user;
         }
-        $superadmins = $this->authConfig()['superadmins'] ?? [];
+
         if (in_array($email, $superadmins, true)) {
+            // Pokud ještě neexistuje, vložíme jako superadmin.
             $stmt = DB::pdo()->prepare('INSERT INTO users (email, role, active) VALUES (?, ?, 1)');
             $stmt->execute([$email, 'superadmin']);
             return $this->findUser($email);
         }
+
         return null;
     }
 
