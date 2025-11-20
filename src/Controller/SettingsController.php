@@ -230,7 +230,13 @@ final class SettingsController
         $email = strtolower(trim((string)($_POST['email'] ?? '')));
         $role = (string)($_POST['role'] ?? 'admin');
         $active = isset($_POST['active']) ? 1 : 0;
-        $allowedRoles = ['superadmin','admin'];
+        $allowedRoles = ['superadmin','admin','employee'];
+        // Vlastní účet smí upravit jen jiný superadmin
+        if ($id > 0 && $this->currentUserId() === $id) {
+            $_SESSION['settings_error'] = 'Nelze upravit vlastní účet. Požádejte jiného superadmina.';
+            header('Location: /settings');
+            return;
+        }
         if (!in_array($role, $allowedRoles, true)) {
             $_SESSION['settings_error'] = 'Neznámá role.';
             header('Location: /settings');
@@ -258,8 +264,8 @@ final class SettingsController
                 header('Location: /settings');
                 return;
             }
-            $stmt = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?,?,1)');
-            $stmt->execute([$email, $role]);
+            $stmt = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?,?,?)');
+            $stmt->execute([$email, $role, $active ?: 1]);
             $_SESSION['settings_message'] = 'Uživatel byl přidán.';
         }
         header('Location: /settings');

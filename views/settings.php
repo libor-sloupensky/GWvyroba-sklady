@@ -222,7 +222,7 @@
 
 <?php if (!empty($canManageUsers)): ?>
 <h2>Uživatelé (superadmin)</h2>
-<p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu jej povolíte, odebrání provedete deaktivací účtu.</p>
+<p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu jej povolíte, odebrání provedete deaktivací účtu. U každého vidíte aktuální roli.</p>
 <form method="post" action="/settings/users/save" id="user-form">
   <input type="hidden" name="id" value="" />
   <label>E-mail</label>
@@ -231,6 +231,7 @@
   <select name="role">
     <option value="admin">Admin</option>
     <option value="superadmin">Superadmin</option>
+    <option value="employee">Zaměstnanec</option>
   </select>
   <label>
     <input type="checkbox" name="active" checked /> Aktivní
