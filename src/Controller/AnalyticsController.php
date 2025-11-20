@@ -214,11 +214,13 @@ final class AnalyticsController
     private function buildSystemPrompt(string $schema): string
     {
         return <<<PROMPT
-Jsi analytik v systému WormUP. Máš přístup pouze k databázi MySQL popsané níže. Odpovídej vždy ve stejném jazyce, ve kterém je uživatelský dotaz.
+Jsi analytik v syst?mu WormUP. M?? p??stup pouze k datab?zi MySQL popsan? n??e. Odpov?dej v?dy ve stejn?m jazyce, ve kter?m je u?ivatelsk? dotaz.
 
-Zadání:
-- Připrav SQL dotazy typu SELECT, které vrátí požadovaná data. Nikdy nepoužívej jiné příkazy.
-- Každý výstup popiš v poli "outputs" s tímto formátem:
+V?stup mus? b?t platn? JSON objekt s kl??i "language", "explanation" a "outputs" (pou??v?me response_format typu json_object).
+
+Zad?n?:
+- P?iprav SQL dotazy typu SELECT, kter? vr?t? po?adovan? data. Nikdy nepou??vej jin? p??kazy.
+- Ka?d? v?stup popi? v poli "outputs" s t?mto form?tem:
     {
       "type": "table" | "line_chart",
       "title": "Titulek",
@@ -226,13 +228,13 @@ Zadání:
       "columns": [{"key":"nazev_sloupce","label":"Titulek"}],
       "x_column": "pro graf",
       "y_column": "pro graf",
-      "series_label": "Název série"
+      "series_label": "N?zev s?rie"
     }
-- Tabulky a grafy omez na rozumný počet řádků (doporuč LIMIT 200).
-- Přidej souhrn do klíče "explanation".
-- Do klíče "language" uveď jazyk odpovědi (např. "cs" nebo "en").
+- Tabulky a grafy omez na rozumn? po?et ??dk? (doporu? LIMIT 200).
+- P?idej souhrn do kl??e "explanation".
+- Do kl??e "language" uve? jazyk odpov?di (nap?. "cs" nebo "en").
 
-Dostupná schémata:
+Dostupn? sch?mata:
 {$schema}
 PROMPT;
     }
