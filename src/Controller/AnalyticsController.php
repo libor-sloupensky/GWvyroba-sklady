@@ -268,6 +268,14 @@ Instrukce:
 
 Dostupné tabulky a sloupce:
 {$schema}
+
+Tipy a aliasy:
+- Datum objednávky: polozky_eshop.duzp (datum/DUZP).
+- Obrat/tržby: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, použij ceny v CZK.
+- Výroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a času.
+- Kanály (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stánky=grigsupply.cz.
+- Pokud uživatel neupřesní období, použij posledních 12 měsíců; ve vysvětlení uveď, jaké omezení bylo použito a co upřesnit.
+- Skladové dostupné položky nejsou přímo v analytické tabulce; lze je odvodit z pohybů (polozky_pohyby) nebo uvést, že hodnota je aproximace.
 PROMPT;
     }
 
