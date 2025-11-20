@@ -605,9 +605,7 @@ final class InventoryController
     {
         $this->requireAuth();
         if (!$this->isAdmin()) {
-            http_response_code(403);
-            echo 'Přístup jen pro admina.';
-            exit;
+            $this->forbidden('Přístup jen pro administrátory.');
         }
     }
 
@@ -615,6 +613,13 @@ final class InventoryController
     {
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
+    }
+
+    private function forbidden(string $message): void
+    {
+        http_response_code(403);
+        $this->render('forbidden.php', ['title' => 'Přístup odepřen', 'message' => $message]);
+        exit;
     }
 
     private function redirect(string $path): void

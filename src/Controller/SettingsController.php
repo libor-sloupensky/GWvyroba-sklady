@@ -230,7 +230,7 @@ final class SettingsController
         $email = strtolower(trim((string)($_POST['email'] ?? '')));
         $role = (string)($_POST['role'] ?? 'admin');
         $active = isset($_POST['active']) ? 1 : 0;
-        $allowedRoles = ['superadmin','admin'];
+        $allowedRoles = ['superadmin','admin','employee'];
         if (!in_array($role, $allowedRoles, true)) {
             $_SESSION['settings_error'] = 'Neznámá role.';
             header('Location: /settings');

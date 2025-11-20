@@ -715,12 +715,19 @@ final class ImportController
             header('Location: /login');
             exit;
         }
-        if (($u['role'] ?? 'user') !== 'admin') { http_response_code(403); echo 'Přístup jen pro admina.'; exit; }
+        if (!in_array(($u['role'] ?? 'user'), ['admin', 'superadmin'], true)) { $this->forbidden('P??stup jen pro administr?tory.'); }
     }
 
     private function render(string $view, array $vars = []): void
     {
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
+    }
+
+    private function forbidden(string $message): void
+    {
+        http_response_code(403);
+        $this->render('forbidden.php', ['title' => 'Přístup odepřen', 'message' => $message]);
+        exit;
     }
 }

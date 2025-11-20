@@ -8,7 +8,7 @@ final class AnalyticsController
 {
     public function revenue(): void
     {
-        $this->requireAuth();
+        $this->requireRole(['admin','superadmin']);
         $favorites = $this->loadFavorites();
         $status = $this->openAiStatus();
         $this->render('analytics_revenue.php', [
@@ -22,7 +22,7 @@ final class AnalyticsController
 
     public function ai(): void
     {
-        $this->requireAuth();
+        $this->requireRole(['admin','superadmin']);
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $prompt = trim((string)($payload['prompt'] ?? ''));
@@ -324,11 +324,17 @@ PROMPT;
         return (int)($_SESSION['user']['id'] ?? 0);
     }
 
-    private function requireAuth(): void
+    private function requireRole(array $allowed): void
     {
         if (!isset($_SESSION['user'])) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
             header('Location: /login');
+            exit;
+        }
+        $role = $_SESSION['user']['role'] ?? 'user';
+        if (!in_array($role, $allowed, true)) {
+            http_response_code(403);
+            $this->render('forbidden.php', ['title' => 'P??stup odep?en', 'message' => 'Nem?te opr?vn?n? pro Anal?zu.']);
             exit;
         }
     }
