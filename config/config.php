@@ -12,9 +12,10 @@ return [
     'version' => '0.1.0',
   ],
   'google' => [
+    // Vyplňte přes prostředí (nastavení hostingu) nebo lokálně mimo git.
     'client_id' => getenv('GOOGLE_CLIENT_ID') ?: '',
     'client_secret' => getenv('GOOGLE_CLIENT_SECRET') ?: '',
-    'redirect_uri' => getenv('GOOGLE_REDIRECT_URI') ?: '',
+    'redirect_uri' => getenv('GOOGLE_REDIRECT_URI') ?: 'https://gworm.wormup.com/auth/google/callback',
   ],
   'auth' => [
     'superadmins' => ['sloupensky@grig.cz'],
