@@ -1,4 +1,5 @@
 <h1>Nastavení</h1>
+<!-- noop change: deployment refresh -->
 
 <?php if (!empty($flashError)): ?>
   <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">

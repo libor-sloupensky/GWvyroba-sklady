@@ -343,4 +343,5 @@ final class SettingsController
         $check->execute([$eshop]);
         return (bool)$check->fetchColumn();
     }
+    // noop change: deployment refresh marker
 }
