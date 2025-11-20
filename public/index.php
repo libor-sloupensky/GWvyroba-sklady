@@ -15,7 +15,6 @@ use App\Controller\ReservationsController;
 use App\Controller\ProductionController;
 use App\Controller\AnalyticsController;
 use App\Controller\SettingsController;
-use App\Controller\PlansController;
 use App\Controller\AdminController;
 
 session_start();
@@ -44,12 +43,12 @@ $router->get('/products/export', [ProductsController::class, 'exportCsv']);
 $router->post('/products/import', [ProductsController::class, 'importCsv']);
 $router->post('/products/create', [ProductsController::class, 'create']);
 $router->post('/products/update', [ProductsController::class, 'inlineUpdate']);
-$router->get('/products/bom-tree', [ProductsController::class, 'bomTree']);
 $router->get('/products/search', [ProductsController::class, 'search']);
+$router->get('/products/bom-tree', [ProductsController::class, 'bomTree']);
 $router->post('/products/bom/add', [ProductsController::class, 'bomAdd']);
 $router->post('/products/bom/delete', [ProductsController::class, 'bomDelete']);
 
-// BOM
+// BOM export/import pro stránku Produkty
 $router->get('/bom', [BomController::class, 'index']);
 $router->get('/bom/export', [BomController::class, 'exportCsv']);
 $router->post('/bom/import', [BomController::class, 'importCsv']);
@@ -94,9 +93,6 @@ $router->post('/settings/unit', [SettingsController::class, 'saveUnit']);
 $router->post('/settings/unit/delete', [SettingsController::class, 'deleteUnit']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 $router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
-
-// Plans page
-$router->get('/plany', [PlansController::class, 'index']);
 
 // Admin utilities (secured)
 $router->get('/admin/migrate', [AdminController::class, 'migrateForm']);

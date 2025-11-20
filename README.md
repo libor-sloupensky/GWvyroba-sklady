@@ -18,7 +18,6 @@ UTF‑8, PHP (bez frameworku), MySQL (utf8mb4_czech_ci). Viz `db/schema.sql`.
 - Výroba: návrhy – náhled; zápis „vyrobeno“ (korekce/odečet subpotomků), reverze dle ref_id
 - Analýza: přehled položek dokladů s filtry
 - Nastavení: řady, ignor vzory, globální parametry
-- Plány: `/plany` čte `docs/PLANS.json`
 
 ## CSV hlavičky
 Produkty: `sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni`
