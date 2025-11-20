@@ -207,7 +207,7 @@
 
   <label>
     Počet dní pro výpočet průměrné spotřeby
-    <span class="info-icon" title="Délka okna pro výpočet průměrného denního odběru (např. 90 dní ≈ 3 měsíce).">i</span>
+    <span class="info-icon" title="Délka okna pro výpočet průměrného denního odběru (např. 90 dní = 3 měsíce).">i</span>
   </label>
   <input type="number" name="spotreba_prumer_dni" value="<?= (int)($glob['spotreba_prumer_dni'] ?? 90) ?>" min="1" />
 
