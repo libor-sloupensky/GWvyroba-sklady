@@ -292,8 +292,8 @@ final class SettingsController
         }
         $role = $_SESSION['user']['role'] ?? 'user';
         if (!in_array($role, ['admin', 'superadmin'], true)) {
-            http_response_code(403);
-            echo 'Přístup jen pro administrátory.';
+            $_SESSION['auth_error'] = 'Přístup jen pro administrátory.';
+            header('Location: /');
             exit;
         }
     }
