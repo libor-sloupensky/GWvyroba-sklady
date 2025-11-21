@@ -146,7 +146,7 @@ final class ProductsController
 
         $escape = '\\';
 
-        fputcsv($fh, ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'], $delimiter, $enclosure, $escape);
+        fputcsv($fh, ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','skl_hodnota','aktivni','poznamka'], $delimiter, $enclosure, $escape);
 
         foreach ($rows as $r) {
 
@@ -177,6 +177,8 @@ final class ProductsController
                 $r['krok_vyroby'],
 
                 $r['vyrobni_doba_dni'],
+
+                $r['skl_hodnota'],
 
                 $r['aktivni'],
 
@@ -222,23 +224,34 @@ final class ProductsController
 
             $expectedLegacy = ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
 
-            $expectedExtended = $expectedLegacy;
+            $expectedWithValue = ['sku','alt_sku','ean','znacka','skupina','typ','merna_jednotka','nazev','min_zasoba','min_davka','krok_vyroby','vyrobni_doba_dni','skl_hodnota','aktivni','poznamka'];
+
+            $expectedExtended = $expectedWithValue;
 
             array_splice($expectedExtended, 9, 0, ['nast_zasob']);
 
             $normalizedHeader = $header ? array_map('strtolower', $header) : [];
+            $hasStockModeColumn = false;
+            $hasStockValueColumn = false;
 
             if ($normalizedHeader === $expectedExtended) {
 
                 $hasStockModeColumn = true;
+                $hasStockValueColumn = true;
+
+            } elseif ($normalizedHeader === $expectedWithValue) {
+
+                $hasStockModeColumn = false;
+                $hasStockValueColumn = true;
 
             } elseif ($normalizedHeader === $expectedLegacy) {
 
                 $hasStockModeColumn = false;
+                $hasStockValueColumn = false;
 
             } else {
 
-                throw new \RuntimeException('NeplatnĂˇ hlaviÄŤka CSV.');
+                throw new \RuntimeException('Neplatná hlavička CSV.');
 
             }
 
@@ -262,11 +275,11 @@ final class ProductsController
 
             $stmt = $pdo->prepare(
 
-                'INSERT INTO produkty (sku,alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni,znacka_id,poznamka,skupina_id) ' .
+                'INSERT INTO produkty (sku,alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,skl_hodnota,aktivni,znacka_id,poznamka,skupina_id) ' .
 
-                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
+                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
 
-                'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),nast_zasob=VALUES(nast_zasob),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
+                'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),nast_zasob=VALUES(nast_zasob),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),skl_hodnota=VALUES(skl_hodnota),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
 
             );
 
@@ -294,17 +307,25 @@ final class ProductsController
 
                 }
 
-                $row = array_pad($row, $hasStockModeColumn ? 15 : 14, '');
+                $row = array_pad($row, count($normalizedHeader), '');
 
-                if ($hasStockModeColumn) {
+                if ($hasStockModeColumn && $hasStockValueColumn) {
 
-                    [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$mode,$md,$krok,$vdd,$act,$note] = $row;
+                    [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$mode,$md,$krok,$vdd,$skl,$act,$note] = $row;
+
+                } elseif ($hasStockValueColumn) {
+
+                    [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$skl,$act,$note] = $row;
+
+                    $mode = '';
 
                 } else {
 
                     [$sku,$altSku,$ean,$brandName,$groupName,$typ,$mj,$nazev,$min,$md,$krok,$vdd,$act,$note] = $row;
 
                     $mode = '';
+
+                    $skl = '0';
 
                 }
 
@@ -341,6 +362,12 @@ final class ProductsController
                 if (!isset($units[$unitKey])) { $errors[] = "dek {$line}: mrn jednotka '{$mj}' nen definovan"; continue; }
 
                 $mj = $units[$unitKey];
+
+                $skl = trim((string)$skl);
+
+                if ($skl === '') { $skl = '0'; }
+
+                if (!is_numeric($skl)) { $errors[] = "dek {$line}: skl_hodnota musi byt cislo"; continue; }
 
                 if ($act === '') { $errors[] = "dek {$line}: aktivn je povinn (0/1)"; continue; }
 
@@ -492,6 +519,8 @@ final class ProductsController
 
                     $vdd === '' ? 0 : $vdd,
 
+                    $skl,
+
                     $aktivni,
 
                     $brandId,
@@ -604,6 +633,8 @@ final class ProductsController
 
         $lead  = trim((string)($_POST['vyrobni_doba_dni'] ?? ''));
 
+        $stockValue = trim((string)($_POST['skl_hodnota'] ?? ''));
+
         $active= (int)($_POST['aktivni'] ?? 1);
 
         $brandId = (int)($_POST['znacka_id'] ?? 0);
@@ -642,6 +673,8 @@ final class ProductsController
 
             'vyrobni_doba_dni' => $lead,
 
+            'skl_hodnota' => $stockValue,
+
             'aktivni' => $active,
 
             'poznamka' => $note,
@@ -667,6 +700,7 @@ final class ProductsController
         if ($brandId > 0 && !$this->dictionaryIdExists('produkty_znacky', $brandId)) $errors[] = 'NeplatnĂˇ znaÄŤka.';
 
         if ($groupId > 0 && !$this->dictionaryIdExists('produkty_skupiny', $groupId)) $errors[] = 'NeplatnĂˇ skupina.';
+        if ($stockValue !== '' && !is_numeric($stockValue)) $errors[] = 'Skladov? hodnota mus? b?t ??slo.';
 
         $altSku = $this->toUtf8($altSku);
 
@@ -706,13 +740,19 @@ final class ProductsController
 
         }
 
+        if ($stockValue === '') {
+
+            $stockValue = '0';
+
+        }
+
 
 
         $pdo = DB::pdo();
 
         try {
 
-            $stmt = $pdo->prepare('INSERT INTO produkty (sku, alt_sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, nast_zasob, min_davka, krok_vyroby, vyrobni_doba_dni, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO produkty (sku, alt_sku, ean, znacka_id, skupina_id, typ, merna_jednotka, nazev, min_zasoba, nast_zasob, min_davka, krok_vyroby, vyrobni_doba_dni, skl_hodnota, aktivni, poznamka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 
             $stmt->execute([
 
@@ -741,6 +781,8 @@ final class ProductsController
                 $step === '' ? 0 : $step,
 
                 $lead === '' ? 0 : $lead,
+
+                $stockValue === '' ? 0 : $stockValue,
 
                 $active === 1 ? 1 : 0,
 
@@ -1134,7 +1176,7 @@ final class ProductsController
 
     {
 
-        return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+        return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','skl_hodnota','aktivni','poznamka'];
 
     }
 
@@ -1259,6 +1301,10 @@ final class ProductsController
             case 'vyrobni_doba_dni':
 
                 return $this->normalizeInteger($value);
+
+            case 'skl_hodnota':
+
+                return $this->normalizeDecimal($value);
 
             case 'aktivni':
 
@@ -1704,7 +1750,7 @@ final class ProductsController
 
     {
 
-        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
+        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.skl_hodnota,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
 
                'FROM produkty p ' .
 

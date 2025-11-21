@@ -55,6 +55,9 @@ try {
         addColumn($pdo, 'produkty', "COLUMN `alt_sku` VARCHAR(128) NULL AFTER `sku`");
         try { $pdo->exec('ALTER TABLE `produkty` ADD UNIQUE KEY uniq_produkty_alt_sku (alt_sku)'); } catch (Throwable $e) {}
     }
+    if (!columnExists($pdo, 'produkty', 'skl_hodnota')) {
+        addColumn($pdo, 'produkty', "COLUMN `skl_hodnota` DECIMAL(18,2) NOT NULL DEFAULT 0 AFTER `merna_jednotka`");
+    }
     if (!columnExists($pdo, 'produkty', 'znacka_id')) {
         addColumn($pdo, 'produkty', 'COLUMN `znacka_id` INT NULL AFTER `aktivni`');
         $pdo->exec('ALTER TABLE `produkty` ADD KEY idx_produkty_znacka (znacka_id)');

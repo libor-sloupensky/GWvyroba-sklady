@@ -735,6 +735,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <li><code>min_dávka</code> – minimální výrobní dávka. Menší množství se nevyrábí.</li>
         <li><code>krok_výroby</code> – o kolik lze dávku navyšovat nad minimum (např. krok 50 ⇒ 200, 250, 300…).</li>
         <li><code>výrobní_doba_dnů</code> – délka výroby v kalendářních dnech.</li>
+        <li><code>skl_hodnota</code> - jednotkova skladova hodnota (napr. nakladova cena za MJ) pro oceneni zasob.</li>
         <li><code>aktivní</code> – 1 = aktivní, 0 = skrytý produkt.</li>
         <li><code>poznámka</code> – libovolný text.</li>
       </ul>
@@ -778,6 +779,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
         <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
         <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
+        <label>Skladová hodnota</label><input type="number" step="0.01" name="skl_hodnota" value="<?= htmlspecialchars((string)($formOld['skl_hodnota'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
         <label>Aktivní*</label>
         <select name="aktivni">
           <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
@@ -966,6 +968,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <th>Min. dávka</th>
     <th>Krok výroby</th>
     <th>Výrobní doba</th>
+    <th>Skladová hodnota</th>
     <th>Aktivní</th>
     <th>Poznámka</th>
   </tr>
@@ -990,6 +993,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_davka'] ?></td>
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '✓' : '–' ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
   </tr>

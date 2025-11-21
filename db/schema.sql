@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS produkty (
   nazev VARCHAR(255) NOT NULL,
   typ ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL,
   merna_jednotka VARCHAR(16) NOT NULL,
+  skl_hodnota DECIMAL(18,2) NOT NULL DEFAULT 0,
   min_zasoba DECIMAL(18,3) NOT NULL DEFAULT 0,
   nast_zasob ENUM('auto','manual') NOT NULL DEFAULT 'auto',
   min_davka DECIMAL(18,3) NOT NULL DEFAULT 0,
