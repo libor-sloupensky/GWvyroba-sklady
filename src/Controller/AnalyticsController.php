@@ -224,9 +224,14 @@ final class AnalyticsController
         $sql = $this->sanitizeSql($sql);
         $this->validateSqlIsSafe($sql);
         $sql = $this->appendLimit($sql);
-        $stmt = DB::pdo()->query($sql);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        return $rows ?: [];
+        try {
+            $stmt = DB::pdo()->query($sql);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $rows ?: [];
+        } catch (\Throwable $e) {
+            // Přidáme SQL do hlášky, aby bylo vidět, co spadlo (pomůže s laděním GROUP BY/HAVING).
+            throw new \RuntimeException($e->getMessage() . ' | SQL: ' . $sql, 0, $e);
+        }
     }
 
     private function appendLimit(string $sql): string
