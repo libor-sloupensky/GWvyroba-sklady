@@ -332,27 +332,57 @@
   function renderChart(canvas, item) {
     if (!window.Chart) {
       const p = document.createElement('p');
-      p.textContent = 'Nelze zobrazit graf (chybí Chart.js).';
+      p.textContent = 'Nelze zobrazit graf (chybi Chart.js).';
       canvas.replaceWith(p);
       return;
     }
     const rows = item.rows || [];
     const xKey = item.xColumn || Object.keys(rows[0] || {})[0] || 'label';
     const yKey = item.yColumn || Object.keys(rows[0] || {})[1] || 'value';
-    const labels = rows.map((row) => row[xKey]);
-    const data = rows.map((row) => Number(row[yKey]) || 0);
+    const seriesKey = item.seriesColumn || null;
+    const baseLabels = rows.map((row) => row[xKey]);
+    const labels = seriesKey ? Array.from(new Set(baseLabels)) : baseLabels;
+    const palette = ['#1e88e5', '#43a047', '#f4511e', '#8e24aa', '#3949ab', '#00acc1', '#fb8c00', '#6d4c41'];
+
+    let datasets = [];
+    if (seriesKey) {
+      const seriesMap = new Map();
+      rows.forEach((row) => {
+        const name = String(row[seriesKey] ?? 'Serie');
+        const xVal = row[xKey];
+        if (!seriesMap.has(name)) {
+          seriesMap.set(name, new Map());
+        }
+        const points = seriesMap.get(name);
+        points.set(xVal, Number(row[yKey]) || 0);
+      });
+      datasets = Array.from(seriesMap.entries()).map(([name, points], idx) => {
+        const color = palette[idx % palette.length];
+        return {
+          label: name,
+          data: labels.map((label) => points.get(label) ?? null),
+          borderColor: color,
+          backgroundColor: color + '33',
+          tension: 0.2,
+          fill: false,
+        };
+      });
+    } else {
+      datasets = [{
+        label: item.seriesLabel || yKey,
+        data: rows.map((row) => Number(row[yKey]) || 0),
+        borderColor: '#1e88e5',
+        backgroundColor: 'rgba(30,136,229,0.2)',
+        tension: 0.2,
+        fill: true,
+      }];
+    }
+
     new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: item.seriesLabel || yKey,
-          data,
-          borderColor: '#1e88e5',
-          backgroundColor: 'rgba(30,136,229,0.2)',
-          tension: 0.2,
-          fill: true,
-        }]
+        datasets
       },
       options: {
         responsive: true,

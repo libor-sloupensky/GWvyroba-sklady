@@ -102,6 +102,7 @@ final class AnalyticsController
                     'xColumn' => $output['x_column'] ?? null,
                     'yColumn' => $output['y_column'] ?? null,
                     'seriesLabel' => $output['series_label'] ?? 'Hodnota',
+                    'seriesColumn' => $output['series_column'] ?? null,
                     'rows' => $rows,
                 ];
             } else {
@@ -260,12 +261,12 @@ final class AnalyticsController
     private function buildSystemPrompt(string $schema): string
     {
         return <<<PROMPT
-Jsi datový analytik ve firmě WormUP. Máš přístup pouze k databázi MySQL uvedené níže. Odpovídej ve stejném jazyce jako uživatel.
+Jsi datovy analytik ve firme WormUP. Mas pristup pouze k databazi MySQL uvedene nize. Odpovidej ve stejnem jazyce jako uzivatel.
 
-Výstup vracej jako platný JSON objekt (response_format json_object) s klíči:
-- "language": kód jazyka odpovědi (např. "cs" nebo "en"),
-- "explanation": krátké srozumitelné shrnutí výsledků,
-- "outputs": pole objektů popisujících tabulky nebo grafy, každý ve tvaru:
+Vystup vracej jako platny JSON objekt (response_format json_object) s klici:
+- "language": kod jazyka odpovedi (napr. "cs" nebo "en"),
+- "explanation": kratke srozumitelne shrnuti vysledku,
+- "outputs": pole objektu popisujicich tabulky nebo grafy, kazdy ve tvaru:
   {
     "type": "table" | "line_chart",
     "title": "Titulek",
@@ -273,26 +274,28 @@ Výstup vracej jako platný JSON objekt (response_format json_object) s klíči:
     "columns": [{"key":"nazev_sloupce","label":"Titulek"}],
     "x_column": "sloupec_osa_x_pro_graf",
     "y_column": "sloupec_osa_y_pro_graf",
-    "series_label": "Legenda_série"
+    "series_label": "Legenda_serie",
+    "series_column": "sloupec_pro_vice_serii_pokud_je_v_jednom_grafu_vice_car (volitelne)"
   }
 
 Instrukce:
-- Používej jen SELECT nad tabulkami/sloupci uvedenými níže, nic jiného (žádné DML/DDL).
-- Přidej LIMIT (např. 200) pro přehlednost.
-- Pokud chybí upřesnění (produkt, období, e-shop), zvol rozumné výchozí omezení (např. posledních 12 měsíců) a ve vysvětlení napiš, co by se hodilo zpřesnit.
-- Graf použij, jen když dává smysl (časové řady, porovnání), jinak tabulku.
-- Dodrž strukturu JSON, aby šel výstup strojově zpracovat.
+- Pouzivej jen SELECT nad tabulkami/sloupci uvedenymi nize, nic jineho (zadne DML/DDL).
+- Pridej LIMIT (napr. 200) pro prehlednost.
+- Pokud chybi upresneni (produkt, obdobi, e-shop), zvol rozumne vychozi omezeni (napr. poslednich 12 mesicu) a ve vysvetleni napis, co by se hodilo zpresnit.
+- Graf pouzij, jen kdyz dava smysl (casova rada, porovnani), jinak tabulku.
+- Dodrz strukturu JSON, aby sel vystup strojove zpracovat.
+- Pro vice linii v jednom grafu pouzij "series_column" (napr. kanal/eshop_source nebo produkt), y_column zustava hodnota.
 
-Dostupné tabulky a sloupce:
+Dostupne tabulky a sloupce:
 {$schema}
 
 Tipy a aliasy:
-- Datum objednávky: polozky_eshop.duzp (datum/DUZP).
-- Obrat/tržby: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, použij ceny v CZK.
-- Výroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a času.
-- Kanály (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stánky=grigsupply.cz.
-- Pokud uživatel neupřesní období, použij posledních 12 měsíců; ve vysvětlení uveď, jaké omezení bylo použito a co upřesnit.
-- Skladové dostupné položky nejsou přímo v analytické tabulce; lze je odvodit z pohybů (polozky_pohyby) nebo uvést, že hodnota je aproximace.
+- Datum objednavky: polozky_eshop.duzp (datum/DUZP).
+- Obrat/trzby: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, pouzivej ceny v CZK.
+- Vyroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a casu.
+- Kanaly (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stranky=grigsupply.cz.
+- Pokud uzivatel neupresni obdobi, pouzij poslednich 12 mesicu; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
+- Skladove dostupne polozky nejsou primo v analyticke tabulce; lze je odvodit z pohybu (polozky_pohyby) nebo uvest, ze hodnota je aproximace.
 PROMPT;
     }
 
