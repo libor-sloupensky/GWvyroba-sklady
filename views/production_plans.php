@@ -553,6 +553,15 @@
 }
 
 
+.demand-root-label {
+
+
+  font-weight:700;
+
+
+}
+
+
 .bom-node-critical { color:#b00020; font-weight:600; }
 
 
@@ -1817,19 +1826,26 @@
       label.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
 
 
+      if (row.node.is_root) {
+
+        label.classList.add('demand-root-label');
+
+      }
+
+
       const status = row.node.status || null;
 
 
       if (status && (status.deficit || 0) > 0.0005) {
 
 
-        label.className = 'bom-node-critical';
+        label.classList.add('bom-node-critical');
 
 
       } else if (status && (status.ratio || 0) > 0.4) {
 
 
-        label.className = 'bom-node-warning';
+        label.classList.add('bom-node-warning');
 
 
       }
@@ -2222,7 +2238,7 @@
   function flattenTree(node, guides = []) {
 
 
-    const rows = [{ node, guides }];
+    const rows = [];
 
 
     if (Array.isArray(node.children)) {
@@ -2241,6 +2257,9 @@
 
 
     }
+
+
+    rows.push({ node, guides });
 
 
     return rows;
