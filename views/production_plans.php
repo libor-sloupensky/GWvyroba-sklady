@@ -1804,11 +1804,7 @@
       const tr = document.createElement('tr');
 
 
-      if (row.node.is_root) {
-
-        tr.classList.add('demand-root-row');
-
-      }
+      if (row.node.is_root) tr.classList.add('bom-root-row');
 
 
       const labelCell = document.createElement('td');
