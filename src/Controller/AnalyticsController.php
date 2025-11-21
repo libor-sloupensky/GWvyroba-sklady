@@ -285,6 +285,7 @@ Instrukce:
 - Graf pouzij, jen kdyz dava smysl (casova rada, porovnani), jinak tabulku.
 - Dodrz strukturu JSON, aby sel vystup strojove zpracovat.
 - Pro vice linii v jednom grafu pouzij "series_column" (napr. kanal/eshop_source nebo produkt), y_column zustava hodnota.
+- Pokud filtrujes agregace (SUM/AVG/COUNT), pouzij HAVING; do WHERE nedavej agregacni funkce (vyhnes se chybe "Invalid use of group function").
 
 Dostupne tabulky a sloupce:
 {$schema}
