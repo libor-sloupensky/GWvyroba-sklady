@@ -136,6 +136,7 @@
 .bom-tree-cell { white-space:nowrap; display:flex; align-items:flex-start; gap:0.2rem; }
 .bom-tree-prefix { display:inline-block; color:#90a4ae; white-space:pre; font-family:"Fira Mono","Consolas",monospace; }
 .bom-tree-label { font-weight:600; display:inline-flex; flex-wrap:wrap; }
+.bom-root-label { font-weight:700; }
 .bom-tree-note { margin-left:0.5rem; font-size:0.8rem; color:#b00020; }
 .bom-tree-actions { text-align:right; white-space:nowrap; }
 .bom-action-btn {
@@ -344,6 +345,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const label = document.createElement('span');
       label.className = 'bom-tree-label';
       label.textContent = formatNodeLabel(rowData.node);
+      if (rowData.node.is_root) {
+        label.classList.add('bom-root-label');
+      }
       first.appendChild(prefix);
       first.appendChild(label);
         if (rowData.node.cycle) {

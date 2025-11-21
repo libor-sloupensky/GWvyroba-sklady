@@ -488,6 +488,7 @@
 
 
 }
+.bom-root-label { font-weight:700; }
 
 
 .bom-tree-prefix {
@@ -1827,9 +1828,7 @@
 
 
       if (row.node.is_root) {
-
-        label.classList.add('demand-root-label');
-
+        label.classList.add('bom-root-label');
       }
 
 
