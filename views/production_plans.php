@@ -487,6 +487,9 @@
   white-space:nowrap;
 
 
+  font-weight:500;
+
+
 }
 .bom-root-label { font-weight:700; }
 
@@ -555,6 +558,15 @@
 
 
 .demand-root-label {
+
+
+  font-weight:700;
+
+
+}
+
+.demand-root-row td,
+.bom-root-row td {
 
 
   font-weight:700;
@@ -1804,7 +1816,7 @@
       const tr = document.createElement('tr');
 
 
-      if (row.node.is_root) tr.classList.add('bom-root-row');
+      if (row.node.is_root) tr.classList.add('demand-root-row');
 
 
       const labelCell = document.createElement('td');
