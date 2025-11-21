@@ -1810,7 +1810,7 @@
     const body = document.createElement('tbody');
 
 
-    flattenTreeBottomUp(tree).forEach((row) => {
+    flattenBomTreePlan(tree).forEach((row) => {
 
 
       const tr = document.createElement('tr');
