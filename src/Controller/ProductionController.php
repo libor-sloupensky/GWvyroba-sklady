@@ -90,14 +90,14 @@ final class ProductionController
                     return $ratioB <=> $ratioA;
                 });
             }
-        }
-        $recentLimit = $this->getRecentLimit();
-        $this->render('production_plans.php', [
-            'title' => 'VĂ˝roba â€“ nĂˇvrhy',
-            'items' => $items,
-            'brands' => $this->fetchBrands(),
-            'groups' => $this->fetchGroups(),
-            'types' => $this->productTypes(),
+        }
+        $recentLimit = $this->getRecentLimit();
+        $this->render('production_plans.php', [
+            'title' => 'Výroba – návrhy',
+            'items' => $items,
+            'brands' => $this->fetchBrands(),
+            'groups' => $this->fetchGroups(),
+            'types' => $this->productTypes(),
             'filters' => $filters,
             'hasSearch' => $hasSearch,
             'resultCount' => $hasSearch ? count($items) : 0,
