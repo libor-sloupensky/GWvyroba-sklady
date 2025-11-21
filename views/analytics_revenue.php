@@ -41,7 +41,9 @@
 .favorite-list { list-style:none; padding:0; margin:0; }
 .favorite-list li { border:1px solid #eceff1; border-radius:8px; padding:0.65rem 0.8rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; gap:0.6rem; }
 .favorite-title { font-weight:600; }
+.favorite-actions { display:flex; align-items:center; gap:0.5rem; }
 .favorite-actions button { background:none; border:0; cursor:pointer; font-size:0.95rem; color:#1e88e5; }
+.favorite-actions .favorite-delete { color:#c62828; font-weight:700; margin-left:0.35rem; }
 .favorite-empty { font-size:0.9rem; color:#78909c; }
 .info-block { border-left:4px solid #90a4ae; padding-left:0.8rem; margin-top:1rem; color:#455a64; }
 .todo-list { list-style:disc; margin:0.4rem 0 0 1.2rem; color:#37474f; }
@@ -93,6 +95,7 @@
             </div>
             <div class="favorite-actions">
               <button type="button" data-id="<?= (int)$fav['id'] ?>" data-prompt="mine">Načíst</button>
+              <button type="button" class="favorite-delete" data-id="<?= (int)$fav['id'] ?>" aria-label="Smazat">×</button>
             </div>
           </li>
         <?php endforeach; ?>
@@ -219,7 +222,9 @@
         if (container === mineList) {
           const del = document.createElement('button');
           del.type = 'button';
-          del.textContent = 'Smazat';
+          del.className = 'favorite-delete';
+          del.textContent = '×';
+          del.title = 'Smazat';
           del.addEventListener('click', () => deleteFavorite(fav.id));
           actions.appendChild(del);
         }

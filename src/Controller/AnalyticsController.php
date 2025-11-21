@@ -285,6 +285,7 @@ Instrukce:
 - Graf pouzij, jen kdyz dava smysl (casova rada, porovnani), jinak tabulku.
 - Dodrz strukturu JSON, aby sel vystup strojove zpracovat.
 - Pro vice linii v jednom grafu pouzij "series_column" (napr. kanal/eshop_source nebo produkt), y_column zustava hodnota.
+- Pokud filtrujes agregace (SUM/AVG/COUNT), pouzij HAVING; agregacni funkce nepatri do WHERE (vyhnes se chybe "Invalid use of group function").
 - Pokud filtrujes agregace (SUM/AVG/COUNT), pouzij HAVING; do WHERE nedavej agregacni funkce (vyhnes se chybe "Invalid use of group function").
 
 Dostupne tabulky a sloupce:
@@ -295,6 +296,7 @@ Tipy a aliasy:
 - Obrat/trzby: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, pouzivej ceny v CZK.
 - Vyroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a casu.
 - Kanaly (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stranky=grigsupply.cz.
+- Aktuální skladová hodnota: pouzij produkty.skl_hodnota * (SUM(polozky_pohyby.mnozstvi) GROUP BY sku) a zabal to do SUM napric aktivnimi produkty; zaokrouhli pomoci ROUND.
 - Pokud uzivatel neupresni obdobi, pouzij poslednich 12 mesicu; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
 - Skladove dostupne polozky nejsou primo v analyticke tabulce; lze je odvodit z pohybu (polozky_pohyby) nebo uvest, ze hodnota je aproximace.
 PROMPT;
