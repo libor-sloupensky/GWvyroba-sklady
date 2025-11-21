@@ -367,7 +367,11 @@ final class ProductsController
 
                 if ($skl === '') { $skl = '0'; }
 
-                if (!is_numeric($skl)) { $errors[] = "dek {$line}: skl_hodnota musi byt cislo"; continue; }
+                $sklNorm = str_replace(',', '.', $skl);
+
+                if (!is_numeric($sklNorm)) { $errors[] = "dek {$line}: skl_hodnota musi byt cislo"; continue; }
+
+                $skl = $sklNorm;
 
                 if ($act === '') { $errors[] = "dek {$line}: aktivn je povinn (0/1)"; continue; }
 
