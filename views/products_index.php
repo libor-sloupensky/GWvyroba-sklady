@@ -335,6 +335,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const rows = flattenBomTree(tree);
       rows.forEach((rowData) => {
         const tr = document.createElement('tr');
+        if (rowData.node.is_root) {
+          tr.className = 'bom-root-row';
+        }
 
       const first = document.createElement('td');
       first.className = 'bom-tree-cell';

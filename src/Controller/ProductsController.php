@@ -1176,7 +1176,13 @@ final class ProductsController
 
     {
 
-        return ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','skl_hodnota','aktivni','poznamka'];
+        $fields = ['ean','alt_sku','znacka_id','skupina_id','typ','merna_jednotka','nazev','min_zasoba','nast_zasob','min_davka','krok_vyroby','vyrobni_doba_dni','aktivni','poznamka'];
+
+        if ($this->hasProductStockValueColumn()) {
+            $fields[] = 'skl_hodnota';
+        }
+
+        return $fields;
 
     }
 
@@ -1366,6 +1372,23 @@ final class ProductsController
 
         return [(int)$val, null];
 
+    }
+
+
+    private function hasProductStockValueColumn(): bool
+    {
+        static $result;
+        if ($result !== null) {
+            return $result;
+        }
+        try {
+            $stmt = DB::pdo()->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'produkty' AND column_name = 'skl_hodnota'");
+            $stmt->execute();
+            $result = ((int)$stmt->fetchColumn() > 0);
+        } catch (\Throwable $e) {
+            $result = false;
+        }
+        return $result;
     }
 
 
@@ -1750,7 +1773,9 @@ final class ProductsController
 
     {
 
-        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,p.skl_hodnota,p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
+        $sklColumn = $this->hasProductStockValueColumn() ? 'p.skl_hodnota' : '0 AS skl_hodnota';
+
+        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,' . $sklColumn . ',p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
 
                'FROM produkty p ' .
 

@@ -562,6 +562,13 @@
 
 }
 
+.demand-root-row td,
+.bom-root-row td {
+
+  font-weight:700;
+
+}
+
 
 .bom-node-critical { color:#b00020; font-weight:600; }
 
@@ -1791,10 +1798,17 @@
     const body = document.createElement('tbody');
 
 
-    flattenTree(tree).forEach((row) => {
+    flattenTreeBottomUp(tree).forEach((row) => {
 
 
       const tr = document.createElement('tr');
+
+
+      if (row.node.is_root) {
+
+        tr.classList.add('demand-root-row');
+
+      }
 
 
       const labelCell = document.createElement('td');
@@ -2117,6 +2131,13 @@
       const tr = document.createElement('tr');
 
 
+      if (row.node.is_root) {
+
+        tr.classList.add('bom-root-row');
+
+      }
+
+
       const labelCell = document.createElement('td');
 
 
@@ -2237,7 +2258,7 @@
   function flattenTree(node, guides = []) {
 
 
-    const rows = [];
+    const rows = [{ node, guides }];
 
 
     if (Array.isArray(node.children)) {
@@ -2258,10 +2279,16 @@
     }
 
 
-    rows.push({ node, guides });
-
-
     return rows;
+
+
+  }
+
+
+  function flattenTreeBottomUp(node) {
+
+
+    return flattenTree(node).reverse();
 
 
   }
