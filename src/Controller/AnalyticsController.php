@@ -301,10 +301,15 @@ Tipy a aliasy:
 - Obrat/trzby: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, pouzivej ceny v CZK.
 - Vyroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a casu.
 - Kanaly (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stranky=grigsupply.cz.
-- Aktuální skladová hodnota: pouzij produkty.skl_hodnota * (SUM(polozky_pohyby.mnozstvi) GROUP BY sku) a zabal to do SUM napric aktivnimi produkty; zaokrouhli pomoci ROUND.
+- Aktualni skladova hodnota: pocitej stejne jako ve Vyrobe = snapshot posledni uzavrene inventury + pohyby po inventure - platne rezervace, pak vynasob skl_hodnota. Postup:
+  ? Posledni inventura: SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1.
+  ? Snapshot: SELECT sku, stav FROM inventura_stavy WHERE inventura_id = (id z kroku 1).
+  ? Pohyby po inventure: SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE (closed_at IS NULL OR datum > closed_at) GROUP BY sku.
+  ? Rezervace: SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE platna_do >= CURDATE() GROUP BY sku.
+  ? stav_sku = COALESCE(snapshot,0) + COALESCE(pohyby,0) - COALESCE(rezervace,0).
+  ? hodnota = SUM(p.skl_hodnota * COALESCE(stav_sku,0)) pres aktivni produkty; pro rozpad podle typu pridej GROUP BY p.typ.
 - Pokud uzivatel neupresni obdobi, pouzij poslednich 12 mesicu; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
 - Skladove dostupne polozky nejsou primo v analyticke tabulce; lze je odvodit z pohybu (polozky_pohyby) nebo uvest, ze hodnota je aproximace.
-PROMPT;
     }
 
     private function callOpenAi(string $apiKey, array $body): string
