@@ -487,7 +487,7 @@
   white-space:nowrap;
 
 
-  font-weight:500;
+  font-weight:inherit;
 
 
 }
@@ -1816,7 +1816,7 @@
       const tr = document.createElement('tr');
 
 
-      if (row.node.is_root) tr.classList.add('demand-root-row');
+      if (row.node.is_root) tr.classList.add('bom-root-row');
 
 
       const labelCell = document.createElement('td');
@@ -2321,7 +2321,7 @@
       children.forEach((child, index) => {
 
 
-        walk(child, guides.concat(index === children.length - 1));
+        walk(child, guides.concat([{ last: index === children.length - 1 }]));
 
 
       });
@@ -2354,7 +2354,9 @@
     guides.forEach((guide, idx) => {
 
 
-      const isLast = guide.last;
+      const isLast = typeof guide === 'object' && guide !== null
+        ? !!guide.last
+        : !!guide;
 
 
       if (idx === guides.length - 1) {
