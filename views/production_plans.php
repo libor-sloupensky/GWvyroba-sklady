@@ -2303,6 +2303,43 @@
 
 
 
+  function flattenBomTreePlan(root) {
+
+
+    const rows = [];
+
+
+    const walk = (node, guides = []) => {
+
+
+      rows.push({ node, guides });
+
+
+      const children = Array.isArray(node.children) ? node.children : [];
+
+
+      children.forEach((child, index) => {
+
+
+        walk(child, guides.concat(index === children.length - 1));
+
+
+      });
+
+
+    };
+
+
+    walk(root, []);
+
+
+    return rows;
+
+
+  }
+
+
+
 
 
   function buildPrefix(guides) {
