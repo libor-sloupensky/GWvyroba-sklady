@@ -8,6 +8,7 @@ use PDO;
 
 final class AnalyticsController
 {
+    // Poznámka: Tipy a aliasy níže se odvozují od aktuálního schématu DB, proto udržuj aktualizované pokyny, pokud se DB mění.
     public function revenue(): void
     {
         $this->requireRole(['admin', 'superadmin']);
@@ -302,14 +303,16 @@ Tipy a aliasy:
 - Vyroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a casu.
 - Kanaly (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stranky=grigsupply.cz.
 - Aktualni skladova hodnota: pocitej stejne jako ve Vyrobe = snapshot posledni uzavrene inventury + pohyby po inventure - platne rezervace, pak vynasob skl_hodnota. Postup:
-  ? Posledni inventura: SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1.
-  ? Snapshot: SELECT sku, stav FROM inventura_stavy WHERE inventura_id = (id z kroku 1).
-  ? Pohyby po inventure: SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE (closed_at IS NULL OR datum > closed_at) GROUP BY sku.
-  ? Rezervace: SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE platna_do >= CURDATE() GROUP BY sku.
-  ? stav_sku = COALESCE(snapshot,0) + COALESCE(pohyby,0) - COALESCE(rezervace,0).
-  ? hodnota = SUM(p.skl_hodnota * COALESCE(stav_sku,0)) pres aktivni produkty; pro rozpad podle typu pridej GROUP BY p.typ.
+  - Posledni inventura: SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1.
+  - Snapshot: SELECT sku, stav FROM inventura_stavy WHERE inventura_id = (id z kroku 1).
+  - Pohyby po inventure: SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE (closed_at IS NULL OR datum > closed_at) GROUP BY sku.
+  - Rezervace: SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE platna_do >= CURDATE() GROUP BY sku.
+  - stav_sku = COALESCE(snapshot,0) + COALESCE(pohyby,0) - COALESCE(rezervace,0).
+  - hodnota = SUM(p.skl_hodnota * COALESCE(stav_sku,0)) pres aktivni produkty; pro rozpad podle typu pridej GROUP BY p.typ.
+- Kontaktni udaje klienta jsou v tabulce kontakty (ic, dic, email, telefon, adresa). polozky_eshop nema kontakt_id; pro prodeje pouzij JOIN doklady_eshop ON (eshop_source, cislo_dokladu) a doklady_eshop.kontakt_id -> kontakty.id (filtruj podle kontakty.ic).
 - Pokud uzivatel neupresni obdobi, pouzij poslednich 12 mesicu; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
 - Skladove dostupne polozky nejsou primo v analyticke tabulce; lze je odvodit z pohybu (polozky_pohyby) nebo uvest, ze hodnota je aproximace.
+PROMPT;
     }
 
     private function callOpenAi(string $apiKey, array $body): string
