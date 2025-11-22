@@ -1857,13 +1857,13 @@
       const status = row.node.status || null;
 
 
-      if (status && (status.deficit || 0) > 0.0005) {
+      if (!row.node.is_root && status && (status.deficit || 0) > 0.0005) {
 
 
         label.classList.add('bom-node-critical');
 
 
-      } else if (status && (status.ratio || 0) > 0.4) {
+      } else if (!row.node.is_root && status && (status.ratio || 0) > 0.4) {
 
 
         label.classList.add('bom-node-warning');
