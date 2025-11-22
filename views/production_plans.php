@@ -411,6 +411,23 @@
 
 }
 
+.production-actions {
+
+
+  display:flex;
+
+
+  gap:0.4rem;
+
+
+  flex-wrap:wrap;
+
+
+  align-items:center;
+
+
+}
+
 
 .production-form input[type="number"] {
 
@@ -1139,21 +1156,23 @@
 
           <form method="post" action="/production/produce" class="production-form" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
 
-
             <input type="hidden" name="sku" value="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>" />
-
-
-            <input type="hidden" name="modus" value="odecti_subpotomky" />
-
 
             <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? '/production/plans', ENT_QUOTES, 'UTF-8') ?>" />
 
-
             <input type="number" step="any" name="mnozstvi" placeholder="Množství" required />
 
+            <div class="production-actions">
 
-            <button type="submit">Zapsat množství</button>
+              <button type="submit" name="modus" value="odecti_subpotomky" data-mode="odecti_subpotomky" title="Vyrobit: zapíše hotový produkt a odečte navázané komponenty podle BOM.">Vyrobit</button>
 
+              <?php if (!empty($isAdmin)): ?>
+
+                <button type="submit" name="modus" value="korekce_skladu" data-mode="korekce_skladu" title="Korekce: ručně přičte nebo odečte zásobu pouze tohoto produktu, bez dopadu na komponenty.">Korekce</button>
+
+              <?php endif; ?>
+
+            </div>
 
           </form>
 
@@ -1420,7 +1439,10 @@
     form.addEventListener('submit', (event) => {
 
 
-      event.preventDefault();
+      const submitter = event.submitter || null;
+
+
+      const mode = submitter && submitter.dataset ? (submitter.dataset.mode || submitter.value) : 'odecti_subpotomky';
 
 
       const qtyField = form.querySelector('input[name="mnozstvi"]');
@@ -1429,10 +1451,55 @@
       const qty = parseFloat((qtyField.value || '').replace(',', '.'));
 
 
-      if (!qty || qty <= 0) {
+      if (!Number.isFinite(qty)) {
 
 
-        alert('Zadejte množství výroby.');
+        event.preventDefault();
+
+
+        alert('Zadejte mno?stv?.');
+
+
+        return;
+
+
+      }
+
+
+      if (mode === 'korekce_skladu') {
+
+
+        event.preventDefault();
+
+
+        if (qty === 0) {
+
+
+          alert('Zadejte nenulovou hodnotu korekce.');
+
+
+          return;
+
+
+        }
+
+
+        submitProduction(form, 'korekce_skladu');
+
+
+        return;
+
+
+      }
+
+
+      event.preventDefault();
+
+
+      if (qty <= 0) {
+
+
+        alert('Zadejte mno?stv? v?roby.');
 
 
         return;
@@ -1474,7 +1541,7 @@
         })
 
 
-        .catch((err) => alert('Nelze ověřit komponenty: ' + (err.message || err)));
+        .catch((err) => alert('Nelze ov??it komponenty: ' + (err.message || err)));
 
 
     });
@@ -1585,7 +1652,28 @@
   function submitProduction(form, mode) {
 
 
-    form.querySelector('input[name="modus"]').value = mode;
+    let modeField = form.querySelector('input[name="modus"][type="hidden"]');
+
+
+    if (!modeField) {
+
+
+      modeField = document.createElement('input');
+
+
+      modeField.type = 'hidden';
+
+
+      modeField.name = 'modus';
+
+
+      form.appendChild(modeField);
+
+
+    }
+
+
+    modeField.value = mode;
 
 
     form.submit();
