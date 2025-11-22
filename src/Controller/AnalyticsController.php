@@ -342,6 +342,7 @@ Tipy a aliasy:
     private function openAiStatus(): array
     {
         $key = $this->resolveOpenAiKey();
+        // Jednoduchý health check, jen ověřujeme, že klíč existuje
         if ($key === '') {
             return [
                 'ready' => false,
