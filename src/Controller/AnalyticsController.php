@@ -12,14 +12,12 @@ final class AnalyticsController
     public function revenue(): void
     {
         $this->requireRole(['admin', 'superadmin']);
-        $favorites = $this->loadFavorites();
-        $status = $this->openAiStatus();
+        $templates = $this->loadTemplatesV2();
+        $favoritesV2 = $this->loadFavoritesV2();
         $this->render('analytics_revenue.php', [
-            'title' => 'Analýza (AI)',
-            'openAiStatus' => $status['message'],
-            'openAiReady' => $status['ready'],
-            'myFavorites' => $favorites['mine'],
-            'sharedFavorites' => $favorites['shared'],
+            'title' => 'Analýza',
+            'templates' => $templates,
+            'favoritesV2' => $favoritesV2,
         ]);
     }
 
@@ -435,8 +433,8 @@ PROMPT;
         $this->requireRole(['admin', 'superadmin']);
         $templates = $this->loadTemplatesV2();
         $favoritesV2 = $this->loadFavoritesV2();
-        $this->render('analytics_revenue_v2.php', [
-            'title' => 'Analýza v2',
+        $this->render('analytics_revenue.php', [
+            'title' => 'Analýza',
             'templates' => $templates,
             'favoritesV2' => $favoritesV2,
         ]);

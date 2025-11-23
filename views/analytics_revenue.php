@@ -1,450 +1,492 @@
 <?php
-/** @var array $myFavorites */
-/** @var array $sharedFavorites */
-/** @var string $openAiStatus */
-/** @var bool $openAiReady */
+/** @var string $title */
+/** @var array $templates */
+/** @var array $favoritesV2 */
 ?>
-<h1>Analýza (AI)</h1>
-<div class="analysis-guidelines">
-  <strong>Tipy pro zadání:</strong>
-  <ul>
-    <li>Co chcete vidět (metrika, tabulka nebo graf).</li>
-    <li>Období/filtry (např. poslední měsíc, konkrétní e-shop).</li>
-    <li>Preferovanou formu výstupu (text, tabulka, graf).</li>
-  </ul>
-</div>
+<h1>AnalĂ˝za (katalog dotazĹŻ)</h1>
+
+<p>Vyberte Ĺˇablonu, nastavte filtry a spusĹĄte. VĂ˝sledek se zobrazĂ­ v grafu i tabulce. NastavenĂ­ si mĹŻĹľete uloĹľit do oblĂ­benĂ˝ch.</p>
 
 <style>
-.analysis-layout { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:1.2rem; }
-.analysis-panel { border:1px solid #e0e0e0; border-radius:10px; padding:1rem; background:#fff; }
-.analysis-panel h2 { margin-top:0; }
-.analysis-form label { display:block; font-weight:600; margin-bottom:0.4rem; }
-.analysis-form textarea { width:100%; min-height:170px; border:1px solid #cfd8dc; border-radius:6px; padding:0.75rem; resize:vertical; font-family:inherit; }
-.analysis-form input[type="text"] { width:100%; border:1px solid #cfd8dc; border-radius:6px; padding:0.5rem 0.65rem; }
-.analysis-form button.primary { padding:0.55rem 1.3rem; border:none; border-radius:6px; background:#1e88e5; color:#fff; cursor:pointer; font-size:1rem; }
-.analysis-form button.primary:disabled { background:#90caf9; cursor:not-allowed; }
-.title-row { display:flex; gap:0.4rem; align-items:center; }
-.star-toggle { border:1px solid #ffca28; color:#ffca28; background:#fff8e1; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:1.05rem; }
-.star-toggle.active { background:#ffca28; color:#4e342e; }
-.analysis-guidelines { margin:0.8rem 0; background:#f4f6f8; border-radius:8px; padding:0.7rem 0.9rem; font-size:0.95rem; }
-.analysis-guidelines ul { margin:0.4rem 0 0 1.2rem; }
-.analysis-status { margin-top:0.5rem; font-size:0.95rem; }
-.analysis-status.ready { color:#2e7d32; }
-.analysis-status.warn { color:#c62828; }
-#analysis-results { margin-top:1rem; border-top:1px solid #e0e0e0; padding-top:1rem; }
-.analysis-text { font-size:1rem; margin-bottom:0.8rem; }
-.analysis-output { border:1px solid #e3e8ee; border-radius:8px; padding:0.8rem; margin-bottom:0.8rem; background:#fafbfc; }
-.analysis-output h4 { margin:0 0 0.5rem 0; }
-.analysis-output table { width:100%; border-collapse:collapse; }
-.analysis-output th, .analysis-output td { border-bottom:1px solid #e0e0e0; padding:0.35rem 0.4rem; text-align:left; font-size:0.92rem; }
-.analysis-output canvas { width:100%; max-height:320px; }
+.v2-controls { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
+.v2-output { margin-top:1rem; }
+.v2-form { display:flex; flex-direction:column; gap:0.8rem; }
+.v2-form label { font-weight:600; display:block; margin-bottom:0.15rem; }
+.v2-row { display:flex; gap:0.6rem; flex-wrap:wrap; }
+.v2-row .field { flex:1 1 0; min-width:140px; }
+.v2-form input, .v2-form select { width:100%; padding:0.4rem 0.5rem; }
+.notice { padding:0.6rem 0.8rem; border:1px solid #e0e0e0; border-radius:8px; background:#f7f9fc; }
+.muted { color:#607d8b; }
+.error { color:#c62828; font-weight:600; }
+.chips { display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.3rem; }
+.chip { background:#eceff1; border-radius:999px; padding:0.25rem 0.55rem; display:inline-flex; align-items:center; gap:0.35rem; }
+.chip button { border:0; background:none; cursor:pointer; font-weight:700; color:#c62828; }
+.dropdown { border:1px solid #d0d7de; border-radius:6px; padding:0.35rem 0.45rem; background:#fff; max-height:180px; overflow:auto; margin-top:0.2rem; }
+.dropdown div { padding:0.2rem 0.1rem; cursor:pointer; }
+.dropdown div:hover { background:#f1f5f9; }
+.result-wrap { margin-top:1rem; }
+.result-table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
+.result-table th, .result-table td { border:1px solid #e0e0e0; padding:0.35rem 0.4rem; text-align:left; }
+.result-table tfoot td { font-weight:700; background:#f5f7fa; }
 .favorite-list { list-style:none; padding:0; margin:0; }
-.favorite-list li { border:1px solid #eceff1; border-radius:8px; padding:0.65rem 0.8rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; gap:0.6rem; }
+.favorite-list li { border:1px solid #eceff1; border-radius:8px; padding:0.55rem 0.7rem; margin-bottom:0.5rem; display:flex; justify-content:space-between; gap:0.6rem; }
 .favorite-title { font-weight:600; }
-.favorite-actions { display:flex; align-items:center; gap:0.5rem; }
+.favorite-actions { display:flex; align-items:center; gap:0.45rem; }
 .favorite-actions button { background:none; border:0; cursor:pointer; font-size:0.95rem; color:#1e88e5; }
-.favorite-actions .favorite-delete { color:#c62828; font-weight:700; margin-left:0.35rem; }
+.favorite-actions .favorite-delete { color:#c62828; font-weight:700; margin-left:0.2rem; }
 .favorite-empty { font-size:0.9rem; color:#78909c; }
-.info-block { border-left:4px solid #90a4ae; padding-left:0.8rem; margin-top:1rem; color:#455a64; }
-.todo-list { list-style:disc; margin:0.4rem 0 0 1.2rem; color:#37474f; }
-.error-banner { background:#ffebee; border:1px solid #ffcdd2; color:#c62828; padding:0.6rem 0.8rem; border-radius:6px; margin-top:0.7rem; }
-.loader { display:inline-block; width:16px; height:16px; border:2px solid #bbdefb; border-top-color:#1e88e5; border-radius:50%; animation:spin 0.8s linear infinite; margin-left:0.4rem; }
-@keyframes spin { to { transform:rotate(360deg); } }
-@media (max-width: 960px) {
-  .analysis-layout { grid-template-columns:1fr; }
-}
+.chart-box { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:0.7rem; }
 </style>
 
-<div class="analysis-layout">
-  <section class="analysis-panel">
-    <h2>AI dotaz</h2>
-    <form id="analysis-form" class="analysis-form" action="javascript:void(0);">
-      <label for="prompt-title">Název (uložíte až po ověření výsledku)</label>
-      <div class="title-row">
-        <input type="text" id="prompt-title" placeholder="Např. Top objednávky">
-        <button type="button" id="prompt-star" class="star-toggle" title="Uložit jako oblíbené" disabled>☆</button>
+<div class="v2-controls">
+  <div>
+    <form id="v2-form" class="v2-form" action="javascript:void(0);" style="margin-bottom:1rem;">
+      <div class="field">
+        <label for="template-id">ÄąÂ ablona</label>
+        <select id="template-id" name="template_id">
+          <?php foreach ($templates as $id => $tpl): ?>
+            <option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>">
+              <?= htmlspecialchars($tpl['title'], ENT_QUOTES, 'UTF-8') ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <p class="muted" id="template-desc"></p>
       </div>
-      <label for="prompt">Znění dotazu</label>
-      <textarea id="prompt" placeholder="Popište, co chcete zjistit, za jaké období a v jaké formě výstup zobrazit (text/tabulka/graf)."></textarea>
-      <button type="submit" id="analysis-submit" class="primary" <?= $openAiReady ? '' : 'disabled' ?>><?= $openAiReady ? 'Odeslat dotaz' : 'OpenAI není připraveno' ?></button>
-      <div id="analysis-status" class="analysis-status <?= $openAiReady ? 'ready' : 'warn' ?>"><?= htmlspecialchars($openAiStatus, ENT_QUOTES, 'UTF-8') ?></div>
-      <div id="analysis-error" class="error-banner" style="display:none;"></div>
-    </form>
 
-    <div id="analysis-results">
-      <div class="analysis-text" id="analysis-text"></div>
-      <div id="analysis-outputs"></div>
+      <div class="v2-row">
+        <div class="field">
+          <label for="start-date">Od</label>
+          <input type="date" id="start-date" name="start_date" />
+        </div>
+        <div class="field">
+          <label for="end-date">Do</label>
+          <input type="date" id="end-date" name="end_date" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Kontakt (IĂ„Ĺš / e-mail / firma)</label>
+        <input type="text" id="contact-search" placeholder="Hledat..." autocomplete="off" />
+        <div id="contact-dropdown" class="dropdown" style="display:none;"></div>
+        <div class="chips" id="contact-chips"></div>
+        <p class="muted">Vyberte 0Ă˘â‚¬â€śN kontaktÄąĹ»; prÄ‚Ë‡zdnÄ‚Â© = vÄąË‡echny.</p>
+      </div>
+
+      <div class="field">
+        <label for="eshop-source">E-shop</label>
+        <select id="eshop-source" name="eshop_source" multiple size="6"></select>
+        <p class="muted">NezvolÄ‚Â­te-li nic, pouÄąÄľijÄ‚Â­ se vÄąË‡echny kanÄ‚Ë‡ly.</p>
+      </div>
+
+      <button type="submit">Spustit dotaz</button>
+      <div id="v2-error" class="error" style="display:none;"></div>
+    </form>
+  </div>
+
+  <div>
+    <div class="notice" style="margin-bottom:1rem;">
+      <strong>OblÄ‚Â­benÄ‚Â© nastavenÄ‚Â­</strong>
+      <div class="v2-row" style="margin-top:0.4rem;">
+        <div class="field">
+          <label for="fav-title">NÄ‚Ë‡zev</label>
+          <input type="text" id="fav-title" placeholder="NapÄąâ„˘. Klient 123 - poslednÄ‚Â­ch 18M" />
+        </div>
+        <div class="field" style="align-self:flex-end;">
+          <label><input type="checkbox" id="fav-public" checked /> SdÄ‚Â­let s ostatnÄ‚Â­mi</label>
+        </div>
+        <button type="button" id="fav-save">UloÄąÄľit oblÄ‚Â­benÄ‚Â©</button>
+      </div>
     </div>
 
-  </section>
+    <h3>Moje oblÄ‚Â­benÄ‚Â©</h3>
+    <ul class="favorite-list" id="favorite-mine"></ul>
+    <h3>OblÄ‚Â­benÄ‚Â© ostatnÄ‚Â­ch</h3>
+    <ul class="favorite-list" id="favorite-shared"></ul>
+  </div>
+</div>
 
-  <section class="analysis-panel">
-    <h2>Oblíbené prompty</h2>
-    <!-- Hláška o ukládání odstraněna na přání -->
-
-    <h3>Moje</h3>
-    <ul class="favorite-list" id="favorite-mine">
-      <?php if (empty($myFavorites)): ?>
-        <li class="favorite-empty">Zatím nemáte žádné oblíbené prompty.</li>
-      <?php else: ?>
-        <?php foreach ($myFavorites as $fav): ?>
-          <li data-id="<?= (int)$fav['id'] ?>">
-            <div>
-              <span class="favorite-title"><?= htmlspecialchars($fav['title'], ENT_QUOTES, 'UTF-8') ?></span>
-              <p class="muted"><?= nl2br(htmlspecialchars(mb_strimwidth($fav['prompt'], 0, 160, '…'), ENT_QUOTES, 'UTF-8')) ?></p>
-            </div>
-            <div class="favorite-actions">
-              <button type="button" data-id="<?= (int)$fav['id'] ?>" data-prompt="mine">Načíst</button>
-              <button type="button" class="favorite-delete" data-id="<?= (int)$fav['id'] ?>" aria-label="Smazat">×</button>
-            </div>
-          </li>
-        <?php endforeach; ?>
-      <?php endif; ?>
-    </ul>
-
-    <h3>Inspirace ostatních</h3>
-    <ul class="favorite-list" id="favorite-shared">
-      <?php if (empty($sharedFavorites)): ?>
-        <li class="favorite-empty">Zatím nejsou žádné sdílené prompty.</li>
-      <?php else: ?>
-        <?php foreach ($sharedFavorites as $fav): ?>
-          <li data-id="<?= (int)$fav['id'] ?>">
-            <div>
-              <span class="favorite-title"><?= htmlspecialchars($fav['title'], ENT_QUOTES, 'UTF-8') ?></span>
-              <p class="muted"><?= nl2br(htmlspecialchars(mb_strimwidth($fav['prompt'], 0, 160, '…'), ENT_QUOTES, 'UTF-8')) ?></p>
-            </div>
-            <div class="favorite-actions">
-              <button type="button" data-id="<?= (int)$fav['id'] ?>" data-prompt="shared">Načíst</button>
-            </div>
-          </li>
-        <?php endforeach; ?>
-      <?php endif; ?>
-    </ul>
-  </section>
+<div class="v2-output">
+  <div class="chart-box">
+    <canvas id="v2-chart" height="200"></canvas>
+  </div>
+  <div id="v2-result"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-(function(){
-  const state = {
-    starReady: false,
-    submitting: false,
-    lastPrompt: '',
-    lastTitle: '',
-    favorites: {
-      mine: <?= json_encode($myFavorites, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>,
-      shared: <?= json_encode($sharedFavorites, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>
-    }
-  };
-  const form = document.getElementById('analysis-form');
-  const promptInput = document.getElementById('prompt');
-  const titleInput = document.getElementById('prompt-title');
-  const starBtn = document.getElementById('prompt-star');
-  const submitBtn = document.getElementById('analysis-submit');
-  const statusBox = document.getElementById('analysis-status');
-  const errorBox = document.getElementById('analysis-error');
-  const textBox = document.getElementById('analysis-text');
-  const outputsBox = document.getElementById('analysis-outputs');
-  const mineList = document.getElementById('favorite-mine');
-  const sharedList = document.getElementById('favorite-shared');
-  const apiReady = <?= $openAiReady ? 'true' : 'false' ?>;
+(() => {
+  const templates = <?= json_encode($templates, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+  const favoritesInit = <?= json_encode($favoritesV2, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 
-  starBtn.addEventListener('click', () => {
-    if (!state.starReady) {
-      renderError('Nejprve odešlete dotaz a zobrazte výsledek.');
-      return;
-    }
-    const title = titleInput.value.trim();
-    const prompt = state.lastPrompt.trim();
-    if (!prompt) {
-      renderError('Nejprve odešlete dotaz.');
-      return;
-    }
-    if (!title) {
-      renderError('Doplňte název promptu pro uložení.');
-      titleInput.focus();
-      return;
-    }
-    renderError('');
-    starBtn.disabled = true;
-    starBtn.textContent = 'Ukládám...';
-    fetch('/analytics/favorite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, prompt })
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.ok) { throw new Error(data.error || 'Uložení selhalo.'); }
-        state.favorites = data.favorites;
-        renderFavorites();
-        starBtn.classList.add('active');
-        starBtn.textContent = '★ Uloženo';
-      })
-      .catch((err) => {
-        renderError(err.message || 'Uložení selhalo.');
-      })
-      .finally(() => {
-        starBtn.disabled = false;
+  const form = document.getElementById('v2-form');
+  const selectTpl = document.getElementById('template-id');
+  const descBox = document.getElementById('template-desc');
+  const startDate = document.getElementById('start-date');
+  const endDate = document.getElementById('end-date');
+  const eshopSelect = document.getElementById('eshop-source');
+  const errorBox = document.getElementById('v2-error');
+  const resultBox = document.getElementById('v2-result');
+  const chartCanvas = document.getElementById('v2-chart');
+
+  const contactInput = document.getElementById('contact-search');
+  const contactDropdown = document.getElementById('contact-dropdown');
+  const contactChips = document.getElementById('contact-chips');
+
+  const favMine = document.getElementById('favorite-mine');
+  const favShared = document.getElementById('favorite-shared');
+  const favTitle = document.getElementById('fav-title');
+  const favPublic = document.getElementById('fav-public');
+  const favSave = document.getElementById('fav-save');
+
+  let chart;
+  const state = {
+    contacts: [],
+    favorites: favoritesInit || { mine: [], shared: [] },
+    lastRows: [],
+  };
+
+  function initEshops() {
+    const tpl = templates[selectTpl.value];
+    const eshopParam = tpl?.params?.find(p => p.name === 'eshop_source');
+    eshopSelect.innerHTML = '';
+    if (eshopParam && Array.isArray(eshopParam.values)) {
+      eshopParam.values.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val === 'vsechny' ? 'VÄąË‡echny (souĂ„Ĺ¤et vÄąË‡ech)' : val;
+        eshopSelect.appendChild(opt);
       });
-  });
+    }
+  }
+
+  function setDefaultDates() {
+    const tpl = templates[selectTpl.value];
+    const pStart = tpl?.params?.find(p => p.name === 'start_date');
+    const pEnd = tpl?.params?.find(p => p.name === 'end_date');
+    if (pStart?.default) startDate.value = pStart.default;
+    if (pEnd?.default) endDate.value = pEnd.default;
+  }
 
   function renderFavorites() {
-    const renderList = (items, container) => {
-      container.innerHTML = '';
-      if (!items.length) {
+    const renderList = (items, node) => {
+      node.innerHTML = '';
+      if (!items || !items.length) {
         const li = document.createElement('li');
         li.className = 'favorite-empty';
-        li.textContent = 'Zatím nic uloženého.';
-        container.appendChild(li);
+        li.textContent = 'ZatÄ‚Â­m nic uloÄąÄľeno.';
+        node.appendChild(li);
         return;
       }
       items.forEach((fav) => {
         const li = document.createElement('li');
-        li.dataset.id = fav.id;
-        const wrap = document.createElement('div');
-        const title = document.createElement('span');
+        const left = document.createElement('div');
+        const title = document.createElement('div');
         title.className = 'favorite-title';
         title.textContent = fav.title;
-        const excerpt = document.createElement('p');
-        excerpt.className = 'muted';
-        const text = fav.prompt || '';
-        excerpt.textContent = text.slice(0, 160) + (text.length > 160 ? '…' : '');
-        wrap.appendChild(title);
-        wrap.appendChild(excerpt);
+        left.appendChild(title);
         const actions = document.createElement('div');
         actions.className = 'favorite-actions';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = 'Načíst';
-        btn.addEventListener('click', () => loadFavorite(fav));
-        actions.appendChild(btn);
-        if (container === mineList) {
-          const del = document.createElement('button');
-          del.type = 'button';
-          del.className = 'favorite-delete';
-          del.textContent = '×';
-          del.title = 'Smazat';
-          del.addEventListener('click', () => deleteFavorite(fav.id));
-          actions.appendChild(del);
+        const btnLoad = document.createElement('button');
+        btnLoad.type = 'button';
+        btnLoad.textContent = 'NaĂ„Ĺ¤Ä‚Â­st';
+        btnLoad.onclick = () => loadFavorite(fav, true);
+        actions.appendChild(btnLoad);
+        if (node === favMine) { // only moje -> allow delete
+          const btnDel = document.createElement('button');
+          btnDel.type = 'button';
+          btnDel.className = 'favorite-delete';
+          btnDel.textContent = 'Ä‚â€”';
+          btnDel.title = 'Smazat';
+          btnDel.onclick = () => deleteFavorite(fav.id);
+          actions.appendChild(btnDel);
         }
-        li.appendChild(wrap);
+        li.appendChild(left);
         li.appendChild(actions);
-        container.appendChild(li);
+        node.appendChild(li);
       });
     };
-    renderList(state.favorites.mine || [], mineList);
-    renderList(state.favorites.shared || [], sharedList);
+    renderList(state.favorites.mine, favMine);
+    renderList(state.favorites.shared, favShared);
   }
 
-  function loadFavorite(fav) {
-    promptInput.value = fav.prompt || '';
-    titleInput.value = fav.title || '';
-    textBox.textContent = '';
-    outputsBox.innerHTML = '';
-    state.starReady = false;
-    starBtn.classList.remove('active');
-    starBtn.disabled = true;
-    starBtn.textContent = '☆';
+  function renderChips() {
+    contactChips.innerHTML = '';
+    state.contacts.forEach((c) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = c.label || (`Kontakt #${c.id}`);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Ä‚â€”';
+      btn.onclick = () => removeContact(c.id);
+      chip.appendChild(btn);
+      contactChips.appendChild(chip);
+    });
   }
 
-  function deleteFavorite(id) {
-    if (!id) return;
-    fetch('/analytics/favorite/delete', {
+  function removeContact(id) {
+    state.contacts = state.contacts.filter(c => c.id !== id);
+    renderChips();
+  }
+
+  function addContact(item) {
+    if (state.contacts.some(c => c.id === item.id)) return;
+    state.contacts.push(item);
+    renderChips();
+  }
+
+  let suggestTimeout;
+  contactInput.addEventListener('input', () => {
+    const q = contactInput.value.trim();
+    if (suggestTimeout) clearTimeout(suggestTimeout);
+    if (q.length < 2) {
+      contactDropdown.style.display = 'none';
+      return;
+    }
+    suggestTimeout = setTimeout(async () => {
+      const res = await fetch('/analytics/contacts?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      const items = data.items || [];
+      contactDropdown.innerHTML = '';
+      if (!items.length) {
+        contactDropdown.innerHTML = '<div class="muted">Nic nenalezeno</div>';
+      } else {
+        items.forEach((it) => {
+          const div = document.createElement('div');
+          div.textContent = it.label;
+          div.onclick = () => {
+            addContact(it);
+            contactDropdown.style.display = 'none';
+            contactInput.value = '';
+          };
+          contactDropdown.appendChild(div);
+        });
+      }
+      contactDropdown.style.display = 'block';
+    }, 250);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!contactDropdown.contains(e.target) && e.target !== contactInput) {
+      contactDropdown.style.display = 'none';
+    }
+  });
+
+  function toParams() {
+    const params = {
+      start_date: startDate.value || '',
+      end_date: endDate.value || '',
+      contact_ids: state.contacts.map(c => c.id),
+      eshop_source: Array.from(eshopSelect.selectedOptions).map(o => o.value),
+    };
+    return params;
+  }
+
+  function renderTable(rows) {
+    if (!rows || !rows.length) {
+      resultBox.innerHTML = '<p class="muted">ÄąËťÄ‚Ë‡dnÄ‚Ë‡ data.</p>';
+      return;
+    }
+    const cols = Object.keys(rows[0]);
+    const table = document.createElement('table');
+    table.className = 'result-table';
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    cols.forEach((c) => {
+      const th = document.createElement('th');
+      th.textContent = c;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    let totals = {};
+    rows.forEach((r) => {
+      const tr = document.createElement('tr');
+      cols.forEach((c) => {
+        const td = document.createElement('td');
+        td.textContent = r[c] ?? '';
+        tr.appendChild(td);
+        const val = Number(r[c]);
+        if (!Number.isNaN(val)) {
+          totals[c] = (totals[c] || 0) + val;
+        }
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    const tfoot = document.createElement('tfoot');
+    const trf = document.createElement('tr');
+    cols.forEach((c, idx) => {
+      const td = document.createElement('td');
+      if (idx === 0) {
+        td.textContent = 'Celkem';
+      } else if (totals[c] !== undefined) {
+        td.textContent = Math.round(totals[c]);
+      } else {
+        td.textContent = '';
+      }
+      trf.appendChild(td);
+    });
+    tfoot.appendChild(trf);
+    table.appendChild(tfoot);
+    resultBox.innerHTML = '';
+    resultBox.appendChild(table);
+  }
+
+  function renderChart(rows) {
+    if (!rows || !rows.length || !window.Chart) {
+      if (chart) chart.destroy();
+      chart = null;
+      return;
+    }
+    const bySeries = new Map();
+    rows.forEach(r => {
+      const label = r.serie_label || 'Celkem';
+      const key = r.serie_key || label;
+      if (!bySeries.has(key)) bySeries.set(key, { label, points: [] });
+      bySeries.get(key).points.push({ x: r.mesic, y: Number(r.trzby || 0) });
+    });
+    const datasets = Array.from(bySeries.values()).map((s, idx) => {
+      s.points.sort((a,b) => a.x.localeCompare(b.x));
+      const color = palette(idx);
+      return {
+        label: s.label,
+        data: s.points,
+        borderColor: color,
+        backgroundColor: color + '33',
+        tension: 0.2,
+      };
+    });
+    if (chart) chart.destroy();
+    chart = new Chart(chartCanvas.getContext('2d'), {
+      type: 'line',
+      data: { datasets },
+      options: {
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+        scales: {
+          x: { title: { display: true, text: 'MĂ„â€şsÄ‚Â­c' } },
+          y: { title: { display: true, text: 'TrÄąÄľby (CZK)' }, beginAtZero: true },
+        },
+        plugins: { legend: { display: true, position: 'bottom' } },
+      },
+    });
+  }
+
+  function palette(i) {
+    const colors = ['#1565c0','#ef6c00','#2e7d32','#8e24aa','#c62828','#00838f','#6d4c41','#5d4037','#283593','#ad1457'];
+    return colors[i % colors.length];
+  }
+
+  async function runQuery() {
+    errorBox.style.display = 'none';
+    const tplId = selectTpl.value;
+      const res = await fetch('/analytics/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: tplId, params: toParams() })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Dotaz selhal.');
+    state.lastRows = data.rows || [];
+    renderChart(state.lastRows);
+    renderTable(state.lastRows);
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await runQuery();
+    } catch (err) {
+      errorBox.style.display = 'block';
+      errorBox.textContent = err.message || 'Dotaz selhal.';
+    }
+  });
+
+  async function loadFavorite(fav, run = false) {
+    if (!fav || !fav.template_id) return;
+    if (!templates[fav.template_id]) {
+      alert('ÄąÂ ablona uÄąÄľ neexistuje.');
+      return;
+    }
+    selectTpl.value = fav.template_id;
+    onTemplateChange();
+    const p = fav.params || {};
+    startDate.value = p.start_date || '';
+    endDate.value = p.end_date || '';
+    state.contacts = (p.contact_ids || []).map(id => ({ id, label: 'Kontakt #' + id }));
+    renderChips();
+    Array.from(eshopSelect.options).forEach(opt => {
+      opt.selected = Array.isArray(p.eshop_source) && p.eshop_source.includes(opt.value);
+    });
+    if (run) {
+      try {
+        await runQuery();
+      } catch (err) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = err.message || 'Dotaz selhal.';
+      }
+    }
+  }
+
+  async function deleteFavorite(id) {
+    const res = await fetch('/analytics/favorite/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.ok) { throw new Error(data.error || 'Smazání selhalo.'); }
-        state.favorites = data.favorites;
-        renderFavorites();
-      })
-      .catch((err) => {
-        renderError(err.message || 'Smazání selhalo.');
-      });
-  }
-
-  function renderError(message) {
-    if (!message) {
-      errorBox.style.display = 'none';
-      errorBox.textContent = '';
-      return;
-    }
-    errorBox.style.display = 'block';
-    errorBox.textContent = message;
-  }
-
-  function renderOutputs(data) {
-    textBox.textContent = data.explanation || '';
-    outputsBox.innerHTML = '';
-    (data.outputs || []).forEach((item, index) => {
-      const box = document.createElement('div');
-      box.className = 'analysis-output';
-      const title = document.createElement('h4');
-      title.textContent = item.title || (item.type === 'line_chart' ? 'Graf' : 'Výsledky');
-      box.appendChild(title);
-      if (item.type === 'error') {
-        const p = document.createElement('p');
-        p.className = 'muted';
-        p.textContent = item.message || 'Dotaz nelze zobrazit.';
-        box.appendChild(p);
-      } else if (item.type === 'line_chart') {
-        const canvas = document.createElement('canvas');
-        canvas.id = 'analysis-chart-' + index;
-        box.appendChild(canvas);
-        outputsBox.appendChild(box);
-        renderChart(canvas, item);
-        return;
-      } else {
-        const table = document.createElement('table');
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
-        const columns = item.columns && item.columns.length ? item.columns : deriveColumns(item.rows);
-        columns.forEach((col) => {
-          const th = document.createElement('th');
-          th.textContent = col.label || col.key;
-          headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        (item.rows || []).forEach((row) => {
-          const tr = document.createElement('tr');
-          columns.forEach((col) => {
-            const td = document.createElement('td');
-            const key = col.key || col;
-            td.textContent = row[key] ?? '';
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        box.appendChild(table);
-      }
-      outputsBox.appendChild(box);
     });
+    const data = await res.json();
+    if (data.ok) {
+      state.favorites = data.favorites || { mine: [], shared: [] };
+      renderFavorites();
+    }
   }
 
-  function deriveColumns(rows) {
-    if (!rows || !rows.length) {
-      return [{ key: 'info', label: 'Hodnota' }];
-    }
-    return Object.keys(rows[0]).map((key) => ({ key, label: key }));
-  }
-
-  function renderChart(canvas, item) {
-    if (!window.Chart) {
-      const p = document.createElement('p');
-      p.textContent = 'Nelze zobrazit graf (chybi Chart.js).';
-      canvas.replaceWith(p);
+  favSave.addEventListener('click', async () => {
+    const title = favTitle.value.trim();
+    if (!title) {
+      alert('Zadejte nÄ‚Ë‡zev.');
       return;
     }
-    const rows = item.rows || [];
-    const xKey = item.xColumn || Object.keys(rows[0] || {})[0] || 'label';
-    const yKey = item.yColumn || Object.keys(rows[0] || {})[1] || 'value';
-    const seriesKey = item.seriesColumn || null;
-    const baseLabels = rows.map((row) => row[xKey]);
-    const labels = seriesKey ? Array.from(new Set(baseLabels)) : baseLabels;
-    const palette = ['#1e88e5', '#43a047', '#f4511e', '#8e24aa', '#3949ab', '#00acc1', '#fb8c00', '#6d4c41'];
-
-    let datasets = [];
-    if (seriesKey) {
-      const seriesMap = new Map();
-      rows.forEach((row) => {
-        const name = String(row[seriesKey] ?? 'Serie');
-        const xVal = row[xKey];
-        if (!seriesMap.has(name)) {
-          seriesMap.set(name, new Map());
-        }
-        const points = seriesMap.get(name);
-        points.set(xVal, Number(row[yKey]) || 0);
-      });
-      datasets = Array.from(seriesMap.entries()).map(([name, points], idx) => {
-        const color = palette[idx % palette.length];
-        return {
-          label: name,
-          data: labels.map((label) => points.get(label) ?? null),
-          borderColor: color,
-          backgroundColor: color + '33',
-          tension: 0.2,
-          fill: false,
-        };
-      });
-    } else {
-      datasets = [{
-        label: item.seriesLabel || yKey,
-        data: rows.map((row) => Number(row[yKey]) || 0),
-        borderColor: '#1e88e5',
-        backgroundColor: 'rgba(30,136,229,0.2)',
-        tension: 0.2,
-        fill: true,
-      }];
-    }
-
-    new Chart(canvas.getContext('2d'), {
-      type: 'line',
-      data: {
-        labels,
-        datasets
-      },
-      options: {
-        responsive: true,
-        scales: { y: { beginAtZero: false } }
-      }
-    });
-  }
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    if (!apiReady || state.submitting) {
-      return;
-    }
-    const prompt = promptInput.value.trim();
-    if (!prompt) {
-      renderError('Zadejte prosím text dotazu.');
-      promptInput.focus();
-      return;
-    }
-    renderError('');
-    state.submitting = true;
-    state.starReady = false;
-    starBtn.disabled = true;
-    starBtn.classList.remove('active');
-    starBtn.textContent = '☆';
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Odesílám...';
-    const body = { prompt, title: titleInput.value.trim(), saveFavorite: false };
-    fetch('/analytics/ai', {
+    const res = await fetch('/analytics/favorite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.ok) { throw new Error(data.error || 'Neznámá chyba'); }
-        renderOutputs(data);
-        if (data.favorites) {
-          state.favorites = data.favorites;
-          renderFavorites();
-        }
-        state.lastPrompt = prompt;
-        state.lastTitle = titleInput.value.trim();
-        state.starReady = true;
-        starBtn.disabled = false;
-        starBtn.textContent = '☆ Uložit';
-      })
-      .catch((err) => {
-        renderError(err.message || 'Dotaz nelze zpracovat.');
-      })
-      .finally(() => {
-        state.submitting = false;
-        submitBtn.disabled = !apiReady;
-        submitBtn.textContent = apiReady ? 'Odeslat dotaz' : 'OpenAI není připraveno';
-      });
+      body: JSON.stringify({
+        title,
+        template_id: selectTpl.value,
+        params: toParams(),
+        is_public: favPublic.checked ? 1 : 0,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      alert(data.error || 'UloÄąÄľenÄ‚Â­ selhalo.');
+      return;
+    }
+    state.favorites = data.favorites || { mine: [], shared: [] };
+    renderFavorites();
   });
 
+  async function refreshFavorites() {
+    const res = await fetch('/analytics/favorite/list');
+    const data = await res.json();
+    if (data.ok) {
+      state.favorites = data.favorites || { mine: [], shared: [] };
+      renderFavorites();
+    }
+  }
+
+  function onTemplateChange() {
+    const tpl = templates[selectTpl.value];
+    descBox.textContent = tpl?.description || '';
+    initEshops();
+    setDefaultDates();
+  }
+
+  selectTpl.addEventListener('change', onTemplateChange);
+  onTemplateChange();
   renderFavorites();
+  refreshFavorites();
 })();
 </script>

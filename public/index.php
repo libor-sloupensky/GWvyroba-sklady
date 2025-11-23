@@ -77,15 +77,11 @@ $router->post('/production/recent-limit', [ProductionController::class, 'updateR
 
 // Analytics
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
-$router->post('/analytics/ai', [AnalyticsController::class, 'ai']);
-$router->post('/analytics/favorite', [AnalyticsController::class, 'saveFavoriteAjax']);
-$router->post('/analytics/favorite/delete', [AnalyticsController::class, 'deleteFavoriteAjax']);
-$router->get('/analytics/v2', [AnalyticsController::class, 'revenueV2']); // nové UI Analýza v2
-$router->post('/analytics/v2/run', [AnalyticsController::class, 'runTemplateV2']);
-$router->get('/analytics/v2/contacts', [AnalyticsController::class, 'searchContactsV2']);
-$router->get('/analytics/v2/favorite/list', [AnalyticsController::class, 'favoriteListV2']);
-$router->post('/analytics/v2/favorite', [AnalyticsController::class, 'saveFavoriteV2']);
-$router->post('/analytics/v2/favorite/delete', [AnalyticsController::class, 'deleteFavoriteV2']);
+$router->post('/analytics/run', [AnalyticsController::class, 'runTemplateV2']);
+$router->get('/analytics/contacts', [AnalyticsController::class, 'searchContactsV2']);
+$router->get('/analytics/favorite/list', [AnalyticsController::class, 'favoriteListV2']);
+$router->post('/analytics/favorite', [AnalyticsController::class, 'saveFavoriteV2']);
+$router->post('/analytics/favorite/delete', [AnalyticsController::class, 'deleteFavoriteV2']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
