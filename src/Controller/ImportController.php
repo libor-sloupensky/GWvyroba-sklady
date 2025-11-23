@@ -121,7 +121,7 @@ final class ImportController
         $pdo = DB::pdo();
         $importTs = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $ignorePatterns = $this->loadIgnorePatterns();
-        $docInsert = $pdo->prepare('INSERT INTO doklady_eshop (eshop_source,cislo_dokladu,typ_dokladu,platba_typ,dopravce_ids,cislo_objednavky,sym_var,datum_vystaveni,duzp,splatnost,mena_puvodni,kurz_na_czk,kontakt_id,import_batch_id,import_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL,?,?)');
+        $docInsert = $pdo->prepare('INSERT INTO doklady_eshop (eshop_source,cislo_dokladu,typ_dokladu,platba_typ,dopravce_ids,cislo_objednavky,sym_var,datum_vystaveni,duzp,splatnost,mena_puvodni,kurz_na_czk,kontakt_id,import_batch_id,import_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $itemInsert = $pdo->prepare('INSERT INTO polozky_eshop (eshop_source,cislo_dokladu,code_raw,stock_ids_raw,sku,ean,nazev,mnozstvi,merna_jednotka,cena_jedn_mena,cena_jedn_czk,mena_puvodni,sazba_dph_hint,plati_dph,sleva_procento,duzp,import_batch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $deleteItems = $pdo->prepare('DELETE FROM polozky_eshop WHERE eshop_source=? AND cislo_dokladu=?');
         $deleteDoc = $pdo->prepare('DELETE FROM doklady_eshop WHERE eshop_source=? AND cislo_dokladu=?');
@@ -141,6 +141,7 @@ final class ImportController
                 }
                 $dateIssue = $this->normalizeDate($doc['datum_vystaveni'] ?? null);
                 $dueDate = $this->normalizeDate($doc['splatnost'] ?? null);
+                $contactId = $this->syncContact($doc['contact'] ?? []);
                 $deleteItems->execute([$eshop, $docNumber]);
                 $deleteDoc->execute([$eshop, $docNumber]);
                 $docInsert->execute([
@@ -156,6 +157,7 @@ final class ImportController
                     $dueDate,
                     $this->emptyToNull($doc['mena'] ?? null),
                     $this->normalizeDecimal($doc['kurz'] ?? null),
+                    $contactId,
                     $batch,
                     $importTs,
                 ]);
@@ -335,6 +337,7 @@ final class ImportController
             if (!$header) {
                 continue;
             }
+            $partner = $this->firstNode($xpath, './inv:partnerIdentity', $header);
             $number = $this->xpathValue($xpath, './inv:number/typ:numberRequested', $header);
             if ($number === '') {
                 continue;
@@ -351,6 +354,18 @@ final class ImportController
                 'splatnost' => $this->xpathValue($xpath, './inv:dateDue', $header),
                 'mena' => $this->xpathValue($xpath, './inv:homeCurrency/typ:currency', $header),
                 'kurz' => $this->xpathValue($xpath, './inv:homeCurrency/typ:rate', $header),
+                'contact' => $partner ? [
+                    'firma' => $this->xpathValue($xpath, './typ:address/typ:company', $partner),
+                    'jmeno' => $this->xpathValue($xpath, './typ:address/typ:name', $partner),
+                    'ulice' => $this->xpathValue($xpath, './typ:address/typ:street', $partner),
+                    'mesto' => $this->xpathValue($xpath, './typ:address/typ:city', $partner),
+                    'psc' => $this->xpathValue($xpath, './typ:address/typ:zip', $partner),
+                    'zeme' => $this->xpathValue($xpath, './typ:address/typ:country', $partner),
+                    'ic' => $this->xpathValue($xpath, './typ:address/typ:ico', $partner),
+                    'dic' => $this->xpathValue($xpath, './typ:address/typ:dic', $partner),
+                    'email' => $this->xpathValue($xpath, './typ:address/typ:email', $partner),
+                    'telefon' => $this->xpathValue($xpath, './typ:address/typ:phone', $partner),
+                ] : [],
                 'items' => [],
             ];
             if ($doc['mena'] === '') {
@@ -446,6 +461,74 @@ final class ImportController
         }
         $value = trim($value);
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * @param array<string,string> $contact
+     */
+    private function syncContact(array $contact): ?int
+    {
+        $fields = array_map('trim', $contact);
+        $hasData = false;
+        foreach (['firma','ic','dic','email','telefon','jmeno'] as $k) {
+            if (!empty($fields[$k] ?? '')) {
+                $hasData = true;
+                break;
+            }
+        }
+        if (!$hasData) {
+            return null;
+        }
+        $pdo = DB::pdo();
+        $ic = $fields['ic'] ?? '';
+        $email = $fields['email'] ?? '';
+        $id = null;
+        if ($ic !== '') {
+            $stmt = $pdo->prepare('SELECT id FROM kontakty WHERE ic = ? LIMIT 1');
+            $stmt->execute([$ic]);
+            $id = $stmt->fetchColumn();
+        }
+        if ($id === false || $id === null) {
+            if ($email !== '') {
+                $stmt = $pdo->prepare('SELECT id FROM kontakty WHERE email = ? LIMIT 1');
+                $stmt->execute([$email]);
+                $id = $stmt->fetchColumn();
+            }
+        }
+        if ($id === false) {
+            $id = null;
+        }
+        if ($id === null) {
+            $ins = $pdo->prepare('INSERT INTO kontakty (email, telefon, firma, jmeno, ulice, mesto, psc, zeme, ic, dic) VALUES (?,?,?,?,?,?,?,?,?,?)');
+            $ins->execute([
+                $fields['email'] ?: null,
+                $fields['telefon'] ?: null,
+                $fields['firma'] ?: null,
+                $fields['jmeno'] ?: null,
+                $fields['ulice'] ?: null,
+                $fields['mesto'] ?: null,
+                $fields['psc'] ?: null,
+                $fields['zeme'] ?: null,
+                $fields['ic'] ?: null,
+                $fields['dic'] ?: null,
+            ]);
+            return (int)$pdo->lastInsertId();
+        }
+        $update = $pdo->prepare('UPDATE kontakty SET email=COALESCE(?,email), telefon=COALESCE(?,telefon), firma=COALESCE(?,firma), jmeno=COALESCE(?,jmeno), ulice=COALESCE(?,ulice), mesto=COALESCE(?,mesto), psc=COALESCE(?,psc), zeme=COALESCE(?,zeme), ic=COALESCE(?,ic), dic=COALESCE(?,dic) WHERE id=?');
+        $update->execute([
+            $fields['email'] ?: null,
+            $fields['telefon'] ?: null,
+            $fields['firma'] ?: null,
+            $fields['jmeno'] ?: null,
+            $fields['ulice'] ?: null,
+            $fields['mesto'] ?: null,
+            $fields['psc'] ?: null,
+            $fields['zeme'] ?: null,
+            $fields['ic'] ?: null,
+            $fields['dic'] ?: null,
+            (int)$id,
+        ]);
+        return (int)$id;
     }
 
     private function validateSeriesNumber(array $series, string $number): void
