@@ -634,14 +634,22 @@ ORDER BY mesic, serie_label
                 'sql' => "
 SELECT
   m.month_end AS stav_ke_dni,
+  CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'Celkem' END AS serie_label,
+  CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all') ELSE 'all' END AS serie_key,
   ROUND(SUM(p.skl_hodnota * (
-      COALESCE(s.stav, 0) +
-      COALESCE((
+      COALESCE(s.stav, 0)
+      + COALESCE((
         SELECT SUM(pp.mnozstvi)
         FROM polozky_pohyby pp
         WHERE pp.sku = p.sku
           AND (inv.closed_at IS NULL OR pp.datum > inv.closed_at)
           AND pp.datum <= m.month_end
+      ), 0)
+      - COALESCE((
+        SELECT SUM(r.mnozstvi)
+        FROM rezervace r
+        WHERE r.sku = p.sku
+          AND r.platna_do >= m.month_end
       ), 0)
   )), 0) AS hodnota_czk
 FROM (
@@ -660,8 +668,24 @@ WHERE m.month_end BETWEEN :start_date AND :end_date
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
-GROUP BY m.month_end
-ORDER BY m.month_end
+GROUP BY m.month_end, serie_key, serie_label
+HAVING ROUND(SUM(p.skl_hodnota * (
+      COALESCE(s.stav, 0)
+      + COALESCE((
+        SELECT SUM(pp.mnozstvi)
+        FROM polozky_pohyby pp
+        WHERE pp.sku = p.sku
+          AND (inv.closed_at IS NULL OR pp.datum > inv.closed_at)
+          AND pp.datum <= m.month_end
+      ), 0)
+      - COALESCE((
+        SELECT SUM(r.mnozstvi)
+        FROM rezervace r
+        WHERE r.sku = p.sku
+          AND r.platna_do >= m.month_end
+      ), 0)
+  )), 0) <> 0
+ORDER BY m.month_end, serie_label
 ",
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],

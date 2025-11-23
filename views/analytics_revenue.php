@@ -282,7 +282,7 @@
     renderList(state.favorites.shared, favShared);
   }
 
-  function renderTable(rows) {
+  function renderTable(rows, tplId) {
     if (!rows || !rows.length) {
       resultBox.innerHTML = '<p class="muted">Žádná data.</p>';
       return;
@@ -315,19 +315,21 @@
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-    const tfoot = document.createElement('tfoot');
-    const trf = document.createElement('tr');
-    cols.forEach((c, idx) => {
-      const td = document.createElement('td');
-      if (idx === 0) {
-        td.textContent = 'Celkem';
-      } else if (totals[c] !== undefined) {
-        td.textContent = Math.round(totals[c]);
-      }
-      trf.appendChild(td);
-    });
-    tfoot.appendChild(trf);
-    table.appendChild(tfoot);
+    if (tplId !== 'stock_value_by_month') {
+      const tfoot = document.createElement('tfoot');
+      const trf = document.createElement('tr');
+      cols.forEach((c, idx) => {
+        const td = document.createElement('td');
+        if (idx === 0) {
+          td.textContent = 'Celkem';
+        } else if (totals[c] !== undefined) {
+          td.textContent = Math.round(totals[c]);
+        }
+        trf.appendChild(td);
+      });
+      tfoot.appendChild(trf);
+      table.appendChild(tfoot);
+    }
     resultBox.innerHTML = '';
     resultBox.appendChild(table);
   }
@@ -400,7 +402,7 @@
     if (!data.ok) throw new Error(data.error || 'Dotaz selhal.');
     state.lastRows = data.rows || [];
     renderChart(state.lastRows);
-    renderTable(state.lastRows);
+    renderTable(state.lastRows, tplId);
   }
 
   form.addEventListener('submit', async (e) => {
