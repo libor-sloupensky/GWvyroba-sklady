@@ -433,6 +433,7 @@ PROMPT;
     public function revenueV2(): void
     {
         $this->requireRole(['admin', 'superadmin']);
+        // Placeholder pro novou verzi analytiky (katalog dotazů)
         $this->render('analytics_revenue_v2.php', [
             'title' => 'Analýza v2',
         ]);

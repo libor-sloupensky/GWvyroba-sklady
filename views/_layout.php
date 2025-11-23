@@ -63,7 +63,7 @@ $currentUser = $_SESSION['user'] ?? null;
       <a href="/reservations" title="Rezervace hotových produktů">Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného">Výroba</a>
       <a href="/analytics/revenue" title="Analytické dotazy přes AI">Analýza</a>
-      <a href="/analytics/v2" title="Analýza přes katalog dotazů (nová verze)">Analýza v2</a>
+      <a href="/analytics/v2" title="Analýza přes katalog dotazů (nová verze)">Analýza v2</a> <!-- nová záložka -->
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení">Nastavení</a>
       <span class="nav-user">
         <?php if ($currentUser): ?>

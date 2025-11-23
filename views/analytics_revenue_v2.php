@@ -19,3 +19,4 @@
 </ul>
 
 <p>Jakmile bude katalog a router hotový, přibude formulář pro zadání dotazu, výběr/úpravu parametrů a volbu výstupu.</p>
+<p class="muted">Pozn.: Pokud stránku nevidíte v menu, zkuste aktualizovat cache prohlížeče.</p>
