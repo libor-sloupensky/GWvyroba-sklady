@@ -180,7 +180,7 @@
               opt.textContent = val.label ?? val.value ?? '';
             } else {
               opt.value = val;
-              opt.textContent = val;
+              opt.textContent = val === 'vse' ? 'Vše' : val;
             }
             input.appendChild(opt);
           });
@@ -207,14 +207,14 @@
       const eshopParam = tpl.params.find(pr => pr.name === 'eshop_source');
       eshopSelect.innerHTML = '';
       (eshopParam?.values || []).forEach(val => {
-        const opt = document.createElement('option');
-        const value = (typeof val === 'object') ? (val.value ?? '') : val;
-        const labelText = (typeof val === 'object') ? (val.label ?? val.value ?? '') : val;
-        opt.value = value;
-        opt.textContent = value === 'vsechny' ? 'Všechny (součet všech)' : labelText;
-        eshopSelect.appendChild(opt);
-      });
-    }
+      const opt = document.createElement('option');
+      const value = (typeof val === 'object') ? (val.value ?? '') : val;
+      const labelText = (typeof val === 'object') ? (val.label ?? val.value ?? '') : val;
+      opt.value = value;
+      opt.textContent = value === 'vsechny' ? 'Všechny (součet všech)' : (value === 'vse' ? 'Vše' : labelText);
+      eshopSelect.appendChild(opt);
+    });
+  }
   }
 
   function toParams() {

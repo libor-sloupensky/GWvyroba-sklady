@@ -657,9 +657,6 @@ CROSS JOIN (
 JOIN produkty p ON p.aktivni = 1
 LEFT JOIN inventura_stavy s ON s.inventura_id = inv.id AND s.sku = p.sku
 WHERE m.month_end BETWEEN :start_date AND :end_date
-  AND (:znacka_id = 0 OR p.znacka_id = :znacka_id)
-  AND (:skupina_id = 0 OR p.skupina_id = :skupina_id)
-  AND (:typ = '' OR p.typ = :typ)
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
@@ -811,6 +808,14 @@ ORDER BY m.month_end
                 return $v !== 'vsechny' && $v !== 'všechny';
             }));
         }
+        foreach (['znacka_id', 'skupina_id', 'typ'] as $key) {
+            if (isset($params[$key]) && is_array($params[$key])) {
+                $params[$key] = array_values(array_filter($params[$key], static function ($v) {
+                    $v = strtolower((string)$v);
+                    return $v !== 'vse' && $v !== 'vše';
+                }));
+            }
+        }
         $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
         $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
         $params['has_znacka'] = !empty($params['znacka_id']) ? 1 : 0;
@@ -865,7 +870,9 @@ ORDER BY m.month_end
     private function loadProductTypes(): array
     {
         $stmt = DB::pdo()->query('SELECT DISTINCT typ FROM produkty WHERE typ IS NOT NULL AND typ <> "" ORDER BY typ');
-        return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $types = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        array_unshift($types, 'vse'); // možnost "vše"
+        return $types;
     }
 
     /**
@@ -876,6 +883,7 @@ ORDER BY m.month_end
         $stmt = DB::pdo()->query("SELECT {$idCol} AS id, {$labelCol} AS nazev FROM {$table} ORDER BY nazev");
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $out = [];
+        $out[] = ['value' => 'vse', 'label' => 'Vše'];
         foreach ($rows as $row) {
             $out[] = [
                 'value' => (string)$row['id'],
