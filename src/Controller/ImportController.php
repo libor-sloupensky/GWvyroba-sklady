@@ -5,6 +5,11 @@ use App\Support\DB;
 
 final class ImportController
 {
+    /**
+     * Jednoduchý cache kontaktů v rámci jednoho importu (klíč ic/email -> id).
+     * @var array<string,int>
+     */
+    private array $contactCache = [];
     public function form(): void
     {
         $this->requireAdmin();
@@ -484,22 +489,47 @@ final class ImportController
         $email = $fields['email'] ?? '';
         $id = null;
         if ($ic !== '') {
-            $stmt = $pdo->prepare('SELECT id FROM kontakty WHERE ic = ? LIMIT 1');
-            $stmt->execute([$ic]);
-            $id = $stmt->fetchColumn();
+            $cacheKey = 'ic:' . $ic;
+            if (isset($this->contactCache[$cacheKey])) {
+                $id = $this->contactCache[$cacheKey];
+            } else {
+                static $selIc;
+                if (!$selIc) {
+                    $selIc = $pdo->prepare('SELECT id FROM kontakty WHERE ic = ? LIMIT 1');
+                }
+                $selIc->execute([$ic]);
+                $id = $selIc->fetchColumn();
+                if ($id !== false && $id !== null) {
+                    $this->contactCache[$cacheKey] = (int)$id;
+                }
+            }
         }
         if ($id === false || $id === null) {
             if ($email !== '') {
-                $stmt = $pdo->prepare('SELECT id FROM kontakty WHERE email = ? LIMIT 1');
-                $stmt->execute([$email]);
-                $id = $stmt->fetchColumn();
+                $cacheKey = 'email:' . $email;
+                if (isset($this->contactCache[$cacheKey])) {
+                    $id = $this->contactCache[$cacheKey];
+                } else {
+                    static $selEmail;
+                    if (!$selEmail) {
+                        $selEmail = $pdo->prepare('SELECT id FROM kontakty WHERE email = ? LIMIT 1');
+                    }
+                    $selEmail->execute([$email]);
+                    $id = $selEmail->fetchColumn();
+                    if ($id !== false && $id !== null) {
+                        $this->contactCache[$cacheKey] = (int)$id;
+                    }
+                }
             }
         }
         if ($id === false) {
             $id = null;
         }
         if ($id === null) {
-            $ins = $pdo->prepare('INSERT INTO kontakty (email, telefon, firma, jmeno, ulice, mesto, psc, zeme, ic, dic) VALUES (?,?,?,?,?,?,?,?,?,?)');
+            static $ins;
+            if (!$ins) {
+                $ins = $pdo->prepare('INSERT INTO kontakty (email, telefon, firma, jmeno, ulice, mesto, psc, zeme, ic, dic) VALUES (?,?,?,?,?,?,?,?,?,?)');
+            }
             $ins->execute([
                 $fields['email'] ?: null,
                 $fields['telefon'] ?: null,
@@ -512,7 +542,14 @@ final class ImportController
                 $fields['ic'] ?: null,
                 $fields['dic'] ?: null,
             ]);
-            return (int)$pdo->lastInsertId();
+            $newId = (int)$pdo->lastInsertId();
+            if ($ic !== '') {
+                $this->contactCache['ic:' . $ic] = $newId;
+            }
+            if ($email !== '') {
+                $this->contactCache['email:' . $email] = $newId;
+            }
+            return $newId;
         }
         $update = $pdo->prepare('UPDATE kontakty SET email=COALESCE(?,email), telefon=COALESCE(?,telefon), firma=COALESCE(?,firma), jmeno=COALESCE(?,jmeno), ulice=COALESCE(?,ulice), mesto=COALESCE(?,mesto), psc=COALESCE(?,psc), zeme=COALESCE(?,zeme), ic=COALESCE(?,ic), dic=COALESCE(?,dic) WHERE id=?');
         $update->execute([
@@ -528,6 +565,12 @@ final class ImportController
             $fields['dic'] ?: null,
             (int)$id,
         ]);
+        if ($ic !== '') {
+            $this->contactCache['ic:' . $ic] = (int)$id;
+        }
+        if ($email !== '') {
+            $this->contactCache['email:' . $email] = (int)$id;
+        }
         return (int)$id;
     }
 
