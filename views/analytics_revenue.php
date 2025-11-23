@@ -3,9 +3,9 @@
 /** @var array $templates */
 /** @var array $favoritesV2 */
 ?>
-<h1>AnalĂ˝za (katalog dotazĹŻ)</h1>
+<h1>Analýza (katalog dotazů)</h1>
 
-<p>Vyberte Ĺˇablonu, nastavte filtry a spusĹĄte. VĂ˝sledek se zobrazĂ­ v grafu i tabulce. NastavenĂ­ si mĹŻĹľete uloĹľit do oblĂ­benĂ˝ch.</p>
+<p>Vyberte šablonu, nastavte filtry a spusťte. Výsledek se zobrazí v grafu i tabulce. Nastavení si můžete uložit do oblíbených.</p>
 
 <style>
 .v2-controls { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
@@ -42,7 +42,7 @@
   <div>
     <form id="v2-form" class="v2-form" action="javascript:void(0);" style="margin-bottom:1rem;">
       <div class="field">
-        <label for="template-id">ÄąÂ ablona</label>
+        <label for="template-id">Šablona</label>
         <select id="template-id" name="template_id">
           <?php foreach ($templates as $id => $tpl): ?>
             <option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>">
@@ -65,17 +65,17 @@
       </div>
 
       <div class="field">
-        <label>Kontakt (IĂ„Ĺš / e-mail / firma)</label>
+        <label>Kontakt (IČ / e-mail / firma)</label>
         <input type="text" id="contact-search" placeholder="Hledat..." autocomplete="off" />
         <div id="contact-dropdown" class="dropdown" style="display:none;"></div>
         <div class="chips" id="contact-chips"></div>
-        <p class="muted">Vyberte 0Ă˘â‚¬â€śN kontaktÄąĹ»; prÄ‚Ë‡zdnÄ‚Â© = vÄąË‡echny.</p>
+        <p class="muted">Vyberte 0–N kontaktů; prázdné = všechny.</p>
       </div>
 
       <div class="field">
         <label for="eshop-source">E-shop</label>
         <select id="eshop-source" name="eshop_source" multiple size="6"></select>
-        <p class="muted">NezvolÄ‚Â­te-li nic, pouÄąÄľijÄ‚Â­ se vÄąË‡echny kanÄ‚Ë‡ly.</p>
+        <p class="muted">Nezvolíte-li nic, použijí se všechny kanály.</p>
       </div>
 
       <button type="submit">Spustit dotaz</button>
@@ -85,23 +85,23 @@
 
   <div>
     <div class="notice" style="margin-bottom:1rem;">
-      <strong>OblÄ‚Â­benÄ‚Â© nastavenÄ‚Â­</strong>
-      <div class="v2-row" style="margin-top:0.4rem;">
+      <strong>Oblíbené nastavení</strong>
+      <strong>Oblíbené nastavení</strong>
         <div class="field">
-          <label for="fav-title">NÄ‚Ë‡zev</label>
-          <input type="text" id="fav-title" placeholder="NapÄąâ„˘. Klient 123 - poslednÄ‚Â­ch 18M" />
-        </div>
+          <label for="fav-title">Název</label>
+          <label for="fav-title">Název</label>
+          <input type="text" id="fav-title" placeholder="Např. Klient 123 - posledních 18M" />
         <div class="field" style="align-self:flex-end;">
-          <label><input type="checkbox" id="fav-public" checked /> SdÄ‚Â­let s ostatnÄ‚Â­mi</label>
-        </div>
-        <button type="button" id="fav-save">UloÄąÄľit oblÄ‚Â­benÄ‚Â©</button>
-      </div>
+          <label><input type="checkbox" id="fav-public" checked /> Sd­let s ostatn­mi</label>
+          <label><input type="checkbox" id="fav-public" checked /> Sdílet s ostatními</label>
+        <button type="button" id="fav-save">Uloit obl­ben©</button>
+        <button type="button" id="fav-save">Uložit oblíbené</button>
     </div>
 
-    <h3>Moje oblÄ‚Â­benÄ‚Â©</h3>
-    <ul class="favorite-list" id="favorite-mine"></ul>
-    <h3>OblÄ‚Â­benÄ‚Â© ostatnÄ‚Â­ch</h3>
-    <ul class="favorite-list" id="favorite-shared"></ul>
+    <h3>Moje obl­ben©</h3>
+    <h3>Moje oblíbené</h3>
+    <h3>Obl­ben© ostatn­ch</h3>
+    <h3>Oblíbené ostatních</h3>
   </div>
 </div>
 
@@ -153,7 +153,7 @@
       eshopParam.values.forEach(val => {
         const opt = document.createElement('option');
         opt.value = val;
-        opt.textContent = val === 'vsechny' ? 'VÄąË‡echny (souĂ„Ĺ¤et vÄąË‡ech)' : val;
+        opt.textContent = val === 'vsechny' ? 'Vechny (souet vech)' : val;
         eshopSelect.appendChild(opt);
       });
     }
@@ -173,7 +173,7 @@
       if (!items || !items.length) {
         const li = document.createElement('li');
         li.className = 'favorite-empty';
-        li.textContent = 'ZatÄ‚Â­m nic uloÄąÄľeno.';
+        li.textContent = 'Zat­m nic uloeno.';
         node.appendChild(li);
         return;
       }
@@ -188,14 +188,14 @@
         actions.className = 'favorite-actions';
         const btnLoad = document.createElement('button');
         btnLoad.type = 'button';
-        btnLoad.textContent = 'NaĂ„Ĺ¤Ä‚Â­st';
+        btnLoad.textContent = 'Na­st';
         btnLoad.onclick = () => loadFavorite(fav, true);
         actions.appendChild(btnLoad);
         if (node === favMine) { // only moje -> allow delete
           const btnDel = document.createElement('button');
           btnDel.type = 'button';
           btnDel.className = 'favorite-delete';
-          btnDel.textContent = 'Ä‚â€”';
+          btnDel.textContent = '';
           btnDel.title = 'Smazat';
           btnDel.onclick = () => deleteFavorite(fav.id);
           actions.appendChild(btnDel);
@@ -217,7 +217,7 @@
       chip.textContent = c.label || (`Kontakt #${c.id}`);
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = 'Ä‚â€”';
+      btn.textContent = '';
       btn.onclick = () => removeContact(c.id);
       chip.appendChild(btn);
       contactChips.appendChild(chip);
@@ -284,7 +284,7 @@
 
   function renderTable(rows) {
     if (!rows || !rows.length) {
-      resultBox.innerHTML = '<p class="muted">ÄąËťÄ‚Ë‡dnÄ‚Ë‡ data.</p>';
+      resultBox.innerHTML = '<p class="muted">dn data.</p>';
       return;
     }
     const cols = Object.keys(rows[0]);
@@ -366,8 +366,8 @@
       options: {
         parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         scales: {
-          x: { title: { display: true, text: 'MĂ„â€şsÄ‚Â­c' } },
-          y: { title: { display: true, text: 'TrÄąÄľby (CZK)' }, beginAtZero: true },
+          x: { title: { display: true, text: 'Ms­c' } },
+          y: { title: { display: true, text: 'Trby (CZK)' }, beginAtZero: true },
         },
         plugins: { legend: { display: true, position: 'bottom' } },
       },
@@ -407,7 +407,7 @@
   async function loadFavorite(fav, run = false) {
     if (!fav || !fav.template_id) return;
     if (!templates[fav.template_id]) {
-      alert('ÄąÂ ablona uÄąÄľ neexistuje.');
+      alert(' Šablona u neexistuje.');
       return;
     }
     selectTpl.value = fav.template_id;
@@ -446,7 +446,7 @@
   favSave.addEventListener('click', async () => {
     const title = favTitle.value.trim();
     if (!title) {
-      alert('Zadejte nÄ‚Ë‡zev.');
+      alert('Zadejte nzev.');
       return;
     }
     const res = await fetch('/analytics/favorite', {
@@ -461,7 +461,7 @@
     });
     const data = await res.json();
     if (!data.ok) {
-      alert(data.error || 'UloÄąÄľenÄ‚Â­ selhalo.');
+      alert(data.error || 'Uloen­ selhalo.');
       return;
     }
     state.favorites = data.favorites || { mine: [], shared: [] };
