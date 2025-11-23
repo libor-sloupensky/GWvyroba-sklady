@@ -580,6 +580,7 @@ PROMPT;
         $defaultStart = (new \DateTimeImmutable('-18 months'))->format('Y-m-d');
         $defaultEnd = (new \DateTimeImmutable('today'))->format('Y-m-d');
         $eshops = [
+            'vsechny', // explicit volba pro součet všech kanálů
             'b2b.wormup.com',
             'gogrig.com',
             'grig.cz',
@@ -743,6 +744,13 @@ ORDER BY mesic, serie_label
      */
     private function hydrateFlagsForTemplate(array $params): array
     {
+        // "vsechny" znamená neomezovat kanál -> chovej se jako prázdný výběr
+        if (isset($params['eshop_source']) && is_array($params['eshop_source'])) {
+            $params['eshop_source'] = array_values(array_filter($params['eshop_source'], static function ($v) {
+                $v = strtolower((string)$v);
+                return $v !== 'vsechny' && $v !== 'všechny';
+            }));
+        }
         $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
         $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
         return $params;

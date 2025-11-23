@@ -150,7 +150,7 @@
       eshopParam.values.forEach(val => {
         const opt = document.createElement('option');
         opt.value = val;
-        opt.textContent = val;
+        opt.textContent = val === 'vsechny' ? 'Všechny (součet všech)' : val;
         eshopSelect.appendChild(opt);
       });
     }
