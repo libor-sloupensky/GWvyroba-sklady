@@ -79,6 +79,7 @@ $router->post('/production/recent-limit', [ProductionController::class, 'updateR
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
 $router->post('/analytics/run', [AnalyticsController::class, 'runTemplateV2']);
 $router->get('/analytics/contacts', [AnalyticsController::class, 'searchContactsV2']);
+$router->get('/analytics/contacts/by-id', [AnalyticsController::class, 'searchContactsByIdsV2']);
 $router->get('/analytics/favorite/list', [AnalyticsController::class, 'favoriteListV2']);
 $router->post('/analytics/favorite', [AnalyticsController::class, 'saveFavoriteV2']);
 $router->post('/analytics/favorite/delete', [AnalyticsController::class, 'deleteFavoriteV2']);

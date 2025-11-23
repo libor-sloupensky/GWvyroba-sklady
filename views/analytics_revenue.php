@@ -442,10 +442,11 @@
     onTemplateChange();
     const p = fav.params || {};
     // set params
-    (templates[fav.template_id].params || []).forEach((param) => {
+    const tplParams = templates[fav.template_id].params || [];
+    const contactIds = [];
+    tplParams.forEach((param) => {
       if (param.type === 'contact_multi') {
-        state.contacts = (p[param.name] || []).map(id => ({ id, label: 'Kontakt #' + id }));
-        renderChips();
+        (p[param.name] || []).forEach(id => contactIds.push(id));
       } else if (param.type === 'enum_multi') {
         const select = paramBox.querySelector(`[name="${param.name}"]`) || eshopSelect;
         Array.from(select?.options || []).forEach(opt => {
@@ -456,6 +457,21 @@
         if (input) input.value = p[param.name] || '';
       }
     });
+    if (contactIds.length) {
+      try {
+        const res = await fetch('/analytics/contacts/by-id?' + new URLSearchParams({ ids: contactIds }));
+        const data = await res.json();
+        if (data.ok) {
+          state.contacts = data.items || [];
+          renderChips();
+        }
+      } catch (e) {
+        // ignore, fallback to empty labels
+      }
+    } else {
+      state.contacts = [];
+      renderChips();
+    }
     if (run) {
       try { await runQuery(); } catch (err) { errorBox.style.display='block'; errorBox.textContent = err.message || 'Dotaz selhal.'; }
     }

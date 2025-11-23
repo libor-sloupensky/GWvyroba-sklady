@@ -573,6 +573,44 @@ PROMPT;
         echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
     }
 
+    public function searchContactsByIdsV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $ids = $_GET['ids'] ?? [];
+        if (!is_array($ids) || empty($ids)) {
+            echo json_encode(['ok' => true, 'items' => []], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $ids = array_values(array_filter(array_map('intval', $ids), static fn($v) => $v > 0));
+        if (empty($ids)) {
+            echo json_encode(['ok' => true, 'items' => []], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare("SELECT id, firma, ic, email FROM kontakty WHERE id IN ({$placeholders})");
+        $stmt->execute($ids);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $items = array_map(function (array $r): array {
+            $parts = [];
+            if (!empty($r['firma'])) {
+                $parts[] = $r['firma'];
+            }
+            if (!empty($r['ic'])) {
+                $parts[] = 'IČ ' . $r['ic'];
+            }
+            if (!empty($r['email'])) {
+                $parts[] = $r['email'];
+            }
+            return [
+                'id' => (int)$r['id'],
+                'label' => trim(implode(' • ', $parts)),
+            ];
+        }, $rows ?: []);
+        echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
+    }
+
     /**
      * @return array<string,array<string,mixed>>
      */
@@ -604,13 +642,17 @@ SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS mesic,
          WHEN :has_eshops = 1 THEN de.eshop_source
          ELSE 'all'
        END AS serie_key,
-       CASE
-         WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
-         WHEN :has_eshops = 1 THEN de.eshop_source
-         ELSE 'Celkem'
-       END AS serie_label,
-       ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS trzby,
-       ROUND(SUM(pe.mnozstvi), 0) AS qty
+  CASE
+    WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
+    WHEN :has_eshops = 1 THEN de.eshop_source
+    ELSE 'Celkem'
+  END AS serie_label,
+  CASE
+    WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
+    ELSE NULL
+  END AS kontakt,
+  ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS trzby,
+  ROUND(SUM(pe.mnozstvi), 0) AS qty
 FROM polozky_eshop pe
 JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
 LEFT JOIN kontakty c ON c.id = de.kontakt_id
