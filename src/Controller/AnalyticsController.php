@@ -460,7 +460,7 @@ PROMPT;
             echo json_encode(['ok' => false, 'error' => implode(' ', $errors)], JSON_UNESCAPED_UNICODE);
             return;
         }
-        $validated = $this->hydrateFlagsForTemplate($validated);
+        $validated = $this->hydrateFlagsForTemplate($validated, $template);
         $sql = $this->expandArrayParams($template['sql'], $validated);
 
         try {
@@ -682,6 +682,9 @@ SELECT
   m.month_end AS stav_ke_dni,
   CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'Celkem' END AS serie_label,
   CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all') ELSE 'all' END AS serie_key,
+  :znacka_label AS znacka,
+  :skupina_label AS skupina,
+  :typ_label AS typ,
   ROUND(SUM(p.skl_hodnota * (
       COALESCE(s.stav, 0)
       + COALESCE((
@@ -711,6 +714,7 @@ CROSS JOIN (
 JOIN produkty p ON p.aktivni = 1
 LEFT JOIN inventura_stavy s ON s.inventura_id = inv.id AND s.sku = p.sku
 WHERE m.month_end BETWEEN :start_date AND :end_date
+  AND m.month_end >= COALESCE(DATE(inv.closed_at), :start_date)
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
@@ -869,7 +873,7 @@ ORDER BY m.month_end, serie_label
      * @param array<string,mixed> $params
      * @return array<string,mixed>
      */
-    private function hydrateFlagsForTemplate(array $params): array
+    private function hydrateFlagsForTemplate(array $params, array $template = []): array
     {
         // "vsechny" znamená neomezovat kanál -> chovej se jako prázdný výběr
         if (isset($params['eshop_source']) && is_array($params['eshop_source'])) {
@@ -891,7 +895,47 @@ ORDER BY m.month_end, serie_label
         $params['has_znacka'] = !empty($params['znacka_id']) ? 1 : 0;
         $params['has_skupina'] = !empty($params['skupina_id']) ? 1 : 0;
         $params['has_typ'] = !empty($params['typ']) ? 1 : 0;
+        // doplň labely pro stock template
+        if (!empty($template['params'])) {
+            $params['znacka_label'] = $this->selectionLabel($template['params'], 'znacka_id', $params['znacka_id'] ?? []);
+            $params['skupina_label'] = $this->selectionLabel($template['params'], 'skupina_id', $params['skupina_id'] ?? []);
+            $params['typ_label'] = $this->selectionLabel($template['params'], 'typ', $params['typ'] ?? []);
+        }
         return $params;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $paramsDef
+     * @param array<int,string>|string $selected
+     */
+    private function selectionLabel(array $paramsDef, string $name, $selected): string
+    {
+        $selected = is_array($selected) ? $selected : [$selected];
+        $selected = array_filter(array_map('strval', $selected));
+        if (empty($selected)) {
+            return 'vše';
+        }
+        $map = [];
+        foreach ($paramsDef as $def) {
+            if (($def['name'] ?? '') !== $name) {
+                continue;
+            }
+            foreach ((array)($def['values'] ?? []) as $val) {
+                if (is_array($val)) {
+                    $map[(string)($val['value'] ?? '')] = (string)($val['label'] ?? $val['value'] ?? '');
+                } else {
+                    $map[(string)$val] = (string)$val;
+                }
+            }
+        }
+        $labels = [];
+        foreach ($selected as $val) {
+            if ($val === 'vse') {
+                return 'vše';
+            }
+            $labels[] = $map[$val] ?? $val;
+        }
+        return implode(', ', $labels);
     }
 
     /**
