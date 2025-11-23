@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
       groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
       units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
       types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-      active: [{value:'1',label:'✓'},{value:'0',label:'–'}],
+      active: [{value:'1',label:'✓'},{value:'0',label:'✕'}],
       stockModes: [{value:'auto',label:'Automaticky'},{value:'manual',label:'Manuálně'}]
     };
 
@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function buildBomTable(tree, refresh) {
       const table = document.createElement('table');
       table.className = 'bom-tree-table';
-      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Druh vazby</th><th>Typ položky</th><th>Akce</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Typ položky</th></tr></thead>';
       const body = document.createElement('tbody');
       const rows = flattenBomTree(tree);
       rows.forEach((rowData) => {
@@ -365,26 +365,6 @@ document.addEventListener('DOMContentLoaded', function () {
         tr.appendChild(createValueCell(formatNumber(edge.koeficient)));
         tr.appendChild(createValueCell(displayValue(edge.merna_jednotka || rowData.node.merna_jednotka)));
                 tr.appendChild(createValueCell(displayValue(rowData.node.typ)));
-
-        const actions = document.createElement('td');
-        actions.className = 'bom-tree-actions';
-        const addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.className = 'bom-action-btn';
-        addBtn.textContent = '+';
-        addBtn.title = 'Přidat potomka';
-        addBtn.addEventListener('click', () => openBomAddForm(tr, rowData, refresh));
-        actions.appendChild(addBtn);
-        if (rowData.parentSku) {
-          const delBtn = document.createElement('button');
-          delBtn.type = 'button';
-          delBtn.className = 'bom-action-btn bom-action-btn--danger';
-          delBtn.textContent = '×';
-          delBtn.title = 'Smazat vazbu';
-          delBtn.addEventListener('click', () => deleteBomLink(rowData.parentSku, rowData.node.sku, refresh));
-          actions.appendChild(delBtn);
-        }
-        tr.appendChild(actions);
 
         body.appendChild(tr);
       });
@@ -480,14 +460,6 @@ document.addEventListener('DOMContentLoaded', function () {
             <label>MJ potomka</label>
             <input type="text" class="bom-input-unit" />
           </div>
-          <div class="field">
-            <label>Druh vazby</label>
-            <select class="bom-input-bond">
-              <option value="">(automaticky)</option>
-              <option value="sada">sada</option>
-              <option value="karton">karton</option>
-            </select>
-          </div>
         </div>
         <div class="bom-add-actions">
           <strong>Rodič:</strong> <span>${rowData.node.sku || ''}</span>
@@ -515,12 +487,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const skuInput = form.querySelector('.bom-child-sku');
       const resultsBox = form.querySelector('.bom-search-results');
       const unitInput = form.querySelector('.bom-input-unit');
-      const bondSelect = form.querySelector('.bom-input-bond');
       const coefInput = form.querySelector('.bom-input-koef');
       const errorBox = form.querySelector('.bom-add-error');
       const cancelBtn = form.querySelector('.bom-add-cancel');
-
-      bondSelect.value = rowData.node.typ === 'karton' ? 'karton' : '';
 
       let searchTimer = null;
       searchInput.addEventListener('input', () => {
@@ -583,7 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
           child: childSku,
           koeficient: coef,
           merna_jednotka_potomka: unitInput.value.trim(),
-                  };
+        };
         fetch(bomAddUrl, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
@@ -680,7 +649,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function formatDisplay(field, value) {
       if (!value) return '–';
-      if (field === 'aktivni') return value === '1' ? '✓' : '–';
+      if (field === 'aktivni') return value === '1' ? '✓' : (value === '0' ? '✕' : '–');
       if (field === 'znacka_id') return lookupLabel(meta.brands, value);
       if (field === 'skupina_id') return lookupLabel(meta.groups, value);
       return value;
@@ -994,7 +963,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '✓' : '–' ?></td>
+    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '✓' : '✕' ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
   </tr>
   <?php endforeach; ?>

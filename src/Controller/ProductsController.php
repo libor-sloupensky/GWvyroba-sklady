@@ -383,7 +383,7 @@ final class ProductsController
 
                     $brandKey = mb_strtolower($brandName, 'UTF-8');
 
-                    if (!isset($brands[$brandKey])) { $errors[] = "dek {$line}: znaka '{$brandName}' nen definovan"; continue; }
+                    if (!isset($brands[$brandKey])) { $errors[] = "dek {$line}: znacka '{$brandName}' nen definovan"; continue; }
 
                     $brandId = $brands[$brandKey];
 
@@ -809,7 +809,7 @@ final class ProductsController
 
             }
 
-            $_SESSION['products_message'] = 'Produkt byl pĹ™idĂˇn.';
+            $_SESSION['products_message'] = 'Produkt byl přidán.';
 
             unset($_SESSION['products_old']);
 
@@ -1097,20 +1097,6 @@ final class ProductsController
 
         }
 
-        if ($bond === '') {
-
-            $bond = $this->deriveBondType($parentInfo['typ'] ?? null);
-
-        }
-
-        if (!in_array($bond, ['karton','sada'], true)) {
-
-            echo json_encode(['ok'=>false,'error'=>'NeplatnĂ˝ druh vazby.']);
-
-            return;
-
-        }
-
         $coef = (float)$coefRaw;
 
         $pdo = DB::pdo();
@@ -1123,7 +1109,7 @@ final class ProductsController
 
             $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka) VALUES (?,?,?,?)')
 
-                ->execute([$parent, $child, $coef, $unit, $bond]);
+                ->execute([$parent, $child, $coef, $unit]);
 
             $pdo->commit();
 

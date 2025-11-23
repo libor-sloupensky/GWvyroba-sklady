@@ -158,10 +158,9 @@
   <label>
     <input type="checkbox" name="is_nonstock" />
     Neskladová sada
-    <span class="info-icon" title="Typ se sám neodepisuje, odpisuje se jeho strom potomků.">i</span>
+    <span class="info-icon" title="Neskladová sada: neodepisuje se sama, ale odepisují se její potomci.">i</span>
   </label>
   <button type="submit">Uložit typ</button>
-  <button type="button" id="product-type-reset" class="link-button" style="margin-left:8px;">Nový typ</button>
 </form>
 <table>
   <tr><th>Kód</th><th>Název</th><th>Chování</th><th>Použití</th><th>Akce</th></tr>
@@ -201,13 +200,6 @@
     name: form.querySelector('input[name="name"]'),
     nonstock: form.querySelector('input[name="is_nonstock"]'),
   };
-  const reset = () => {
-    fields.id.value = '';
-    fields.code.readOnly = false;
-    fields.code.value = '';
-    fields.name.value = '';
-    fields.nonstock.checked = false;
-  };
   document.querySelectorAll('.js-edit-type').forEach((btn) => {
     btn.addEventListener('click', () => {
       fields.id.value = btn.dataset.id || '';
@@ -219,13 +211,6 @@
       fields.name.focus();
     });
   });
-  const resetBtn = document.getElementById('product-type-reset');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      reset();
-      fields.code.focus();
-    });
-  }
   form.addEventListener('submit', () => {
     fields.code.readOnly = false;
   });
