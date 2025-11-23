@@ -8,7 +8,8 @@
 <p>Vyberte šablonu, nastavte filtry a spusťte. Výsledek se zobrazí v grafu i tabulce. Nastavení si můžete uložit do oblíbených.</p>
 
 <style>
-.v2-grid { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
+.v2-controls { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
+.v2-output { margin-top:1rem; }
 .v2-form { display:flex; flex-direction:column; gap:0.8rem; }
 .v2-form label { font-weight:600; display:block; margin-bottom:0.15rem; }
 .v2-row { display:flex; gap:0.6rem; flex-wrap:wrap; }
@@ -37,8 +38,8 @@
 .chart-box { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:0.7rem; }
 </style>
 
-<div class="v2-grid">
-  <div class="result-wrap">
+<div class="v2-controls">
+  <div>
     <form id="v2-form" class="v2-form" action="javascript:void(0);" style="margin-bottom:1rem;">
       <div class="field">
         <label for="template-id">Šablona</label>
@@ -80,11 +81,6 @@
       <button type="submit">Spustit dotaz</button>
       <div id="v2-error" class="error" style="display:none;"></div>
     </form>
-
-    <div class="chart-box">
-      <canvas id="v2-chart" height="200"></canvas>
-    </div>
-    <div id="v2-result"></div>
   </div>
 
   <div>
@@ -107,6 +103,13 @@
     <h3>Oblíbené ostatních</h3>
     <ul class="favorite-list" id="favorite-shared"></ul>
   </div>
+</div>
+
+<div class="v2-output">
+  <div class="chart-box">
+    <canvas id="v2-chart" height="200"></canvas>
+  </div>
+  <div id="v2-result"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
