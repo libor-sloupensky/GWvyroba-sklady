@@ -3,9 +3,7 @@
 /** @var array $templates */
 /** @var array $favoritesV2 */
 ?>
-<h1>Analýza (katalog dotazů)</h1>
-
-<p>Vyberte šablonu, nastavte filtry a spusťte. Výsledek se zobrazí v grafu i tabulce. Nastavení si můžete uložit do oblíbených.</p>
+<h1>Analýza</h1>
 
 <style>
 .v2-controls { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
@@ -24,7 +22,6 @@
 .dropdown { border:1px solid #d0d7de; border-radius:6px; padding:0.35rem 0.45rem; background:#fff; max-height:180px; overflow:auto; margin-top:0.2rem; }
 .dropdown div { padding:0.2rem 0.1rem; cursor:pointer; }
 .dropdown div:hover { background:#f1f5f9; }
-.result-wrap { margin-top:1rem; }
 .result-table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
 .result-table th, .result-table td { border:1px solid #e0e0e0; padding:0.35rem 0.4rem; text-align:left; }
 .result-table tfoot td { font-weight:700; background:#f5f7fa; }
@@ -43,28 +40,13 @@
     <form id="v2-form" class="v2-form" action="javascript:void(0);" style="margin-bottom:1rem;">
       <div class="field">
         <label for="template-id">Šablona</label>
-        <select id="template-id" name="template_id">
-          <?php foreach ($templates as $id => $tpl): ?>
-            <option value="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>">
-              <?= htmlspecialchars($tpl['title'], ENT_QUOTES, 'UTF-8') ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
+        <select id="template-id" name="template_id"></select>
         <p class="muted" id="template-desc"></p>
       </div>
 
-      <div class="v2-row">
-        <div class="field">
-          <label for="start-date">Od</label>
-          <input type="date" id="start-date" name="start_date" />
-        </div>
-        <div class="field">
-          <label for="end-date">Do</label>
-          <input type="date" id="end-date" name="end_date" />
-        </div>
-      </div>
+      <div id="param-fields"></div>
 
-      <div class="field">
+      <div class="field" id="contact-field" style="display:none;">
         <label>Kontakt (IČ / e-mail / firma)</label>
         <input type="text" id="contact-search" placeholder="Hledat..." autocomplete="off" />
         <div id="contact-dropdown" class="dropdown" style="display:none;"></div>
@@ -72,7 +54,7 @@
         <p class="muted">Vyberte 0–N kontaktů; prázdné = všechny.</p>
       </div>
 
-      <div class="field">
+      <div class="field" id="eshop-field" style="display:none;">
         <label for="eshop-source">E-shop</label>
         <select id="eshop-source" name="eshop_source" multiple size="6"></select>
         <p class="muted">Nezvolíte-li nic, použijí se všechny kanály.</p>
@@ -86,22 +68,22 @@
   <div>
     <div class="notice" style="margin-bottom:1rem;">
       <strong>Oblíbené nastavení</strong>
-      <strong>Oblíbené nastavení</strong>
+      <div class="v2-row" style="margin-top:0.4rem;">
         <div class="field">
           <label for="fav-title">Název</label>
-          <label for="fav-title">Název</label>
           <input type="text" id="fav-title" placeholder="Např. Klient 123 - posledních 18M" />
+        </div>
         <div class="field" style="align-self:flex-end;">
-          <label><input type="checkbox" id="fav-public" checked /> Sd­let s ostatn­mi</label>
           <label><input type="checkbox" id="fav-public" checked /> Sdílet s ostatními</label>
-        <button type="button" id="fav-save">Uloit obl­ben©</button>
+        </div>
         <button type="button" id="fav-save">Uložit oblíbené</button>
+      </div>
     </div>
 
-    <h3>Moje obl­ben©</h3>
     <h3>Moje oblíbené</h3>
-    <h3>Obl­ben© ostatn­ch</h3>
+    <ul class="favorite-list" id="favorite-mine"></ul>
     <h3>Oblíbené ostatních</h3>
+    <ul class="favorite-list" id="favorite-shared"></ul>
   </div>
 </div>
 
@@ -121,16 +103,16 @@
   const form = document.getElementById('v2-form');
   const selectTpl = document.getElementById('template-id');
   const descBox = document.getElementById('template-desc');
-  const startDate = document.getElementById('start-date');
-  const endDate = document.getElementById('end-date');
+  const paramBox = document.getElementById('param-fields');
+  const contactField = document.getElementById('contact-field');
+  const contactInput = document.getElementById('contact-search');
+  const contactDropdown = document.getElementById('contact-dropdown');
+  const contactChips = document.getElementById('contact-chips');
+  const eshopField = document.getElementById('eshop-field');
   const eshopSelect = document.getElementById('eshop-source');
   const errorBox = document.getElementById('v2-error');
   const resultBox = document.getElementById('v2-result');
   const chartCanvas = document.getElementById('v2-chart');
-
-  const contactInput = document.getElementById('contact-search');
-  const contactDropdown = document.getElementById('contact-dropdown');
-  const contactChips = document.getElementById('contact-chips');
 
   const favMine = document.getElementById('favorite-mine');
   const favShared = document.getElementById('favorite-shared');
@@ -145,26 +127,102 @@
     lastRows: [],
   };
 
-  function initEshops() {
+  // Populate template select
+  Object.entries(templates).forEach(([id, tpl]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = tpl.title || id;
+    selectTpl.appendChild(opt);
+  });
+
+  function renderParams() {
+    paramBox.innerHTML = '';
     const tpl = templates[selectTpl.value];
-    const eshopParam = tpl?.params?.find(p => p.name === 'eshop_source');
-    eshopSelect.innerHTML = '';
-    if (eshopParam && Array.isArray(eshopParam.values)) {
-      eshopParam.values.forEach(val => {
+    descBox.textContent = tpl?.description || '';
+    let hasContact = false;
+    let hasEshop = false;
+
+    (tpl?.params || []).forEach((p) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const label = document.createElement('label');
+      label.textContent = p.label || p.name;
+      wrap.appendChild(label);
+      let input;
+      switch (p.type) {
+        case 'date':
+          input = document.createElement('input');
+          input.type = 'date';
+          if (p.default) input.value = p.default;
+          break;
+        case 'int':
+          input = document.createElement('input');
+          input.type = 'number';
+          input.step = '1';
+          if (p.default !== undefined) input.value = p.default;
+          break;
+        case 'string':
+          input = document.createElement('input');
+          input.type = 'text';
+          if (p.default !== undefined) input.value = p.default;
+          break;
+        case 'enum_multi':
+          input = document.createElement('select');
+          input.multiple = true;
+          (p.values || []).forEach((val) => {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val === 'vsechny' ? 'Všechny (součet všech)' : val;
+            input.appendChild(opt);
+          });
+          hasEshop = hasEshop || p.name === 'eshop_source';
+          break;
+        case 'contact_multi':
+          hasContact = true;
+          return; // handled separately
+        default:
+          input = document.createElement('input');
+          input.type = 'text';
+      }
+      input.name = p.name;
+      wrap.appendChild(input);
+      paramBox.appendChild(wrap);
+    });
+
+    contactField.style.display = hasContact ? 'block' : 'none';
+    eshopField.style.display = hasEshop ? 'block' : 'none';
+    if (!hasEshop) {
+      eshopSelect.innerHTML = '';
+    } else {
+      // populate eshop options from template param definition
+      const eshopParam = tpl.params.find(pr => pr.name === 'eshop_source');
+      eshopSelect.innerHTML = '';
+      (eshopParam?.values || []).forEach(val => {
         const opt = document.createElement('option');
         opt.value = val;
-        opt.textContent = val === 'vsechny' ? 'Vechny (souet vech)' : val;
+        opt.textContent = val === 'vsechny' ? 'Všechny (součet všech)' : val;
         eshopSelect.appendChild(opt);
       });
     }
   }
 
-  function setDefaultDates() {
+  function toParams() {
     const tpl = templates[selectTpl.value];
-    const pStart = tpl?.params?.find(p => p.name === 'start_date');
-    const pEnd = tpl?.params?.find(p => p.name === 'end_date');
-    if (pStart?.default) startDate.value = pStart.default;
-    if (pEnd?.default) endDate.value = pEnd.default;
+    const params = {};
+    (tpl?.params || []).forEach((p) => {
+      if (p.type === 'contact_multi') {
+        params[p.name] = state.contacts.map(c => c.id);
+        return;
+      }
+      if (p.type === 'enum_multi') {
+        const select = paramBox.querySelector(`[name="${p.name}"]`) || eshopSelect;
+        params[p.name] = Array.from(select?.selectedOptions || []).map(o => o.value);
+        return;
+      }
+      const input = paramBox.querySelector(`[name="${p.name}"]`);
+      params[p.name] = input ? input.value : '';
+    });
+    return params;
   }
 
   function renderFavorites() {
@@ -173,7 +231,7 @@
       if (!items || !items.length) {
         const li = document.createElement('li');
         li.className = 'favorite-empty';
-        li.textContent = 'Zat­m nic uloeno.';
+        li.textContent = 'Zatím nic uloženo.';
         node.appendChild(li);
         return;
       }
@@ -188,14 +246,14 @@
         actions.className = 'favorite-actions';
         const btnLoad = document.createElement('button');
         btnLoad.type = 'button';
-        btnLoad.textContent = 'Na­st';
+        btnLoad.textContent = 'Načíst';
         btnLoad.onclick = () => loadFavorite(fav, true);
         actions.appendChild(btnLoad);
-        if (node === favMine) { // only moje -> allow delete
+        if (node === favMine) {
           const btnDel = document.createElement('button');
           btnDel.type = 'button';
           btnDel.className = 'favorite-delete';
-          btnDel.textContent = '';
+          btnDel.textContent = '×';
           btnDel.title = 'Smazat';
           btnDel.onclick = () => deleteFavorite(fav.id);
           actions.appendChild(btnDel);
@@ -209,82 +267,9 @@
     renderList(state.favorites.shared, favShared);
   }
 
-  function renderChips() {
-    contactChips.innerHTML = '';
-    state.contacts.forEach((c) => {
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.textContent = c.label || (`Kontakt #${c.id}`);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = '';
-      btn.onclick = () => removeContact(c.id);
-      chip.appendChild(btn);
-      contactChips.appendChild(chip);
-    });
-  }
-
-  function removeContact(id) {
-    state.contacts = state.contacts.filter(c => c.id !== id);
-    renderChips();
-  }
-
-  function addContact(item) {
-    if (state.contacts.some(c => c.id === item.id)) return;
-    state.contacts.push(item);
-    renderChips();
-  }
-
-  let suggestTimeout;
-  contactInput.addEventListener('input', () => {
-    const q = contactInput.value.trim();
-    if (suggestTimeout) clearTimeout(suggestTimeout);
-    if (q.length < 2) {
-      contactDropdown.style.display = 'none';
-      return;
-    }
-    suggestTimeout = setTimeout(async () => {
-      const res = await fetch('/analytics/contacts?q=' + encodeURIComponent(q));
-      const data = await res.json();
-      const items = data.items || [];
-      contactDropdown.innerHTML = '';
-      if (!items.length) {
-        contactDropdown.innerHTML = '<div class="muted">Nic nenalezeno</div>';
-      } else {
-        items.forEach((it) => {
-          const div = document.createElement('div');
-          div.textContent = it.label;
-          div.onclick = () => {
-            addContact(it);
-            contactDropdown.style.display = 'none';
-            contactInput.value = '';
-          };
-          contactDropdown.appendChild(div);
-        });
-      }
-      contactDropdown.style.display = 'block';
-    }, 250);
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!contactDropdown.contains(e.target) && e.target !== contactInput) {
-      contactDropdown.style.display = 'none';
-    }
-  });
-
-  function toParams() {
-    const params = {
-      start_date: startDate.value || '',
-      end_date: endDate.value || '',
-      contact_ids: state.contacts.map(c => c.id),
-      eshop_source: Array.from(eshopSelect.selectedOptions).map(o => o.value),
-    };
-    return params;
-  }
-
   function renderTable(rows) {
     if (!rows || !rows.length) {
-      resultBox.innerHTML = '<p class="muted">dn data.</p>';
+      resultBox.innerHTML = '<p class="muted">Žádná data.</p>';
       return;
     }
     const cols = Object.keys(rows[0]);
@@ -300,7 +285,7 @@
     thead.appendChild(trh);
     table.appendChild(thead);
     const tbody = document.createElement('tbody');
-    let totals = {};
+    const totals = {};
     rows.forEach((r) => {
       const tr = document.createElement('tr');
       cols.forEach((c) => {
@@ -315,7 +300,6 @@
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
-
     const tfoot = document.createElement('tfoot');
     const trf = document.createElement('tr');
     cols.forEach((c, idx) => {
@@ -324,8 +308,6 @@
         td.textContent = 'Celkem';
       } else if (totals[c] !== undefined) {
         td.textContent = Math.round(totals[c]);
-      } else {
-        td.textContent = '';
       }
       trf.appendChild(td);
     });
@@ -341,15 +323,27 @@
       chart = null;
       return;
     }
+    const sample = rows[0] || {};
+    const xKey = 'mesic' in sample ? 'mesic' : ('stav_ke_dni' in sample ? 'stav_ke_dni' : Object.keys(sample)[0]);
+    const exclude = new Set([xKey, 'serie_key', 'serie_label']);
+    let yKey = null;
+    for (const k of Object.keys(sample)) {
+      if (exclude.has(k)) continue;
+      if (typeof sample[k] === 'number' || !isNaN(Number(sample[k]))) {
+        yKey = k; break;
+      }
+    }
+    if (!yKey) yKey = Object.keys(sample).find(k => !exclude.has(k)) || xKey;
+
     const bySeries = new Map();
-    rows.forEach(r => {
-      const label = r.serie_label || 'Celkem';
-      const key = r.serie_key || label;
+    rows.forEach((r) => {
+      const key = r.serie_key || r.serie_label || 'all';
+      const label = r.serie_label || 'Hodnota';
       if (!bySeries.has(key)) bySeries.set(key, { label, points: [] });
-      bySeries.get(key).points.push({ x: r.mesic, y: Number(r.trzby || 0) });
+      bySeries.get(key).points.push({ x: r[xKey], y: Number(r[yKey] || 0) });
     });
     const datasets = Array.from(bySeries.values()).map((s, idx) => {
-      s.points.sort((a,b) => a.x.localeCompare(b.x));
+      s.points.sort((a,b) => String(a.x).localeCompare(String(b.x)));
       const color = palette(idx);
       return {
         label: s.label,
@@ -366,8 +360,8 @@
       options: {
         parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         scales: {
-          x: { title: { display: true, text: 'Ms­c' } },
-          y: { title: { display: true, text: 'Trby (CZK)' }, beginAtZero: true },
+          x: { title: { display: true, text: xKey } },
+          y: { title: { display: true, text: yKey }, beginAtZero: true },
         },
         plugins: { legend: { display: true, position: 'bottom' } },
       },
@@ -382,7 +376,7 @@
   async function runQuery() {
     errorBox.style.display = 'none';
     const tplId = selectTpl.value;
-      const res = await fetch('/analytics/run', {
+    const res = await fetch('/analytics/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: tplId, params: toParams() })
@@ -407,26 +401,29 @@
   async function loadFavorite(fav, run = false) {
     if (!fav || !fav.template_id) return;
     if (!templates[fav.template_id]) {
-      alert(' Šablona u neexistuje.');
+      alert('Šablona už neexistuje.');
       return;
     }
     selectTpl.value = fav.template_id;
     onTemplateChange();
     const p = fav.params || {};
-    startDate.value = p.start_date || '';
-    endDate.value = p.end_date || '';
-    state.contacts = (p.contact_ids || []).map(id => ({ id, label: 'Kontakt #' + id }));
-    renderChips();
-    Array.from(eshopSelect.options).forEach(opt => {
-      opt.selected = Array.isArray(p.eshop_source) && p.eshop_source.includes(opt.value);
+    // set params
+    (templates[fav.template_id].params || []).forEach((param) => {
+      if (param.type === 'contact_multi') {
+        state.contacts = (p[param.name] || []).map(id => ({ id, label: 'Kontakt #' + id }));
+        renderChips();
+      } else if (param.type === 'enum_multi') {
+        const select = paramBox.querySelector(`[name="${param.name}"]`) || eshopSelect;
+        Array.from(select?.options || []).forEach(opt => {
+          opt.selected = Array.isArray(p[param.name]) && p[param.name].includes(opt.value);
+        });
+      } else {
+        const input = paramBox.querySelector(`[name="${param.name}"]`);
+        if (input) input.value = p[param.name] || '';
+      }
     });
     if (run) {
-      try {
-        await runQuery();
-      } catch (err) {
-        errorBox.style.display = 'block';
-        errorBox.textContent = err.message || 'Dotaz selhal.';
-      }
+      try { await runQuery(); } catch (err) { errorBox.style.display='block'; errorBox.textContent = err.message || 'Dotaz selhal.'; }
     }
   }
 
@@ -446,7 +443,7 @@
   favSave.addEventListener('click', async () => {
     const title = favTitle.value.trim();
     if (!title) {
-      alert('Zadejte nzev.');
+      alert('Zadejte název.');
       return;
     }
     const res = await fetch('/analytics/favorite', {
@@ -461,7 +458,7 @@
     });
     const data = await res.json();
     if (!data.ok) {
-      alert(data.error || 'Uloen­ selhalo.');
+      alert(data.error || 'Uložení selhalo.');
       return;
     }
     state.favorites = data.favorites || { mine: [], shared: [] };
@@ -477,11 +474,67 @@
     }
   }
 
+  function renderChips() {
+    contactChips.innerHTML = '';
+    state.contacts.forEach((c) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = c.label || (`Kontakt #${c.id}`);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = '×';
+      btn.onclick = () => {
+        state.contacts = state.contacts.filter(item => item.id !== c.id);
+        renderChips();
+      };
+      chip.appendChild(btn);
+      contactChips.appendChild(chip);
+    });
+  }
+
+  let suggestTimeout;
+  contactInput.addEventListener('input', () => {
+    const q = contactInput.value.trim();
+    if (suggestTimeout) clearTimeout(suggestTimeout);
+    if (q.length < 2) {
+      contactDropdown.style.display = 'none';
+      return;
+    }
+    suggestTimeout = setTimeout(async () => {
+      const res = await fetch('/analytics/contacts?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      const items = data.items || [];
+      contactDropdown.innerHTML = '';
+      if (!items.length) {
+        contactDropdown.innerHTML = '<div class="muted">Nic nenalezeno</div>';
+      } else {
+        items.forEach((it) => {
+          const div = document.createElement('div');
+          div.textContent = it.label;
+          div.onclick = () => {
+            if (!state.contacts.some(c => c.id === it.id)) {
+              state.contacts.push(it);
+              renderChips();
+            }
+            contactDropdown.style.display = 'none';
+            contactInput.value = '';
+          };
+          contactDropdown.appendChild(div);
+        });
+      }
+      contactDropdown.style.display = 'block';
+    }, 250);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!contactDropdown.contains(e.target) && e.target !== contactInput) {
+      contactDropdown.style.display = 'none';
+    }
+  });
+
   function onTemplateChange() {
-    const tpl = templates[selectTpl.value];
-    descBox.textContent = tpl?.description || '';
-    initEshops();
-    setDefaultDates();
+    renderParams();
+    renderChips(); // reset display
   }
 
   selectTpl.addEventListener('change', onTemplateChange);
