@@ -8,7 +8,7 @@
 <p>Vyberte šablonu, nastavte filtry a spusťte. Výsledek se zobrazí v grafu i tabulce. Nastavení si můžete uložit do oblíbených.</p>
 
 <style>
-.v2-grid { display:grid; grid-template-columns: 360px 1fr; gap:1.2rem; align-items:start; }
+.v2-grid { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
 .v2-form { display:flex; flex-direction:column; gap:0.8rem; }
 .v2-form label { font-weight:600; display:block; margin-bottom:0.15rem; }
 .v2-row { display:flex; gap:0.6rem; flex-wrap:wrap; }
@@ -38,8 +38,8 @@
 </style>
 
 <div class="v2-grid">
-  <div>
-    <form id="v2-form" class="v2-form" action="javascript:void(0);">
+  <div class="result-wrap">
+    <form id="v2-form" class="v2-form" action="javascript:void(0);" style="margin-bottom:1rem;">
       <div class="field">
         <label for="template-id">Šablona</label>
         <select id="template-id" name="template_id">
@@ -81,7 +81,14 @@
       <div id="v2-error" class="error" style="display:none;"></div>
     </form>
 
-    <div class="notice" style="margin-top:1rem;">
+    <div class="chart-box">
+      <canvas id="v2-chart" height="200"></canvas>
+    </div>
+    <div id="v2-result"></div>
+  </div>
+
+  <div>
+    <div class="notice" style="margin-bottom:1rem;">
       <strong>Oblíbené nastavení</strong>
       <div class="v2-row" style="margin-top:0.4rem;">
         <div class="field">
@@ -99,13 +106,6 @@
     <ul class="favorite-list" id="favorite-mine"></ul>
     <h3>Oblíbené ostatních</h3>
     <ul class="favorite-list" id="favorite-shared"></ul>
-  </div>
-
-  <div class="result-wrap">
-    <div class="chart-box">
-      <canvas id="v2-chart" height="200"></canvas>
-    </div>
-    <div id="v2-result"></div>
   </div>
 </div>
 
@@ -180,17 +180,13 @@
         const title = document.createElement('div');
         title.className = 'favorite-title';
         title.textContent = fav.title;
-        const meta = document.createElement('div');
-        meta.className = 'muted';
-        meta.textContent = `${fav.template_id || ''}`;
         left.appendChild(title);
-        left.appendChild(meta);
         const actions = document.createElement('div');
         actions.className = 'favorite-actions';
         const btnLoad = document.createElement('button');
         btnLoad.type = 'button';
         btnLoad.textContent = 'Načíst';
-        btnLoad.onclick = () => loadFavorite(fav);
+        btnLoad.onclick = () => loadFavorite(fav, true);
         actions.appendChild(btnLoad);
         if (node === favMine) { // only moje -> allow delete
           const btnDel = document.createElement('button');
@@ -380,28 +376,32 @@
     return colors[i % colors.length];
   }
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  async function runQuery() {
     errorBox.style.display = 'none';
     const tplId = selectTpl.value;
+    const res = await fetch('/analytics/v2/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: tplId, params: toParams() })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Dotaz selhal.');
+    state.lastRows = data.rows || [];
+    renderChart(state.lastRows);
+    renderTable(state.lastRows);
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
     try {
-      const res = await fetch('/analytics/v2/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template_id: tplId, params: toParams() })
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Dotaz selhal.');
-      state.lastRows = data.rows || [];
-      renderChart(state.lastRows);
-      renderTable(state.lastRows);
+      await runQuery();
     } catch (err) {
       errorBox.style.display = 'block';
       errorBox.textContent = err.message || 'Dotaz selhal.';
     }
   });
 
-  function loadFavorite(fav) {
+  async function loadFavorite(fav, run = false) {
     if (!fav || !fav.template_id) return;
     if (!templates[fav.template_id]) {
       alert('Šablona už neexistuje.');
@@ -417,6 +417,14 @@
     Array.from(eshopSelect.options).forEach(opt => {
       opt.selected = Array.isArray(p.eshop_source) && p.eshop_source.includes(opt.value);
     });
+    if (run) {
+      try {
+        await runQuery();
+      } catch (err) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = err.message || 'Dotaz selhal.';
+      }
+    }
   }
 
   async function deleteFavorite(id) {
