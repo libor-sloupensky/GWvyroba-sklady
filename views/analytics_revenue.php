@@ -287,7 +287,7 @@
       resultBox.innerHTML = '<p class="muted">Žádná data.</p>';
       return;
     }
-    const cols = Object.keys(rows[0]);
+    const cols = Object.keys(rows[0]).filter((c) => !['serie_key','serie_label','qty'].includes(c));
     const table = document.createElement('table');
     table.className = 'result-table';
     const thead = document.createElement('thead');
@@ -352,15 +352,23 @@
     }
     if (!yKey) yKey = Object.keys(sample).find(k => !exclude.has(k)) || xKey;
 
+    const parseX = (raw) => {
+      const str = String(raw).trim();
+      const iso = str.length === 7 ? `${str}-01` : str;
+      const t = Date.parse(iso);
+      return Number.isNaN(t) ? null : t;
+    };
     const bySeries = new Map();
     rows.forEach((r) => {
       const key = r.serie_key || r.serie_label || 'all';
       const label = r.serie_label || 'Hodnota';
+      const xVal = parseX(r[xKey]);
+      if (xVal === null) return;
       if (!bySeries.has(key)) bySeries.set(key, { label, points: [] });
-      bySeries.get(key).points.push({ x: r[xKey], y: Number(r[yKey] || 0) });
+      bySeries.get(key).points.push({ x: xVal, y: Number(r[yKey] || 0) });
     });
     const datasets = Array.from(bySeries.values()).map((s, idx) => {
-      s.points.sort((a,b) => String(a.x).localeCompare(String(b.x)));
+      s.points.sort((a,b) => a.x - b.x);
       const color = palette(idx);
       return {
         label: s.label,
@@ -377,7 +385,16 @@
       options: {
         parsing: { xAxisKey: 'x', yAxisKey: 'y' },
         scales: {
-          x: { title: { display: true, text: xKey } },
+          x: { 
+            type: 'linear',
+            title: { display: true, text: xKey },
+            ticks: {
+              callback: (val) => {
+                const d = new Date(val);
+                return Number.isNaN(d.getTime()) ? val : d.toISOString().slice(0,7);
+              }
+            }
+          },
           y: { title: { display: true, text: yKey }, beginAtZero: true },
         },
         plugins: { legend: { display: true, position: 'bottom' } },
