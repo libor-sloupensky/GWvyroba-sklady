@@ -545,11 +545,11 @@ PROMPT;
         $likeNorm = '%' . str_replace([' ', "\t"], '', $q) . '%';
         $pdo = DB::pdo();
         $stmt = $pdo->prepare("
-            SELECT id, firma, ic, email
+            SELECT id, firma, ic, dic, email, telefon
             FROM kontakty
-            WHERE (ic LIKE :q OR REPLACE(ic, ' ', '') LIKE :qnorm OR firma LIKE :q OR email LIKE :q)
+            WHERE (ic LIKE :q OR REPLACE(ic, ' ', '') LIKE :qnorm OR firma LIKE :q OR email LIKE :q OR dic LIKE :q OR telefon LIKE :q)
             ORDER BY (firma IS NULL OR firma = '') ASC, firma, ic
-            LIMIT 20
+            LIMIT 30
         ");
         $stmt->execute([':q' => $like, ':qnorm' => $likeNorm]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -563,6 +563,9 @@ PROMPT;
             }
             if (!empty($r['email'])) {
                 $parts[] = $r['email'];
+            }
+            if (!empty($r['telefon'])) {
+                $parts[] = $r['telefon'];
             }
             return [
                 'id' => (int)$r['id'],
