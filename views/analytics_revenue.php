@@ -343,14 +343,17 @@
     const sample = rows[0] || {};
     const xKey = 'mesic' in sample ? 'mesic' : ('stav_ke_dni' in sample ? 'stav_ke_dni' : Object.keys(sample)[0]);
     const exclude = new Set([xKey, 'serie_key', 'serie_label']);
-    let yKey = null;
-    for (const k of Object.keys(sample)) {
-      if (exclude.has(k)) continue;
-      if (typeof sample[k] === 'number' || !isNaN(Number(sample[k]))) {
-        yKey = k; break;
+    const keys = Object.keys(sample);
+    let yKey = keys.find(k => k.toLowerCase() === 'trzby') || keys.find(k => k.toLowerCase() === 'hodnota_czk') || null;
+    if (!yKey) {
+      for (const k of keys) {
+        if (exclude.has(k)) continue;
+        if (typeof sample[k] === 'number' || !isNaN(Number(sample[k]))) {
+          yKey = k; break;
+        }
       }
     }
-    if (!yKey) yKey = Object.keys(sample).find(k => !exclude.has(k)) || xKey;
+    if (!yKey) yKey = keys.find(k => !exclude.has(k)) || xKey;
 
     const parseX = (raw) => {
       const str = String(raw).trim();
@@ -361,7 +364,7 @@
     const bySeries = new Map();
     rows.forEach((r) => {
       const key = r.serie_key || r.serie_label || 'all';
-      const label = r.serie_label || 'Hodnota';
+      const label = (r.serie_label && String(r.serie_label).trim() !== '') ? r.serie_label : 'Celkem';
       const xVal = parseX(r[xKey]);
       if (xVal === null) return;
       if (!bySeries.has(key)) bySeries.set(key, { label, points: [] });
@@ -397,7 +400,23 @@
           },
           y: { title: { display: true, text: yKey }, beginAtZero: true },
         },
-        plugins: { legend: { display: true, position: 'bottom' } },
+        plugins: { 
+          legend: { display: true, position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              title: (items) => {
+                if (!items.length) return '';
+                const d = new Date(items[0].parsed.x);
+                return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0,7);
+              },
+              label: (ctx) => {
+                const name = ctx.dataset?.label || '';
+                const val = ctx.parsed?.y ?? 0;
+                return `${name}: ${Number(val).toLocaleString('cs-CZ')}`;
+              }
+            }
+          }
+        },
       },
     });
   }
