@@ -706,6 +706,8 @@ FROM (
   UNION
   SELECT LAST_DAY(:end_date)
   UNION
+  SELECT LEAST(LAST_DAY(:end_date), CURDATE())
+  UNION
   SELECT LAST_DAY(datum) FROM polozky_pohyby WHERE datum BETWEEN :start_date AND :end_date GROUP BY LAST_DAY(datum)
 ) m
 LEFT JOIN (
