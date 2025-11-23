@@ -589,6 +589,9 @@ PROMPT;
             'wormup.com',
             'grigsupply.cz',
         ];
+        $brands = $this->loadOptions('produkty_znacky', 'id', 'nazev');
+        $groups = $this->loadOptions('produkty_skupiny', 'id', 'nazev');
+        $types = $this->loadProductTypes();
 
         return [
             'monthly_revenue_by_ic' => [
@@ -618,10 +621,10 @@ GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m'), serie_key, serie_label
 ORDER BY mesic, serie_label
 ",
                 'params' => [
-                    ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
-                    ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'contact_ids', 'type' => 'contact_multi', 'required' => false, 'default' => []],
-                    ['name' => 'eshop_source', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
+                    ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'contact_ids', 'label' => 'Kontakt', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
                 ],
                 'suggested_render' => 'table',
             ],
@@ -657,15 +660,18 @@ WHERE m.month_end BETWEEN :start_date AND :end_date
   AND (:znacka_id = 0 OR p.znacka_id = :znacka_id)
   AND (:skupina_id = 0 OR p.skupina_id = :skupina_id)
   AND (:typ = '' OR p.typ = :typ)
+  AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
+  AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
+  AND (:has_typ = 0 OR p.typ IN (%typ%))
 GROUP BY m.month_end
 ORDER BY m.month_end
 ",
                 'params' => [
-                    ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
-                    ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'znacka_id', 'type' => 'int', 'required' => false, 'default' => 0],
-                    ['name' => 'skupina_id', 'type' => 'int', 'required' => false, 'default' => 0],
-                    ['name' => 'typ', 'type' => 'string', 'required' => false, 'default' => ''],
+                    ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
+                    ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
+                    ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
                 ],
                 'suggested_render' => 'table',
             ],
@@ -724,13 +730,16 @@ ORDER BY m.month_end
                 case 'enum_multi':
                     $vals = is_array($raw) ? $raw : [];
                     $allowed = (array)($param['values'] ?? []);
+                    $allowedValues = array_map(function ($item) {
+                        return is_array($item) ? (string)($item['value'] ?? '') : (string)$item;
+                    }, $allowed);
                     $filtered = [];
                     foreach ($vals as $v) {
                         $v = trim((string)$v);
                         if ($v === '') {
                             continue;
                         }
-                        if (!in_array($v, $allowed, true)) {
+                        if (!in_array($v, $allowedValues, true)) {
                             $errors[] = "Neplatná hodnota pro {$name}.";
                             continue;
                         }
@@ -804,6 +813,9 @@ ORDER BY m.month_end
         }
         $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
         $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
+        $params['has_znacka'] = !empty($params['znacka_id']) ? 1 : 0;
+        $params['has_skupina'] = !empty($params['skupina_id']) ? 1 : 0;
+        $params['has_typ'] = !empty($params['typ']) ? 1 : 0;
         return $params;
     }
 
@@ -842,6 +854,32 @@ ORDER BY m.month_end
                 'template_id' => (string)($payload['template_id'] ?? ''),
                 'params' => (array)($payload['params'] ?? []),
                 'is_public' => (bool)($r['is_public'] ?? false),
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function loadProductTypes(): array
+    {
+        $stmt = DB::pdo()->query('SELECT DISTINCT typ FROM produkty WHERE typ IS NOT NULL AND typ <> "" ORDER BY typ');
+        return $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+    }
+
+    /**
+     * @return array<int,string|array<string,string>>
+     */
+    private function loadOptions(string $table, string $idCol, string $labelCol): array
+    {
+        $stmt = DB::pdo()->query("SELECT {$idCol} AS id, {$labelCol} AS nazev FROM {$table} ORDER BY nazev");
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = [
+                'value' => (string)$row['id'],
+                'label' => (string)$row['nazev'],
             ];
         }
         return $out;

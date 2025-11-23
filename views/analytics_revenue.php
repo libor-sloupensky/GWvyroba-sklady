@@ -166,17 +166,26 @@
           input.type = 'text';
           if (p.default !== undefined) input.value = p.default;
           break;
-        case 'enum_multi':
+        case 'enum_multi': {
+          if (p.name === 'eshop_source') {
+            hasEshop = true;
+            return; // handled in separate field
+          }
           input = document.createElement('select');
           input.multiple = true;
           (p.values || []).forEach((val) => {
             const opt = document.createElement('option');
-            opt.value = val;
-            opt.textContent = val === 'vsechny' ? 'Všechny (součet všech)' : val;
+            if (typeof val === 'object') {
+              opt.value = val.value ?? '';
+              opt.textContent = val.label ?? val.value ?? '';
+            } else {
+              opt.value = val;
+              opt.textContent = val;
+            }
             input.appendChild(opt);
           });
-          hasEshop = hasEshop || p.name === 'eshop_source';
           break;
+        }
         case 'contact_multi':
           hasContact = true;
           return; // handled separately
@@ -199,8 +208,10 @@
       eshopSelect.innerHTML = '';
       (eshopParam?.values || []).forEach(val => {
         const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val === 'vsechny' ? 'Všechny (součet všech)' : val;
+        const value = (typeof val === 'object') ? (val.value ?? '') : val;
+        const labelText = (typeof val === 'object') ? (val.label ?? val.value ?? '') : val;
+        opt.value = value;
+        opt.textContent = value === 'vsechny' ? 'Všechny (součet všech)' : labelText;
         eshopSelect.appendChild(opt);
       });
     }
@@ -215,8 +226,12 @@
         return;
       }
       if (p.type === 'enum_multi') {
-        const select = paramBox.querySelector(`[name="${p.name}"]`) || eshopSelect;
-        params[p.name] = Array.from(select?.selectedOptions || []).map(o => o.value);
+        if (p.name === 'eshop_source') {
+          params[p.name] = Array.from(eshopSelect.selectedOptions || []).map(o => o.value);
+        } else {
+          const select = paramBox.querySelector(`[name="${p.name}"]`);
+          params[p.name] = Array.from(select?.selectedOptions || []).map(o => o.value);
+        }
         return;
       }
       const input = paramBox.querySelector(`[name="${p.name}"]`);
