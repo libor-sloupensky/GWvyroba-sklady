@@ -433,9 +433,165 @@ PROMPT;
     public function revenueV2(): void
     {
         $this->requireRole(['admin', 'superadmin']);
-        // Placeholder pro novou verzi analytiky (katalog dotazů)
+        $templates = $this->loadTemplatesV2();
         $this->render('analytics_revenue_v2.php', [
             'title' => 'Analýza v2',
+            'templates' => $templates,
         ]);
+    }
+
+    public function runTemplateV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $payload = $this->collectJson();
+        $templateId = (string)($payload['template_id'] ?? '');
+        $params = (array)($payload['params'] ?? []);
+
+        $templates = $this->loadTemplatesV2();
+        if (!isset($templates[$templateId])) {
+            echo json_encode(['ok' => false, 'error' => 'Neznámá šablona.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $template = $templates[$templateId];
+
+        [$validated, $errors] = $this->validateTemplateParams($template, $params);
+        if (!empty($errors)) {
+            echo json_encode(['ok' => false, 'error' => implode(' ', $errors)], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        try {
+            $rows = $this->runTemplateQuery($template['sql'], $validated);
+            echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
+    /**
+     * @return array<string,array<string,mixed>>
+     */
+    private function loadTemplatesV2(): array
+    {
+        $defaultStart = (new \DateTimeImmutable('-18 months'))->format('Y-m-d');
+        $defaultEnd = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        $eshops = [
+            'b2b.wormup.com',
+            'gogrig.com',
+            'grig.cz',
+            'grig.sk',
+            'wormup.com',
+            'grigsupply.cz',
+        ];
+
+        return [
+            'monthly_revenue_by_ic' => [
+                'title' => 'Měsíční tržby podle IČ / kanálu',
+                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtr IČ a kanál (eshop_source).',
+                'sql' => "
+SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS mesic,
+       SUM(pe.cena_jedn_czk * pe.mnozstvi) AS trzby,
+       SUM(pe.mnozstvi) AS qty
+FROM polozky_eshop pe
+JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
+LEFT JOIN kontakty c ON c.id = de.kontakt_id
+WHERE pe.duzp BETWEEN :start_date AND :end_date
+  AND (:ic = '' OR c.ic = :ic)
+  AND (:eshop_source = '' OR de.eshop_source = :eshop_source)
+GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m')
+ORDER BY mesic
+",
+                'params' => [
+                    ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'ic', 'type' => 'string', 'required' => false, 'default' => ''],
+                    ['name' => 'eshop_source', 'type' => 'enum', 'required' => false, 'default' => '', 'values' => $eshops],
+                ],
+                'suggested_render' => 'table',
+            ],
+            'total_revenue_by_ic' => [
+                'title' => 'Souhrnné tržby podle IČ / kanálu',
+                'description' => 'Součet tržeb bez DPH dle filtrů; bez časového groupingu.',
+                'sql' => "
+SELECT
+  COALESCE(c.ic, 'neznámé IČ') AS ic,
+  SUM(pe.cena_jedn_czk * pe.mnozstvi) AS trzby,
+  SUM(pe.mnozstvi) AS qty
+FROM polozky_eshop pe
+JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
+LEFT JOIN kontakty c ON c.id = de.kontakt_id
+WHERE pe.duzp BETWEEN :start_date AND :end_date
+  AND (:ic = '' OR c.ic = :ic)
+  AND (:eshop_source = '' OR de.eshop_source = :eshop_source)
+GROUP BY COALESCE(c.ic, 'neznámé IČ')
+ORDER BY trzby DESC
+",
+                'params' => [
+                    ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'ic', 'type' => 'string', 'required' => false, 'default' => ''],
+                    ['name' => 'eshop_source', 'type' => 'enum', 'required' => false, 'default' => '', 'values' => $eshops],
+                ],
+                'suggested_render' => 'table',
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $template
+     * @param array<string,mixed> $input
+     * @return array{0:array<string,mixed>,1:array<int,string>}
+     */
+    private function validateTemplateParams(array $template, array $input): array
+    {
+        $validated = [];
+        $errors = [];
+        foreach ($template['params'] as $param) {
+            $name = (string)$param['name'];
+            $type = (string)$param['type'];
+            $required = (bool)($param['required'] ?? false);
+            $default = $param['default'] ?? null;
+            $raw = $input[$name] ?? $default;
+            if ($raw === null && $required) {
+                $errors[] = "Chybí parametr {$name}.";
+                continue;
+            }
+            switch ($type) {
+                case 'date':
+                    $val = trim((string)$raw);
+                    if ($val === '') {
+                        $errors[] = "Chybí datum {$name}.";
+                        break;
+                    }
+                    $validated[$name] = $val;
+                    break;
+                case 'string':
+                    $validated[$name] = trim((string)$raw);
+                    break;
+                case 'enum':
+                    $val = trim((string)$raw);
+                    $allowed = (array)($param['values'] ?? []);
+                    if ($val !== '' && !in_array($val, $allowed, true)) {
+                        $errors[] = "Neplatná hodnota pro {$name}.";
+                    }
+                    $validated[$name] = $val;
+                    break;
+                default:
+                    $validated[$name] = $raw;
+            }
+        }
+        return [$validated, $errors];
+    }
+
+    /**
+     * @param array<string,mixed> $params
+     */
+    private function runTemplateQuery(string $sql, array $params): array
+    {
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $rows ?: [];
     }
 }

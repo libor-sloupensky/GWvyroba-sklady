@@ -81,6 +81,7 @@ $router->post('/analytics/ai', [AnalyticsController::class, 'ai']);
 $router->post('/analytics/favorite', [AnalyticsController::class, 'saveFavoriteAjax']);
 $router->post('/analytics/favorite/delete', [AnalyticsController::class, 'deleteFavoriteAjax']);
 $router->get('/analytics/v2', [AnalyticsController::class, 'revenueV2']); // nové UI Analýza v2
+$router->post('/analytics/v2/run', [AnalyticsController::class, 'runTemplateV2']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
