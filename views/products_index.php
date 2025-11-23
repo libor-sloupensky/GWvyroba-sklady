@@ -330,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function buildBomTable(tree, refresh) {
       const table = document.createElement('table');
       table.className = 'bom-tree-table';
-      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Typ položky</th></tr></thead>';
+      table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Typ položky</th><th>Akce</th></tr></thead>';
       const body = document.createElement('tbody');
       const rows = flattenBomTree(tree);
       rows.forEach((rowData) => {
@@ -364,7 +364,27 @@ document.addEventListener('DOMContentLoaded', function () {
         const edge = rowData.node.edge || {};
         tr.appendChild(createValueCell(formatNumber(edge.koeficient)));
         tr.appendChild(createValueCell(displayValue(edge.merna_jednotka || rowData.node.merna_jednotka)));
-                tr.appendChild(createValueCell(displayValue(rowData.node.typ)));
+        tr.appendChild(createValueCell(displayValue(rowData.node.typ)));
+
+        const actions = document.createElement('td');
+        actions.className = 'bom-tree-actions';
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'bom-action-btn';
+        addBtn.textContent = '+';
+        addBtn.title = 'Přidat potomka';
+        addBtn.addEventListener('click', () => openBomAddForm(tr, rowData, refresh));
+        actions.appendChild(addBtn);
+        if (rowData.parentSku) {
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'bom-action-btn bom-action-btn--danger';
+          delBtn.textContent = '×';
+          delBtn.title = 'Smazat vazbu';
+          delBtn.addEventListener('click', () => deleteBomLink(rowData.parentSku, rowData.node.sku, refresh));
+          actions.appendChild(delBtn);
+        }
+        tr.appendChild(actions);
 
         body.appendChild(tr);
       });
