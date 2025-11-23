@@ -1136,23 +1136,15 @@ final class ProductionController
 
 
     private function recentProductions(int $limit = 30): array
-
     {
-
-        $sql = "SELECT m.datum, m.sku, m.mnozstvi, p.nazev
-
+        $sql = "SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
                 FROM polozky_pohyby m
-
                 LEFT JOIN produkty p ON p.sku = m.sku
-
-                WHERE m.typ_pohybu = 'vyroba' AND m.mnozstvi > 0
-
-                ORDER BY m.datum DESC
-
+                WHERE m.typ_pohybu IN ('vyroba','korekce')
+                ORDER BY m.datum DESC, m.id DESC
                 LIMIT {$limit}";
 
         return DB::pdo()->query($sql)->fetchAll();
-
     }
 
 

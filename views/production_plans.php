@@ -803,19 +803,23 @@
 }
 
 
-.production-log-title {
-
-
-  margin:1.8rem 0 0.6rem;
+.production-log-title {
+
+
+  margin:1.8rem 0 0.6rem;
 
 
   font-size:1.05rem;
 
 
-  font-weight:600;
-
-
-}
+  font-weight:600;
+
+
+}
+
+.production-log-row--vyroba { background:#e8f5e9; }
+.production-log-row--korekce { background:#ffebee; }
+.production-log-type { font-weight:600; }
 
 
 </style>
@@ -1165,7 +1169,7 @@
 
             <input type="hidden" name="return_url" value="<?= htmlspecialchars($_SERVER["REQUEST_URI"] ?? "/production/plans", ENT_QUOTES, "UTF-8") ?>" />
 
-            <input type="number" step="any" name="mnozstvi" placeholder="Mno?stv?" required />
+            <input type="number" step="any" name="mnozstvi" placeholder="Množství" required />
 
             <div class="production-actions">
 
@@ -1260,6 +1264,9 @@
         <th>Název</th>
 
 
+        <th>Typ</th>
+
+
         <th>Množství</th>
 
 
@@ -1272,27 +1279,19 @@
     <tbody>
 
 
-      <?php foreach ($recentProductions as $log): ?>
-
-
-        <tr>
-
-
-          <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
-
-
-          <td><?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?></td>
-
-
-          <td><?= htmlspecialchars((string)($log['nazev'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
-
-
-          <td class="qty-cell"><?= htmlspecialchars((string)round(abs((float)($log['mnozstvi'] ?? 0))), ENT_QUOTES, 'UTF-8') ?></td>
-
-
-        </tr>
-
-
+      <?php foreach ($recentProductions as $log): ?>
+        <?php
+          $typRaw = strtolower((string)($log['typ'] ?? ''));
+          $rowClass = $typRaw == 'korekce' ? 'production-log-row--korekce' : 'production-log-row--vyroba';
+          $typLabel = $typRaw == 'korekce' ? 'Korekce' : 'Výroba';
+        ?>
+        <tr class="<?= $rowClass ?>">
+          <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
+          <td><?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?></td>
+          <td><?= htmlspecialchars((string)($log['nazev'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+          <td class="production-log-type"><?= htmlspecialchars($typLabel, ENT_QUOTES, 'UTF-8') ?></td>
+          <td class="qty-cell"><?= htmlspecialchars((string)round((float)($log['mnozstvi'] ?? 0), 2), ENT_QUOTES, 'UTF-8') ?></td>
+        </tr>
       <?php endforeach; ?>
 
 
