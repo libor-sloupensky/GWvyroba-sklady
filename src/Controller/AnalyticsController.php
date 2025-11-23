@@ -577,12 +577,16 @@ PROMPT;
     {
         $this->requireRole(['admin', 'superadmin']);
         header('Content-Type: application/json; charset=utf-8');
-        $ids = $_GET['ids'] ?? [];
-        if (!is_array($ids) || empty($ids)) {
+        $raw = $_GET['ids'] ?? [];
+        if (!is_array($raw)) {
+            // allow comma-separated string
+            $raw = is_string($raw) ? explode(',', $raw) : [];
+        }
+        if (empty($raw)) {
             echo json_encode(['ok' => true, 'items' => []], JSON_UNESCAPED_UNICODE);
             return;
         }
-        $ids = array_values(array_filter(array_map('intval', $ids), static fn($v) => $v > 0));
+        $ids = array_values(array_filter(array_map('intval', $raw), static fn($v) => $v > 0));
         if (empty($ids)) {
             echo json_encode(['ok' => true, 'items' => []], JSON_UNESCAPED_UNICODE);
             return;

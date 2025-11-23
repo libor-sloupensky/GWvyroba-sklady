@@ -459,7 +459,9 @@
     });
     if (contactIds.length) {
       try {
-        const res = await fetch('/analytics/contacts/by-id?' + new URLSearchParams({ ids: contactIds }));
+        const params = new URLSearchParams();
+        contactIds.forEach(id => params.append('ids[]', id));
+        const res = await fetch('/analytics/contacts/by-id?' + params.toString());
         const data = await res.json();
         if (data.ok) {
           state.contacts = data.items || [];
