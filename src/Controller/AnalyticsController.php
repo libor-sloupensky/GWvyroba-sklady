@@ -708,13 +708,13 @@ FROM (
   UNION
   SELECT LAST_DAY(datum) FROM polozky_pohyby WHERE datum BETWEEN :start_date AND :end_date GROUP BY LAST_DAY(datum)
 ) m
-CROSS JOIN (
+LEFT JOIN (
   SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
-) inv
+) inv ON 1=1
 JOIN produkty p ON p.aktivni = 1
 LEFT JOIN inventura_stavy s ON s.inventura_id = inv.id AND s.sku = p.sku
 WHERE m.month_end BETWEEN :start_date AND :end_date
-  AND m.month_end >= COALESCE(DATE(inv.closed_at), :start_date)
+  AND (inv.id IS NULL OR m.month_end >= COALESCE(DATE(inv.closed_at), :start_date))
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
