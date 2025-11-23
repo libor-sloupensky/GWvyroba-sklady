@@ -542,15 +542,16 @@ PROMPT;
             return;
         }
         $like = '%' . $q . '%';
+        $likeNorm = '%' . str_replace([' ', "\t"], '', $q) . '%';
         $pdo = DB::pdo();
         $stmt = $pdo->prepare("
             SELECT id, firma, ic, email
             FROM kontakty
-            WHERE (ic LIKE :q OR firma LIKE :q OR email LIKE :q)
-            ORDER BY firma IS NULL, firma, ic
-            LIMIT 15
+            WHERE (ic LIKE :q OR REPLACE(ic, ' ', '') LIKE :qnorm OR firma LIKE :q OR email LIKE :q)
+            ORDER BY (firma IS NULL OR firma = '') ASC, firma, ic
+            LIMIT 20
         ");
-        $stmt->execute([':q' => $like]);
+        $stmt->execute([':q' => $like, ':qnorm' => $likeNorm]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $items = array_map(function (array $r): array {
             $parts = [];
@@ -613,35 +614,6 @@ WHERE pe.duzp BETWEEN :start_date AND :end_date
   AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
 GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m'), serie_key, serie_label
 ORDER BY mesic, serie_label
-",
-                'params' => [
-                    ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
-                    ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'contact_ids', 'type' => 'contact_multi', 'required' => false, 'default' => []],
-                    ['name' => 'eshop_source', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
-                ],
-                'suggested_render' => 'table',
-            ],
-            'total_revenue_by_ic' => [
-                'title' => 'Souhrnné tržby podle kontaktu/kanálu',
-                'description' => 'Součet tržeb bez DPH dle filtrů; bez časového groupingu.',
-                'sql' => "
-SELECT
-  CASE
-    WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
-    ELSE COALESCE(c.ic, 'neznámé IČ')
-  END AS kontakt,
-  CASE WHEN :has_eshops = 1 THEN de.eshop_source ELSE 'Všechny' END AS eshop,
-  ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS trzby,
-  ROUND(SUM(pe.mnozstvi), 0) AS qty
-FROM polozky_eshop pe
-JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
-LEFT JOIN kontakty c ON c.id = de.kontakt_id
-WHERE pe.duzp BETWEEN :start_date AND :end_date
-  AND (:has_contacts = 0 OR de.kontakt_id IN (%contact_ids%))
-  AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
-GROUP BY kontakt, eshop
-ORDER BY trzby DESC
 ",
                 'params' => [
                     ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
