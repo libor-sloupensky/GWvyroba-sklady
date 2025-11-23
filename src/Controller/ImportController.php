@@ -210,19 +210,46 @@ final class ImportController
                         ];
                     }
                     if (!$isMissingSku) {
-                        $ref = $this->buildMovementRef($eshop, $docNumber, (string)$sku);
-                        $deleteMovement->execute([$ref]);
                         $movementQty = -1 * $this->toFloat($quantity);
                         if ($movementQty !== 0.0) {
-                            $movementInsert->execute([
-                                $duzp,
-                                $sku,
-                                $movementQty,
-                                $this->emptyToNull($item['unit'] ?? null),
-                                'odpis',
-                                sprintf('Doklad %s / %s', $eshop, $docNumber),
-                                $ref,
-                            ]);
+                            $meta = $this->loadProductMeta($sku);
+                            $isNonstock = (bool)($meta['is_nonstock'] ?? false);
+                            $bomChildren = $isNonstock ? $this->loadBomChildren($sku) : [];
+
+                            if ($isNonstock && !empty($bomChildren)) {
+                                // rozpad na potomky, parent neodepisovat
+                                foreach ($bomChildren as $edge) {
+                                    $childSku = (string)$edge['sku'];
+                                    $childQty = $movementQty * (float)$edge['koeficient'];
+                                    if ($childQty === 0.0 || $childSku === '') {
+                                        continue;
+                                    }
+                                    $childRef = $this->buildMovementRef($eshop, $docNumber, $childSku);
+                                    $deleteMovement->execute([$childRef]);
+                                    $childUnit = $edge['edge_unit'] ?? $edge['merna_jednotka'] ?? null;
+                                    $movementInsert->execute([
+                                        $duzp,
+                                        $childSku,
+                                        $childQty,
+                                        $childUnit,
+                                        'odpis',
+                                        sprintf('Doklad %s / %s', $eshop, $docNumber),
+                                        $childRef,
+                                    ]);
+                                }
+                            } else {
+                                $ref = $this->buildMovementRef($eshop, $docNumber, (string)$sku);
+                                $deleteMovement->execute([$ref]);
+                                $movementInsert->execute([
+                                    $duzp,
+                                    $sku,
+                                    $movementQty,
+                                    $this->emptyToNull($item['unit'] ?? null),
+                                    'odpis',
+                                    sprintf('Doklad %s / %s', $eshop, $docNumber),
+                                    $ref,
+                                ]);
+                            }
                         }
                     }
                 }
@@ -687,6 +714,64 @@ final class ImportController
     private function buildMovementRef(string $eshop, string $docNumber, string $sku): string
     {
         return sprintf('doc:%s:%s:%s', mb_strtolower($eshop, 'UTF-8'), $docNumber, $sku);
+    }
+
+    /**
+     * @return array{sku:string,typ:string,is_nonstock:bool,merna_jednotka:?string}|null
+     */
+    private function loadProductMeta(string $sku): ?array
+    {
+        static $cache = [];
+        $key = mb_strtolower($sku, 'UTF-8');
+        if (isset($cache[$key])) {
+            return $cache[$key];
+        }
+        $stmt = DB::pdo()->prepare(
+            'SELECT p.sku,p.typ,pt.is_nonstock,p.merna_jednotka FROM produkty p ' .
+            'LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku=? LIMIT 1'
+        );
+        $stmt->execute([$sku]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            $cache[$key] = null;
+            return null;
+        }
+        $cache[$key] = [
+            'sku' => (string)$row['sku'],
+            'typ' => (string)($row['typ'] ?? ''),
+            'is_nonstock' => (bool)($row['is_nonstock'] ?? false),
+            'merna_jednotka' => $row['merna_jednotka'] !== null ? (string)$row['merna_jednotka'] : null,
+        ];
+        return $cache[$key];
+    }
+
+    /**
+     * @return array<int,array{sku:string,koeficient:float,edge_unit:?string,merna_jednotka:?string}>
+     */
+    private function loadBomChildren(string $sku): array
+    {
+        static $cache = [];
+        if (isset($cache[$sku])) {
+            return $cache[$sku];
+        }
+        $stmt = DB::pdo()->prepare(
+            'SELECT b.potomek_sku AS sku,b.koeficient,' .
+            'COALESCE(NULLIF(b.merna_jednotka_potomka, \'\'), NULL) AS edge_unit,' .
+            'p.merna_jednotka ' .
+            'FROM bom b LEFT JOIN produkty p ON p.sku = b.potomek_sku WHERE b.rodic_sku=?'
+        );
+        $stmt->execute([$sku]);
+        $rows = [];
+        foreach ($stmt as $row) {
+            $rows[] = [
+                'sku' => (string)$row['sku'],
+                'koeficient' => (float)$row['koeficient'],
+                'edge_unit' => $row['edge_unit'] !== null ? (string)$row['edge_unit'] : null,
+                'merna_jednotka' => $row['merna_jednotka'] !== null ? (string)$row['merna_jednotka'] : null,
+            ];
+        }
+        $cache[$sku] = $rows;
+        return $rows;
     }
 
     private function isKnownEshop(string $eshop): bool

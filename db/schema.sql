@@ -1,6 +1,13 @@
 -- MySQL schema (utf8mb4, czech collation)
 SET NAMES utf8mb4 COLLATE utf8mb4_czech_ci;
 
+CREATE TABLE IF NOT EXISTS product_types (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(32) NOT NULL UNIQUE,
+  name VARCHAR(128) NOT NULL,
+  is_nonstock TINYINT(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -96,7 +103,7 @@ CREATE TABLE IF NOT EXISTS produkty (
   alt_sku VARCHAR(128) NULL UNIQUE,
   ean VARCHAR(32) NULL UNIQUE,
   nazev VARCHAR(255) NOT NULL,
-  typ ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL,
+  typ VARCHAR(32) NOT NULL,
   merna_jednotka VARCHAR(16) NOT NULL,
   skl_hodnota DECIMAL(18,2) NOT NULL DEFAULT 0,
   min_zasoba DECIMAL(18,3) NOT NULL DEFAULT 0,
@@ -121,7 +128,6 @@ CREATE TABLE IF NOT EXISTS bom (
   potomek_sku VARCHAR(128) NOT NULL,
   koeficient DECIMAL(18,6) NOT NULL,
   merna_jednotka_potomka VARCHAR(16) NULL,
-  druh_vazby ENUM('karton','sada') NOT NULL,
   KEY idx_bom_rodic (rodic_sku),
   KEY idx_bom_potomek (potomek_sku)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
@@ -172,7 +178,7 @@ CREATE TABLE IF NOT EXISTS inventura_stavy (
 CREATE TABLE IF NOT EXISTS rezervace (
   id INT AUTO_INCREMENT PRIMARY KEY,
   sku VARCHAR(128) NOT NULL,
-  typ ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt',
+  typ VARCHAR(32) NOT NULL DEFAULT 'produkt',
   mnozstvi DECIMAL(18,3) NOT NULL,
   platna_do DATE NOT NULL,
   poznamka VARCHAR(512) NULL,

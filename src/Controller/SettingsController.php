@@ -17,6 +17,7 @@ final class SettingsController
         $brands = $pdo->query('SELECT z.id,z.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.znacka_id=z.id) AS used_count FROM produkty_znacky z ORDER BY z.nazev')->fetchAll();
         $groups = $pdo->query('SELECT g.id,g.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.skupina_id=g.id) AS used_count FROM produkty_skupiny g ORDER BY g.nazev')->fetchAll();
         $units = $pdo->query('SELECT u.id,u.kod,(SELECT COUNT(*) FROM produkty p WHERE p.merna_jednotka=u.kod) AS used_count FROM produkty_merne_jednotky u ORDER BY u.kod')->fetchAll();
+        $types = $pdo->query('SELECT pt.id,pt.code,pt.name,pt.is_nonstock,(SELECT COUNT(*) FROM produkty p WHERE p.typ=pt.code) AS used_products,(SELECT COUNT(*) FROM rezervace r WHERE r.typ=pt.code) AS used_reservations FROM product_types pt ORDER BY pt.name')->fetchAll();
         $users = $this->isSuperAdmin() ? $this->fetchUsers() : [];
         $flashError = $_SESSION['settings_error'] ?? null;
         $flashMessage = $_SESSION['settings_message'] ?? null;
@@ -30,6 +31,7 @@ final class SettingsController
             'brands' => $brands,
             'groups' => $groups,
             'units' => $units,
+            'types' => $types,
             'users' => $users,
             'canManageUsers' => $this->isSuperAdmin(),
             'flashError' => $flashError,
@@ -217,6 +219,100 @@ final class SettingsController
                 $_SESSION['settings_message'] = 'Jednotka byla smazána.';
             }
         }
+        header('Location: /settings');
+    }
+
+    public function saveProductType(): void
+    {
+        $this->requireAdmin();
+        $pdo = DB::pdo();
+        $id = max(0, (int)($_POST['id'] ?? 0));
+        $codeInput = strtolower(trim((string)($_POST['code'] ?? '')));
+        $name = trim((string)($_POST['name'] ?? ''));
+        $isNonstock = isset($_POST['is_nonstock']) ? 1 : 0;
+
+        $row = null;
+        if ($id > 0) {
+            $st = $pdo->prepare('SELECT id, code FROM product_types WHERE id=? LIMIT 1');
+            $st->execute([$id]);
+            $row = $st->fetch();
+            if (!$row) {
+                $_SESSION['settings_error'] = 'Typ nenalezen.';
+                header('Location: /settings');
+                return;
+            }
+        }
+
+        $code = $id > 0 ? (string)$row['code'] : $codeInput;
+        if ($name === '') {
+            $_SESSION['settings_error'] = 'Zadejte název typu.';
+            header('Location: /settings');
+            return;
+        }
+        if ($code === '') {
+            $_SESSION['settings_error'] = 'Zadejte kód typu (bez diakritiky).';
+            header('Location: /settings');
+            return;
+        }
+        if (!preg_match('/^[a-z0-9_-]+$/i', $code)) {
+            $_SESSION['settings_error'] = 'Kód smí obsahovat jen a-z, 0-9, _ a -.';
+            header('Location: /settings');
+            return;
+        }
+
+        if ($id > 0) {
+            $upd = $pdo->prepare('UPDATE product_types SET name=?, is_nonstock=? WHERE id=?');
+            $upd->execute([$name, $isNonstock, $id]);
+            $_SESSION['settings_message'] = 'Typ byl upraven.';
+        } else {
+            $existing = $pdo->prepare('SELECT id FROM product_types WHERE code=? LIMIT 1');
+            $existing->execute([$code]);
+            $existingId = (int)($existing->fetchColumn() ?: 0);
+            if ($existingId > 0) {
+                $upd = $pdo->prepare('UPDATE product_types SET name=?, is_nonstock=? WHERE id=?');
+                $upd->execute([$name, $isNonstock, $existingId]);
+                $_SESSION['settings_message'] = 'Typ byl upraven.';
+            } else {
+                $ins = $pdo->prepare('INSERT INTO product_types (code,name,is_nonstock) VALUES (?,?,?)');
+                $ins->execute([$code, $name, $isNonstock]);
+                $_SESSION['settings_message'] = 'Typ byl přidán.';
+            }
+        }
+
+        header('Location: /settings');
+    }
+
+    public function deleteProductType(): void
+    {
+        $this->requireAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['settings_error'] = 'Neplatný požadavek na smazání typu.';
+            header('Location: /settings');
+            return;
+        }
+
+        $pdo = DB::pdo();
+        $st = $pdo->prepare('SELECT code FROM product_types WHERE id=? LIMIT 1');
+        $st->execute([$id]);
+        $row = $st->fetch();
+        if (!$row) {
+            $_SESSION['settings_error'] = 'Typ neexistuje.';
+            header('Location: /settings');
+            return;
+        }
+
+        $code = (string)$row['code'];
+        $usage = $pdo->prepare('SELECT (SELECT COUNT(*) FROM produkty WHERE typ=?) + (SELECT COUNT(*) FROM rezervace WHERE typ=?) AS total');
+        $usage->execute([$code, $code]);
+        if ((int)($usage->fetchColumn() ?: 0) > 0) {
+            $_SESSION['settings_error'] = 'Typ je použit v produktech nebo rezervacích a nelze ho smazat.';
+            header('Location: /settings');
+            return;
+        }
+
+        $pdo->prepare('DELETE FROM product_types WHERE id=?')->execute([$id]);
+        $_SESSION['settings_message'] = 'Typ byl smazán.';
         header('Location: /settings');
     }
 

@@ -15,14 +15,14 @@ final class BomController
     public function exportCsv(): void
     {
         $this->requireAuth();
-        $rows = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby FROM bom ORDER BY rodic_sku,potomek_sku')->fetchAll();
+        $rows = DB::pdo()->query('SELECT rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka FROM bom ORDER BY rodic_sku,potomek_sku')->fetchAll();
         $fh = fopen('php://output','wb');
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="bom.csv"');
         $delimiter = ';';
         $enclosure = '"';
         $escape = '\\';
-        fputcsv($fh, ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka','druh_vazby'], $delimiter, $enclosure, $escape);
+        fputcsv($fh, ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka'], $delimiter, $enclosure, $escape);
         foreach ($rows as $r) {
             fputcsv($fh, $r, $delimiter, $enclosure, $escape);
         }
@@ -46,22 +46,21 @@ final class BomController
         $updated = 0;
         try {
             $header = $this->readCsvRow($fh);
-            $expected = ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka','druh_vazby'];
+            $expected = ['rodic_sku','potomek_sku','koeficient','merna_jednotka_potomka'];
             if (!$header || array_map('strtolower',$header)!==$expected) {
                 throw new \RuntimeException('Neplatná hlavička CSV.');
             }
             $deletePair = $pdo->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?');
-            $insert = $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby) VALUES (?,?,?,?,?)');
+            $insert = $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka) VALUES (?,?,?,?)');
             $ok=0;$line=1;
             while(($row=$this->readCsvRow($fh))!==false){
                 $line++;
                 if(count(array_filter($row,fn($v)=>trim((string)$v)!==''))===0)continue;
-                $row = array_pad($row,5,'');
-                [$parent,$child,$coef,$unit,$bond]=$row;
+                $row = array_pad($row,4,'');
+                [$parent,$child,$coef,$unit]=$row;
                 $parent=$this->toUtf8($parent);
                 $child=$this->toUtf8($child);
                 $unit=$this->toUtf8($unit);
-                $bond=$this->toUtf8($bond);
                 if($parent===''||$child===''){ $err[]="Řádek {$line}: chybí rodič/potomek"; continue;}
                 if($coef===''|| !is_numeric($coef) || (float)$coef<=0){ $err[]="Řádek {$line}: neplatný koeficient"; continue;}
                 $parentInfo = $this->getProductInfo($parent);
@@ -77,16 +76,9 @@ final class BomController
                 if($unit===''){
                     $unit = $childInfo['merna_jednotka'] ?? null;
                 }
-                if($bond===''){
-                    $bond = $this->deriveBondType($parentInfo['typ'] ?? null);
-                }
-                if(!in_array($bond,['karton','sada'],true)){
-                    $err[]="Řádek {$line}: neplatný druh_vazby";
-                    continue;
-                }
                 $deletePair->execute([$parent,$child]);
                 $wasUpdate = $deletePair->rowCount() > 0;
-                $insert->execute([$parent,$child,$coef,$unit,$bond]);
+                $insert->execute([$parent,$child,$coef,$unit]);
                 if ($wasUpdate) {
                     $updated++;
                 } else {

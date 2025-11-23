@@ -50,6 +50,28 @@ function tableExists(PDO $pdo, string $table): bool {
     return (bool)$stmt->fetch(PDO::FETCH_NUM);
 }
 
+// Product types: table, seed, enums -> varchar, drop bom.druh_vazby
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS product_types (id INT AUTO_INCREMENT PRIMARY KEY, code VARCHAR(32) NOT NULL UNIQUE, name VARCHAR(128) NOT NULL, is_nonstock TINYINT(1) NOT NULL DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_czech_ci");
+    $defaults = [
+        ['produkt','Produkt',0],
+        ['obal','Obal',0],
+        ['etiketa','Etiketa',0],
+        ['surovina','Surovina',0],
+        ['baleni','Baleni',1],
+        ['karton','Karton',1],
+    ];
+    $ins = $pdo->prepare('INSERT IGNORE INTO product_types (code,name,is_nonstock) VALUES (?,?,?)');
+    foreach ($defaults as $row) {
+        $ins->execute($row);
+    }
+} catch (Throwable $e) {}
+try { $pdo->exec("ALTER TABLE produkty MODIFY typ VARCHAR(32) NOT NULL"); } catch (Throwable $e) {}
+try { $pdo->exec("ALTER TABLE rezervace MODIFY typ VARCHAR(32) NOT NULL DEFAULT 'produkt'"); } catch (Throwable $e) {}
+try { $pdo->exec("ALTER TABLE produkty ADD CONSTRAINT fk_produkty_typ FOREIGN KEY (typ) REFERENCES product_types(code)"); } catch (Throwable $e) {}
+try { $pdo->exec("ALTER TABLE rezervace ADD CONSTRAINT fk_rez_typ FOREIGN KEY (typ) REFERENCES product_types(code)"); } catch (Throwable $e) {}
+try { $pdo->exec("ALTER TABLE bom DROP COLUMN druh_vazby"); } catch (Throwable $e) {}
+
 try {
     if (!columnExists($pdo, 'produkty', 'alt_sku')) {
         addColumn($pdo, 'produkty', "COLUMN `alt_sku` VARCHAR(128) NULL AFTER `sku`");

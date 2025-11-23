@@ -84,9 +84,9 @@ final class ProductionController
 
             $where = implode(' AND ', $conditions);
 
-            $sql = 'SELECT sku,typ,nazev,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni FROM produkty WHERE ' .
+            $sql = 'SELECT p.sku,p.typ,p.nazev,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code=p.typ WHERE ' .
 
-                $where . ' ORDER BY nazev';
+                $where . ' ORDER BY p.nazev';
 
             $stmt = $pdo->prepare($sql);
 
@@ -220,15 +220,27 @@ final class ProductionController
         $mode = (string)($_POST['modus'] ?? 'odecti_subpotomky'); // odecti_subpotomky | korekce | korekce_skladu
         $returnUrl = $this->sanitizeReturnUrl((string)($_POST['return_url'] ?? ''));
 
+        $metaStmt = DB::pdo()->prepare('SELECT COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku=? LIMIT 1');
+        $metaStmt->execute([$sku]);
+        $meta = $metaStmt->fetch();
+
+        if ($sku === '' || $qty <= 0 || empty($meta)) {
+
+            $this->redirect($returnUrl ?: '/production/plans');
+
+            return;
+
+        }
+
+        if (!empty($meta['is_nonstock'])) {
+
+            $this->redirect($returnUrl ?: '/production/plans');
+
+            return;
+
+        }
+
         if ($mode === 'korekce_skladu') {
-
-            if ($sku === '' || $qty === 0.0) {
-
-                $this->redirect($returnUrl ?: '/production/plans');
-
-                return;
-
-            }
 
             $this->requireAdmin();
 
@@ -483,7 +495,7 @@ final class ProductionController
 
     {
 
-        $stmt = DB::pdo()->prepare("SELECT potomek_sku AS sku, koeficient, merna_jednotka_potomka FROM bom WHERE rodic_sku=? AND druh_vazby='sada'");
+        $stmt = DB::pdo()->prepare("SELECT potomek_sku AS sku, koeficient, merna_jednotka_potomka FROM bom WHERE rodic_sku=?");
 
         $stmt->execute([$sku]);
 
@@ -719,7 +731,7 @@ final class ProductionController
 
     /**
 
-     * @param array<string,array<int,array{sku:string,koeficient:float,merna_jednotka:?string,druh_vazby:string}>> $parents
+     * @param array<string,array<int,array{sku:string,koeficient:float,merna_jednotka:?string}>> $parents
 
      * @return array<int,string>
 
@@ -763,7 +775,7 @@ final class ProductionController
 
     /**
 
-     * @param array<string,array<int,array{sku:string,koeficient:float,merna_jednotka:?string,druh_vazby:string}>> $parents
+     * @param array<string,array<int,array{sku:string,koeficient:float,merna_jednotka:?string}>> $parents
 
      * @param array<string,array<string,mixed>> $statusMap
 
@@ -852,8 +864,6 @@ final class ProductionController
                 'koeficient' => (float)($parentEdge['koeficient'] ?? 0.0),
 
                 'merna_jednotka' => $edgeUnit,
-
-                'druh_vazby' => (string)($parentEdge['druh_vazby'] ?? ''),
 
             ];
 
@@ -1213,7 +1223,8 @@ final class ProductionController
 
     {
 
-        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+        $stmt = DB::pdo()->query('SELECT code FROM product_types ORDER BY name');
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
 
     }
 

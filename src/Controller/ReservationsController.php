@@ -94,7 +94,8 @@ final class ReservationsController
 
     private function productTypes(): array
     {
-        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+        $stmt = DB::pdo()->query('SELECT code FROM product_types ORDER BY name');
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     private function ensureReservationSchema(): void

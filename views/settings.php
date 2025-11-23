@@ -148,6 +148,90 @@
   <?php endforeach; ?>
 </table>
 
+<h2>Typy produktů</h2>
+<form method="post" action="/settings/type" id="product-type-form">
+  <input type="hidden" name="id" value="" />
+  <label>Kód typu (bez diakritiky)</label>
+  <input type="text" name="code" required />
+  <label>Název typu</label>
+  <input type="text" name="name" required />
+  <label>
+    <input type="checkbox" name="is_nonstock" />
+    Neskladová sada
+    <span class="info-icon" title="Typ se sám neodepisuje, odpisuje se jeho strom potomků.">i</span>
+  </label>
+  <button type="submit">Uložit typ</button>
+  <button type="button" id="product-type-reset" class="link-button" style="margin-left:8px;">Nový typ</button>
+</form>
+<table>
+  <tr><th>Kód</th><th>Název</th><th>Chování</th><th>Použití</th><th>Akce</th></tr>
+  <?php foreach (($types ?? []) as $t): ?>
+  <?php $usedTotal = (int)($t['used_products'] ?? 0) + (int)($t['used_reservations'] ?? 0); ?>
+  <tr>
+    <td><?= htmlspecialchars((string)$t['code'], ENT_QUOTES, 'UTF-8') ?></td>
+    <td><?= htmlspecialchars((string)$t['name'], ENT_QUOTES, 'UTF-8') ?></td>
+    <td><?= ((int)($t['is_nonstock'] ?? 0) === 1) ? 'neskladová sada' : 'skladová položka' ?></td>
+    <td><?= $usedTotal ?></td>
+    <td>
+      <button type="button" class="js-edit-type"
+        data-id="<?= (int)$t['id'] ?>"
+        data-code="<?= htmlspecialchars((string)$t['code'], ENT_QUOTES, 'UTF-8') ?>"
+        data-name="<?= htmlspecialchars((string)$t['name'], ENT_QUOTES, 'UTF-8') ?>"
+        data-nonstock="<?= (int)$t['is_nonstock'] ?>"
+      >Upravit</button>
+      <?php if ($usedTotal === 0): ?>
+        <form method="post" action="/settings/type/delete" style="display:inline;margin-left:8px;">
+          <input type="hidden" name="id" value="<?= (int)$t['id'] ?>" />
+          <button type="submit" class="link-danger" title="Smazat typ" aria-label="Smazat typ">✕</button>
+        </form>
+      <?php else: ?>
+        <span class="muted">nelze smazat (<?= $usedTotal ?>)</span>
+      <?php endif; ?>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+<script>
+(function(){
+  const form = document.getElementById('product-type-form');
+  if (!form) return;
+  const fields = {
+    id: form.querySelector('input[name="id"]'),
+    code: form.querySelector('input[name="code"]'),
+    name: form.querySelector('input[name="name"]'),
+    nonstock: form.querySelector('input[name="is_nonstock"]'),
+  };
+  const reset = () => {
+    fields.id.value = '';
+    fields.code.readOnly = false;
+    fields.code.value = '';
+    fields.name.value = '';
+    fields.nonstock.checked = false;
+  };
+  document.querySelectorAll('.js-edit-type').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      fields.id.value = btn.dataset.id || '';
+      fields.code.value = btn.dataset.code || '';
+      fields.code.readOnly = true;
+      fields.name.value = btn.dataset.name || '';
+      fields.nonstock.checked = btn.dataset.nonstock === '1';
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      fields.name.focus();
+    });
+  });
+  const resetBtn = document.getElementById('product-type-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      reset();
+      fields.code.focus();
+    });
+  }
+  form.addEventListener('submit', () => {
+    fields.code.readOnly = false;
+  });
+})();
+</script>
+
 <h2>Měrné jednotky</h2>
 <form method="post" action="/settings/unit">
   <label>Kód jednotky (např. ks, kg)</label>

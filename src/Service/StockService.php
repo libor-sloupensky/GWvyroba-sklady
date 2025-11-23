@@ -158,7 +158,7 @@ final class StockService
         $children = [];
         $parents = [];
         $indegree = [];
-        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient, COALESCE(NULLIF(merna_jednotka_potomka, \'\'), NULL) AS edge_mj, druh_vazby FROM bom');
+        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient, COALESCE(NULLIF(merna_jednotka_potomka, \'\'), NULL) AS edge_mj FROM bom');
         foreach ($stmt as $row) {
             $parent = (string)$row['rodic_sku'];
             $child = (string)$row['potomek_sku'];
@@ -167,18 +167,15 @@ final class StockService
             }
             $coef = (float)$row['koeficient'];
             $edgeUnit = $row['edge_mj'] === null ? null : (string)$row['edge_mj'];
-            $bond = (string)($row['druh_vazby'] ?? '');
             $children[$parent][] = [
                 'sku' => $child,
                 'koeficient' => $coef,
                 'edge_mj' => $edgeUnit,
-                'druh_vazby' => $bond,
             ];
             $parents[$child][] = [
                 'sku' => $parent,
                 'koeficient' => $coef,
                 'merna_jednotka' => $edgeUnit,
-                'druh_vazby' => $bond,
             ];
             $indegree[$child] = ($indegree[$child] ?? 0) + 1;
             $indegree[$parent] = $indegree[$parent] ?? 0;

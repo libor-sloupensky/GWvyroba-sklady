@@ -483,6 +483,15 @@ final class ProductsController
 
                 }
 
+                $currentType = $existingSkuMap[$skuKey]['typ'] ?? null;
+                if ($currentType !== null && $currentType !== '' && strcasecmp($currentType, $typ) !== 0) {
+                    [$canChange, $typeErr] = $this->canChangeProductType($sku, $typ, $currentType);
+                    if (!$canChange) {
+                        $errors[] = "dek {$line}: {$typeErr}";
+                        $typ = $currentType;
+                    }
+                }
+
                 $minValue = $min === '' ? 0.0 : (float)$min;
 
                 $stockMode = $hasStockModeColumn ? $this->sanitizeStockMode((string)$mode) : ($minValue > 0 ? 'manual' : 'auto');
@@ -1036,7 +1045,7 @@ final class ProductsController
 
         $unit = $this->toUtf8((string)($payload['merna_jednotka_potomka'] ?? ''));
 
-        $bond = $this->toUtf8((string)($payload['druh_vazby'] ?? ''));
+
 
         if ($parent === '' || $child === '') {
 
@@ -1112,7 +1121,7 @@ final class ProductsController
 
             $pdo->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?')->execute([$parent, $child]);
 
-            $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby) VALUES (?,?,?,?,?)')
+            $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka) VALUES (?,?,?,?)')
 
                 ->execute([$parent, $child, $coef, $unit, $bond]);
 
@@ -1250,7 +1259,17 @@ final class ProductsController
 
                 $val = $this->toUtf8((string)$value);
 
-                return in_array($val, $this->productTypes(), true) ? [$val, null] : [null, 'NeplatnĂ˝ typ.'];
+                if (!in_array($val, $this->productTypes(), true)) {
+                    return [null, 'Neplatný typ.'];
+                }
+                if ($currentSku !== '') {
+                    [$ok, $err] = $this->canChangeProductType($currentSku, $val);
+                    if (!$ok) {
+                        return [null, $err];
+                    }
+                }
+
+                return [$val, null];
 
             case 'merna_jednotka':
 
@@ -1531,8 +1550,79 @@ final class ProductsController
 
     {
 
-        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+        $stmt = DB::pdo()->query('SELECT code FROM product_types ORDER BY name');
 
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+
+    }
+
+
+
+    private function isNonstockType(string $code): bool
+    {
+        static $nonstock = null;
+        if ($nonstock === null) {
+            $rows = DB::pdo()->query('SELECT code FROM product_types WHERE is_nonstock=1')->fetchAll(\PDO::FETCH_COLUMN);
+            $nonstock = array_map('strval', $rows ?: []);
+        }
+        return in_array($code, $nonstock, true);
+    }
+
+
+
+    private function productHasMovements(string $sku): bool
+    {
+        static $cache = [];
+        $key = mb_strtolower($sku, 'UTF-8');
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+        $stmt = DB::pdo()->prepare('SELECT 1 FROM polozky_pohyby WHERE sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $cache[$key] = (bool)$stmt->fetchColumn();
+        return $cache[$key];
+    }
+
+
+
+    private function productHasChildren(string $sku): bool
+    {
+        static $cache = [];
+        $key = mb_strtolower($sku, 'UTF-8');
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+        $stmt = DB::pdo()->prepare('SELECT 1 FROM bom WHERE rodic_sku=? LIMIT 1');
+        $stmt->execute([$sku]);
+        $cache[$key] = (bool)$stmt->fetchColumn();
+        return $cache[$key];
+    }
+
+
+
+    private function canChangeProductType(string $sku, string $newType, ?string $currentType = null): array
+    {
+        if ($currentType === null) {
+            $st = DB::pdo()->prepare('SELECT typ FROM produkty WHERE sku=? LIMIT 1');
+            $st->execute([$sku]);
+            $row = $st->fetch();
+            $currentType = $row ? (string)$row['typ'] : null;
+        }
+
+        if ($currentType === null) {
+            return [true, null];
+        }
+        if ($currentType === $newType) {
+            return [true, null];
+        }
+        if ($this->productHasChildren($sku)) {
+            return [false, 'Produkt má potomky v BOM, typ nelze měnit.'];
+        }
+        if ($this->isNonstockType($newType) && $this->productHasMovements($sku)) {
+            return [false, 'Produkt má pohyby, nelze z něj udělat neskladovou sadu.'];
+        }
+
+        return [true, null];
     }
 
 
@@ -1631,7 +1721,6 @@ final class ProductsController
 
                         'merna_jednotka' => $child['edge_mj'] ?: $child['merna_jednotka'],
 
-                        'druh_vazby' => $child['druh_vazby'],
 
                     ],
 
@@ -1655,7 +1744,6 @@ final class ProductsController
 
                 'merna_jednotka' => $child['edge_mj'] ?: $subtree['merna_jednotka'],
 
-                'druh_vazby' => $child['druh_vazby'],
 
             ];
 
@@ -1733,7 +1821,7 @@ final class ProductsController
 
             'SELECT b.potomek_sku AS sku, b.koeficient, COALESCE(NULLIF(b.merna_jednotka_potomka, \'\'), NULL) AS edge_mj, ' .
 
-            'b.druh_vazby, p.nazev, p.typ, p.merna_jednotka ' .
+            'p.nazev, p.typ, p.merna_jednotka ' .
 
             'FROM bom b LEFT JOIN produkty p ON p.sku = b.potomek_sku ' .
 
@@ -1755,9 +1843,7 @@ final class ProductsController
 
                 'edge_mj' => $row['edge_mj'] === null ? null : (string)$row['edge_mj'],
 
-                'druh_vazby' => (string)$row['druh_vazby'],
-
-                'nazev' => (string)($row['nazev'] ?? '(neznĂˇmĂ˝)'),
+                'nazev' => (string)($row['nazev'] ?? '(nezn?m?)'),
 
                 'typ' => (string)($row['typ'] ?? ''),
 
@@ -1770,6 +1856,7 @@ final class ProductsController
         return $rows;
 
     }
+
 
 
 
@@ -1793,7 +1880,7 @@ final class ProductsController
 
     /**
 
-     * @return array{0:array<string,array{sku:string,alt:?string}>,1:array<string,string>}
+     * @return array{0:array<string,array{sku:string,alt:?string,typ:?string}>,1:array<string,string>}
 
      */
 
@@ -1805,7 +1892,7 @@ final class ProductsController
 
         $altMap = [];
 
-        foreach (DB::pdo()->query('SELECT sku, alt_sku FROM produkty') as $row) {
+        foreach (DB::pdo()->query('SELECT sku, alt_sku, typ FROM produkty') as $row) {
 
             $sku = trim((string)$row['sku']);
 
@@ -1824,6 +1911,8 @@ final class ProductsController
                 'sku' => $sku,
 
                 'alt' => $alt === '' ? null : $alt,
+
+                'typ' => $row['typ'] === null ? null : (string)$row['typ'],
 
             ];
 

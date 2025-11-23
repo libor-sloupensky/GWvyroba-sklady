@@ -397,8 +397,9 @@ final class InventoryController
             'COALESCE(z.nazev, "") AS znacka, COALESCE(g.nazev, "") AS skupina ' .
             'FROM produkty p ' .
             'LEFT JOIN produkty_znacky z ON z.id = p.znacka_id ' .
-            'LEFT JOIN produkty_skupiny g ON g.id = p.skupina_id ';
-        $conditions = ['p.aktivni = 1'];
+            'LEFT JOIN produkty_skupiny g ON g.id = p.skupina_id ' .
+            'LEFT JOIN product_types pt ON pt.code = p.typ ';
+        $conditions = ['p.aktivni = 1', 'COALESCE(pt.is_nonstock,0) = 0'];
         $params = [];
         $brand = (int)($filters['brand'] ?? 0);
         if ($brand > 0) {
@@ -457,15 +458,19 @@ final class InventoryController
 
     private function productTypes(): array
     {
-        return ['produkt','obal','etiketa','surovina','baleni','karton'];
+        $stmt = DB::pdo()->query('SELECT code FROM product_types ORDER BY name');
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     private function loadProduct(string $sku): ?array
     {
-        $stmt = DB::pdo()->prepare('SELECT p.sku,p.nazev,p.merna_jednotka,p.ean,p.typ,COALESCE(z.nazev,"") AS znacka, COALESCE(g.nazev,"") AS skupina FROM produkty p LEFT JOIN produkty_znacky z ON z.id=p.znacka_id LEFT JOIN produkty_skupiny g ON g.id=p.skupina_id WHERE p.sku=? LIMIT 1');
+        $stmt = DB::pdo()->prepare('SELECT p.sku,p.nazev,p.merna_jednotka,p.ean,p.typ,COALESCE(z.nazev,"") AS znacka, COALESCE(g.nazev,"") AS skupina, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN produkty_znacky z ON z.id=p.znacka_id LEFT JOIN produkty_skupiny g ON g.id=p.skupina_id LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku=? LIMIT 1');
         $stmt->execute([$sku]);
         $row = $stmt->fetch();
-        return $row ? [
+        if (!$row || !empty($row['is_nonstock'])) {
+            return null;
+        }
+        return [
             'sku' => (string)$row['sku'],
             'nazev' => (string)$row['nazev'],
             'merna_jednotka' => (string)$row['merna_jednotka'],
@@ -473,7 +478,7 @@ final class InventoryController
             'typ' => (string)$row['typ'],
             'znacka' => (string)$row['znacka'],
             'skupina' => (string)$row['skupina'],
-        ] : null;
+        ];
     }
 
     private function getActiveInventory(): ?array

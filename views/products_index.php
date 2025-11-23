@@ -364,8 +364,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const edge = rowData.node.edge || {};
         tr.appendChild(createValueCell(formatNumber(edge.koeficient)));
         tr.appendChild(createValueCell(displayValue(edge.merna_jednotka || rowData.node.merna_jednotka)));
-        tr.appendChild(createValueCell(displayValue(edge.druh_vazby)));
-        tr.appendChild(createValueCell(displayValue(rowData.node.typ)));
+                tr.appendChild(createValueCell(displayValue(rowData.node.typ)));
 
         const actions = document.createElement('td');
         actions.className = 'bom-tree-actions';
@@ -584,8 +583,7 @@ document.addEventListener('DOMContentLoaded', function () {
           child: childSku,
           koeficient: coef,
           merna_jednotka_potomka: unitInput.value.trim(),
-          druh_vazby: bondSelect.value,
-        };
+                  };
         fetch(bomAddUrl, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
@@ -846,7 +844,6 @@ document.addEventListener('DOMContentLoaded', function () {
         <li><code>potomek_sku</code> – komponenta, která do rodiče vstupuje.</li>
         <li><code>koeficient</code> – množství potomka na 1 jednotku rodiče (ve stejné MJ jako má potomek).</li>
         <li><code>merna_jednotka_potomka</code> – volitelné; prázdné pole převezme MJ potomka z kmenových produktů.</li>
-        <li><code>druh_vazby</code> – <code>karton</code> pouze pro rodiče typu karton; ve všech ostatních případech zvolte <em>sada</em>. Prázdné pole systém dopočítá stejně.</li>
       </ul>
       <p>Desetinné hodnoty zadávejte s tečkou. Každou vazbu lze nahrát kdykoliv – rodič i potomek musí existovat v tabulce produktů.</p>
     </section>

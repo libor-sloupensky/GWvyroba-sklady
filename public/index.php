@@ -93,6 +93,8 @@ $router->post('/settings/group', [SettingsController::class, 'saveGroup']);
 $router->post('/settings/group/delete', [SettingsController::class, 'deleteGroup']);
 $router->post('/settings/unit', [SettingsController::class, 'saveUnit']);
 $router->post('/settings/unit/delete', [SettingsController::class, 'deleteUnit']);
+$router->post('/settings/type', [SettingsController::class, 'saveProductType']);
+$router->post('/settings/type/delete', [SettingsController::class, 'deleteProductType']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 $router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
 

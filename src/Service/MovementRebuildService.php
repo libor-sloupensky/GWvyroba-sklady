@@ -81,13 +81,13 @@ final class MovementRebuildService
     }
 
     /**
-     * @return array{products:array<string,array{sku:string,typ:string,merna_jednotka:?string}>,alt:array<string,string>}
+     * @return array{products:array<string,array{sku:string,typ:string,merna_jednotka:?string,is_nonstock:bool}>,alt:array<string,string>}
      */
     private static function loadProducts(): array
     {
         $products = [];
         $alt = [];
-        foreach (DB::pdo()->query('SELECT sku, alt_sku, typ, merna_jednotka FROM produkty') as $row) {
+        foreach (DB::pdo()->query('SELECT p.sku, p.alt_sku, p.typ, p.merna_jednotka, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ') as $row) {
             $sku = (string)$row['sku'];
             if ($sku === '') {
                 continue;
@@ -96,6 +96,7 @@ final class MovementRebuildService
                 'sku' => $sku,
                 'typ' => (string)($row['typ'] ?? ''),
                 'merna_jednotka' => $row['merna_jednotka'] !== null ? (string)$row['merna_jednotka'] : null,
+                'is_nonstock' => (bool)$row['is_nonstock'],
             ];
             $altSku = trim((string)($row['alt_sku'] ?? ''));
             if ($altSku !== '') {
@@ -153,7 +154,7 @@ final class MovementRebuildService
             return;
         }
         $path[$sku] = true;
-        if (in_array($product['typ'], ['karton', 'baleni'], true) && !empty($bom[$sku])) {
+        if (!empty($product['is_nonstock']) && !empty($bom[$sku])) {
             foreach ($bom[$sku] as $edge) {
                 $childQty = $qty * $edge['koeficient'];
                 self::expandAndInsert(

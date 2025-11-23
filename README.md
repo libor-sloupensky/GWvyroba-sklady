@@ -22,7 +22,7 @@ UTF‑8, PHP (bez frameworku), MySQL (utf8mb4_czech_ci). Viz `db/schema.sql`.
 ## CSV hlavičky
 Produkty: `sku,nazev,typ,merna_jednotka,ean,min_zasoba,min_davka,krok_vyroby,vyrobni_doba_dni,aktivni`
 
-BOM: `rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,druh_vazby`
+BOM: `rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka,`
 
 ## Poznámky
 - Všude UTF‑8.
