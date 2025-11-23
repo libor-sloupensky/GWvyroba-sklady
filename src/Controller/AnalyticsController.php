@@ -434,9 +434,11 @@ PROMPT;
     {
         $this->requireRole(['admin', 'superadmin']);
         $templates = $this->loadTemplatesV2();
+        $favoritesV2 = $this->loadFavoritesV2();
         $this->render('analytics_revenue_v2.php', [
             'title' => 'Analýza v2',
             'templates' => $templates,
+            'favoritesV2' => $favoritesV2,
         ]);
     }
 
@@ -460,13 +462,113 @@ PROMPT;
             echo json_encode(['ok' => false, 'error' => implode(' ', $errors)], JSON_UNESCAPED_UNICODE);
             return;
         }
+        $validated = $this->hydrateFlagsForTemplate($validated);
+        $sql = $this->expandArrayParams($template['sql'], $validated);
 
         try {
-            $rows = $this->runTemplateQuery($template['sql'], $validated);
+            $rows = $this->runTemplateQuery($sql, $validated);
             echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
             echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
+    }
+
+    public function favoriteListV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => true, 'favorites' => $this->loadFavoritesV2()], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function saveFavoriteV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $payload = $this->collectJson();
+        $title = trim((string)($payload['title'] ?? ''));
+        $templateId = (string)($payload['template_id'] ?? '');
+        $params = (array)($payload['params'] ?? []);
+        $isPublic = (bool)($payload['is_public'] ?? true);
+
+        if ($title === '') {
+            echo json_encode(['ok' => false, 'error' => 'Název je povinný.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $templates = $this->loadTemplatesV2();
+        if (!isset($templates[$templateId])) {
+            echo json_encode(['ok' => false, 'error' => 'Neznámá šablona.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        [$validated, $errors] = $this->validateTemplateParams($templates[$templateId], $params);
+        if (!empty($errors)) {
+            echo json_encode(['ok' => false, 'error' => implode(' ', $errors)], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $favoritePayload = [
+            'type' => 'analytics_v2',
+            'template_id' => $templateId,
+            'params' => $validated,
+        ];
+        $prompt = json_encode($favoritePayload, JSON_UNESCAPED_UNICODE);
+        $this->saveFavoriteRaw($title, $prompt, $isPublic);
+        echo json_encode(['ok' => true, 'favorites' => $this->loadFavoritesV2()], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function deleteFavoriteV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $payload = $this->collectJson();
+        $id = (int)($payload['id'] ?? 0);
+        if ($id <= 0) {
+            echo json_encode(['ok' => false, 'error' => 'Chybí ID.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $userId = $this->currentUserId();
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare('DELETE FROM ai_prompts WHERE id = ? AND user_id = ?');
+        $stmt->execute([$id, $userId]);
+        echo json_encode(['ok' => true, 'favorites' => $this->loadFavoritesV2()], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function searchContactsV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+        $q = trim((string)($_GET['q'] ?? ''));
+        if ($q === '') {
+            echo json_encode(['ok' => true, 'items' => []], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $like = '%' . $q . '%';
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare("
+            SELECT id, firma, ic, email
+            FROM kontakty
+            WHERE (ic LIKE :q OR firma LIKE :q OR email LIKE :q)
+            ORDER BY firma IS NULL, firma, ic
+            LIMIT 15
+        ");
+        $stmt->execute([':q' => $like]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $items = array_map(function (array $r): array {
+            $parts = [];
+            if (!empty($r['firma'])) {
+                $parts[] = $r['firma'];
+            }
+            if (!empty($r['ic'])) {
+                $parts[] = 'IČ ' . $r['ic'];
+            }
+            if (!empty($r['email'])) {
+                $parts[] = $r['email'];
+            }
+            return [
+                'id' => (int)$r['id'],
+                'label' => trim(implode(' • ', $parts)),
+            ];
+        }, $rows ?: []);
+        echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
     }
 
     /**
@@ -487,51 +589,65 @@ PROMPT;
 
         return [
             'monthly_revenue_by_ic' => [
-                'title' => 'Měsíční tržby podle IČ / kanálu',
-                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtr IČ a kanál (eshop_source).',
+                'title' => 'Měsíční tržby',
+                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál.',
                 'sql' => "
 SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS mesic,
-       SUM(pe.cena_jedn_czk * pe.mnozstvi) AS trzby,
-       SUM(pe.mnozstvi) AS qty
+       CASE
+         WHEN :has_contacts = 1 THEN CAST(COALESCE(c.id, -1) AS CHAR)
+         WHEN :has_eshops = 1 THEN de.eshop_source
+         ELSE 'all'
+       END AS serie_key,
+       CASE
+         WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
+         WHEN :has_eshops = 1 THEN de.eshop_source
+         ELSE 'Celkem'
+       END AS serie_label,
+       ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS trzby,
+       ROUND(SUM(pe.mnozstvi), 0) AS qty
 FROM polozky_eshop pe
 JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
 LEFT JOIN kontakty c ON c.id = de.kontakt_id
 WHERE pe.duzp BETWEEN :start_date AND :end_date
-  AND (:ic = '' OR c.ic = :ic)
-  AND (:eshop_source = '' OR de.eshop_source = :eshop_source)
-GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m')
-ORDER BY mesic
+  AND (:has_contacts = 0 OR de.kontakt_id IN (%contact_ids%))
+  AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
+GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m'), serie_key, serie_label
+ORDER BY mesic, serie_label
 ",
                 'params' => [
                     ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'ic', 'type' => 'string', 'required' => false, 'default' => ''],
-                    ['name' => 'eshop_source', 'type' => 'enum', 'required' => false, 'default' => '', 'values' => $eshops],
+                    ['name' => 'contact_ids', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'eshop_source', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
                 ],
                 'suggested_render' => 'table',
             ],
             'total_revenue_by_ic' => [
-                'title' => 'Souhrnné tržby podle IČ / kanálu',
+                'title' => 'Souhrnné tržby podle kontaktu/kanálu',
                 'description' => 'Součet tržeb bez DPH dle filtrů; bez časového groupingu.',
                 'sql' => "
 SELECT
-  COALESCE(c.ic, 'neznámé IČ') AS ic,
-  SUM(pe.cena_jedn_czk * pe.mnozstvi) AS trzby,
-  SUM(pe.mnozstvi) AS qty
+  CASE
+    WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
+    ELSE COALESCE(c.ic, 'neznámé IČ')
+  END AS kontakt,
+  CASE WHEN :has_eshops = 1 THEN de.eshop_source ELSE 'Všechny' END AS eshop,
+  ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS trzby,
+  ROUND(SUM(pe.mnozstvi), 0) AS qty
 FROM polozky_eshop pe
 JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
 LEFT JOIN kontakty c ON c.id = de.kontakt_id
 WHERE pe.duzp BETWEEN :start_date AND :end_date
-  AND (:ic = '' OR c.ic = :ic)
-  AND (:eshop_source = '' OR de.eshop_source = :eshop_source)
-GROUP BY COALESCE(c.ic, 'neznámé IČ')
+  AND (:has_contacts = 0 OR de.kontakt_id IN (%contact_ids%))
+  AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
+GROUP BY kontakt, eshop
 ORDER BY trzby DESC
 ",
                 'params' => [
                     ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'ic', 'type' => 'string', 'required' => false, 'default' => ''],
-                    ['name' => 'eshop_source', 'type' => 'enum', 'required' => false, 'default' => '', 'values' => $eshops],
+                    ['name' => 'contact_ids', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'eshop_source', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
                 ],
                 'suggested_render' => 'table',
             ],
@@ -569,6 +685,10 @@ ORDER BY trzby DESC
                 case 'string':
                     $validated[$name] = trim((string)$raw);
                     break;
+                case 'contact_multi':
+                    $vals = is_array($raw) ? $raw : [];
+                    $validated[$name] = array_values(array_filter(array_map('intval', $vals), static fn($v) => $v > 0));
+                    break;
                 case 'enum':
                     $val = trim((string)$raw);
                     $allowed = (array)($param['values'] ?? []);
@@ -576,6 +696,23 @@ ORDER BY trzby DESC
                         $errors[] = "Neplatná hodnota pro {$name}.";
                     }
                     $validated[$name] = $val;
+                    break;
+                case 'enum_multi':
+                    $vals = is_array($raw) ? $raw : [];
+                    $allowed = (array)($param['values'] ?? []);
+                    $filtered = [];
+                    foreach ($vals as $v) {
+                        $v = trim((string)$v);
+                        if ($v === '') {
+                            continue;
+                        }
+                        if (!in_array($v, $allowed, true)) {
+                            $errors[] = "Neplatná hodnota pro {$name}.";
+                            continue;
+                        }
+                        $filtered[] = $v;
+                    }
+                    $validated[$name] = array_values($filtered);
                     break;
                 default:
                     $validated[$name] = $raw;
@@ -593,5 +730,97 @@ ORDER BY trzby DESC
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         return $rows ?: [];
+    }
+
+    /**
+     * Pokud jsou parametry pole, nahradí placeholdery %name% za jednotlivé bindy (params jsou by-ref).
+     * @param array<string,mixed> $params
+     */
+    private function expandArrayParams(string $sql, array &$params): string
+    {
+        foreach ($params as $name => $val) {
+            if (!is_array($val)) {
+                continue;
+            }
+            $placeholder = '%' . $name . '%';
+            if (strpos($sql, $placeholder) === false) {
+                unset($params[$name]);
+                continue;
+            }
+            if (empty($val)) {
+                $sql = str_replace($placeholder, 'NULL', $sql);
+                unset($params[$name]);
+                continue;
+            }
+            $holders = [];
+            foreach (array_values($val) as $idx => $item) {
+                $ph = ':' . $name . '_' . $idx;
+                $holders[] = $ph;
+                $params[$name . '_' . $idx] = $item;
+            }
+            unset($params[$name]);
+            $sql = str_replace($placeholder, implode(',', $holders), $sql);
+        }
+        return $sql;
+    }
+
+    /**
+     * Doplní booleovské příznaky podle pole parametrů.
+     * @param array<string,mixed> $params
+     * @return array<string,mixed>
+     */
+    private function hydrateFlagsForTemplate(array $params): array
+    {
+        $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
+        $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
+        return $params;
+    }
+
+    /**
+     * @return array{mine:array<int,array>,shared:array<int,array>}
+     */
+    private function loadFavoritesV2(): array
+    {
+        $userId = $this->currentUserId();
+        $pdo = DB::pdo();
+        $mineStmt = $pdo->prepare("SELECT id, title, prompt, created_at, is_public FROM ai_prompts WHERE user_id = ? AND prompt LIKE '%\"type\":\"analytics_v2\"%' ORDER BY created_at DESC LIMIT 50");
+        $mineStmt->execute([$userId]);
+        $sharedStmt = $pdo->prepare("SELECT id, title, prompt, created_at, is_public FROM ai_prompts WHERE is_public = 1 AND user_id != ? AND prompt LIKE '%\"type\":\"analytics_v2\"%' ORDER BY created_at DESC LIMIT 50");
+        $sharedStmt->execute([$userId]);
+        return [
+            'mine' => $this->mapFavoritesV2($mineStmt->fetchAll(PDO::FETCH_ASSOC)),
+            'shared' => $this->mapFavoritesV2($sharedStmt->fetchAll(PDO::FETCH_ASSOC)),
+        ];
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private function mapFavoritesV2(array $rows): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            $payload = json_decode((string)$r['prompt'], true);
+            if (!is_array($payload) || ($payload['type'] ?? '') !== 'analytics_v2') {
+                continue;
+            }
+            $out[] = [
+                'id' => (int)$r['id'],
+                'title' => (string)$r['title'],
+                'template_id' => (string)($payload['template_id'] ?? ''),
+                'params' => (array)($payload['params'] ?? []),
+                'is_public' => (bool)($r['is_public'] ?? false),
+            ];
+        }
+        return $out;
+    }
+
+    private function saveFavoriteRaw(string $title, string $prompt, bool $isPublic = true): void
+    {
+        $userId = $this->currentUserId();
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare('INSERT INTO ai_prompts (user_id, title, prompt, is_public) VALUES (?,?,?,?)');
+        $stmt->execute([$userId, $title, $prompt, $isPublic ? 1 : 0]);
     }
 }
