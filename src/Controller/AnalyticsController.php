@@ -625,6 +625,50 @@ ORDER BY mesic, serie_label
                 ],
                 'suggested_render' => 'table',
             ],
+            'stock_value_by_month' => [
+                'title' => 'Sklady',
+                'description' => 'Skladová hodnota k poslednímu dni každého měsíce v rozsahu; filtr značky, skupiny a typu.',
+                'sql' => "
+SELECT
+  m.month_end AS stav_ke_dni,
+  ROUND(SUM(p.skl_hodnota * (
+      COALESCE(s.stav, 0) +
+      COALESCE((
+        SELECT SUM(pp.mnozstvi)
+        FROM polozky_pohyby pp
+        WHERE pp.sku = p.sku
+          AND (inv.closed_at IS NULL OR pp.datum > inv.closed_at)
+          AND pp.datum <= m.month_end
+      ), 0)
+  )), 0) AS hodnota_czk
+FROM (
+  SELECT LAST_DAY(:start_date) AS month_end
+  UNION
+  SELECT LAST_DAY(:end_date)
+  UNION
+  SELECT LAST_DAY(datum) FROM polozky_pohyby WHERE datum BETWEEN :start_date AND :end_date GROUP BY LAST_DAY(datum)
+) m
+CROSS JOIN (
+  SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
+) inv
+JOIN produkty p ON p.aktivni = 1
+LEFT JOIN inventura_stavy s ON s.inventura_id = inv.id AND s.sku = p.sku
+WHERE m.month_end BETWEEN :start_date AND :end_date
+  AND (:znacka_id = 0 OR p.znacka_id = :znacka_id)
+  AND (:skupina_id = 0 OR p.skupina_id = :skupina_id)
+  AND (:typ = '' OR p.typ = :typ)
+GROUP BY m.month_end
+ORDER BY m.month_end
+",
+                'params' => [
+                    ['name' => 'start_date', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'znacka_id', 'type' => 'int', 'required' => false, 'default' => 0],
+                    ['name' => 'skupina_id', 'type' => 'int', 'required' => false, 'default' => 0],
+                    ['name' => 'typ', 'type' => 'string', 'required' => false, 'default' => ''],
+                ],
+                'suggested_render' => 'table',
+            ],
         ];
     }
 
@@ -670,6 +714,12 @@ ORDER BY mesic, serie_label
                         $errors[] = "Neplatná hodnota pro {$name}.";
                     }
                     $validated[$name] = $val;
+                    break;
+                case 'int':
+                    $validated[$name] = (int)$raw;
+                    if ($validated[$name] < 0) {
+                        $validated[$name] = 0;
+                    }
                     break;
                 case 'enum_multi':
                     $vals = is_array($raw) ? $raw : [];
