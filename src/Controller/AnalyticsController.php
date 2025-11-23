@@ -429,4 +429,12 @@ PROMPT;
         extract($vars);
         require __DIR__ . '/../../views/_layout.php';
     }
+
+    public function revenueV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        $this->render('analytics_revenue_v2.php', [
+            'title' => 'Analýza v2',
+        ]);
+    }
 }

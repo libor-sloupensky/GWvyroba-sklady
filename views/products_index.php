@@ -476,10 +476,6 @@ document.addEventListener('DOMContentLoaded', function () {
             <label>Koeficient*</label>
             <input type="number" step="0.001" min="0" class="bom-input-koef" required />
           </div>
-          <div class="field">
-            <label>MJ potomka</label>
-            <input type="text" class="bom-input-unit" />
-          </div>
         </div>
         <div class="bom-add-actions">
           <strong>Rodič:</strong> <span>${rowData.node.sku || ''}</span>
@@ -506,7 +502,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const searchInput = form.querySelector('.bom-child-search');
       const skuInput = form.querySelector('.bom-child-sku');
       const resultsBox = form.querySelector('.bom-search-results');
-      const unitInput = form.querySelector('.bom-input-unit');
       const coefInput = form.querySelector('.bom-input-koef');
       const errorBox = form.querySelector('.bom-add-error');
       const cancelBtn = form.querySelector('.bom-add-cancel');
@@ -547,7 +542,6 @@ document.addEventListener('DOMContentLoaded', function () {
           btn.addEventListener('click', () => {
             skuInput.value = item.sku;
             searchInput.value = `${item.sku} – ${item.nazev}`;
-            unitInput.value = item.merna_jednotka || '';
             resultsBox.innerHTML = '';
           });
           resultsBox.appendChild(btn);
@@ -571,7 +565,6 @@ document.addEventListener('DOMContentLoaded', function () {
           parent: rowData.node.sku,
           child: childSku,
           koeficient: coef,
-          merna_jednotka_potomka: unitInput.value.trim(),
         };
         fetch(bomAddUrl, {
           method: 'POST',
