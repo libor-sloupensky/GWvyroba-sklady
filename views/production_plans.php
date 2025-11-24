@@ -1007,7 +1007,7 @@
         <th>Cílový stav</th>
 
 
-        <th class="with-tooltip">Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit': vycházíme z průměrné denní poptávky (prodeje/rezervace) za nastavený počet dnů, u auto režimu ji násobíme cílovým počtem dní zásoby a výrobní dobou. Odečteme aktuální zásoby mínus rezervace. U neskladových sad a čistých komponent bez vlastní poptávky je cíl nula a potřeba vzniká jen kvůli rodičům. Výsledek je vždy >= 0.">i</span></th><!-- noop refresh -->
+        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit': vycházíme z průměrné denní poptávky (prodeje/rezervace) za nastavený počet dnů, u auto režimu ji násobíme cílovým počtem dní zásoby a výrobní dobou. Odečteme aktuální zásoby mínus rezervace. U neskladových sad a čistých komponent bez vlastní poptávky je cíl nula a potřeba vzniká jen kvůli rodičům. Výsledek je vždy >= 0.">i</span></th><!-- noop refresh -->
 
 
         <th>Priorita</th>
