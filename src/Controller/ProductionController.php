@@ -908,6 +908,7 @@ final class ProductionController
             }
 
             $childContribution = $parentNeeded * $edgePayload['koeficient'];
+            $needFromParents += $childContribution;
 
             $node['children'][] = $this->buildDemandTreeNode(
 
@@ -930,6 +931,10 @@ final class ProductionController
             );
 
         }
+
+        // Potřeba na této úrovni: buď vlastní deficit, nebo požadavek od rodičů po odečtení dostupných zásob
+        $needFromParents = max(0.0, $needFromParents - $available);
+        $node['needed'] = max($needed, $needFromParents, (float)$node['contribution']);
 
         return $node;
 
