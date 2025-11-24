@@ -13,6 +13,7 @@ use App\Support\DB;
 final class ProductionController
 
 {
+    // noop refresh marker
 
     public function plans(): void
 

@@ -7,6 +7,7 @@ use PDO;
 
 final class StockService
 {
+    // noop refresh marker
     private static array $demandCache = [];
     private static ?array $bomCache = null;
     private static bool $settingsColumnsVerified = false;
