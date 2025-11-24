@@ -102,6 +102,7 @@ final class ProductionController
                 $graph = StockService::getBomGraph();
 
                 $children = $graph['children'] ?? [];
+                $parents = $graph['parents'] ?? [];
 
                 $descendantCache = [];
 
@@ -115,6 +116,10 @@ final class ProductionController
 
                         $statusSkus = array_merge($statusSkus, $desc);
 
+                    }
+
+                    foreach ($this->collectDemandAncestors($skuValue, $parents) as $anc) {
+                        $statusSkus[] = $anc;
                     }
 
                 }
@@ -131,6 +136,18 @@ final class ProductionController
 
                     $status = $statusMap[$sku] ?? [];
 
+                    $parentNeed = 0.0;
+                    foreach ($parents[$sku] ?? [] as $edge) {
+                        $parentSku = (string)$edge['sku'];
+                        $parentDef = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
+                        if ($parentDef <= 0.0) {
+                            continue;
+                        }
+                        $parentNeed += $parentDef * (float)($edge['koeficient'] ?? 0.0);
+                    }
+                    $available = (float)($status['available'] ?? 0.0);
+                    $effectiveDeficit = max((float)($status['deficit'] ?? 0.0), max(0.0, $parentNeed - $available));
+
                     $item['stock'] = $status['stock'] ?? 0.0;
 
                     $item['stav'] = $status['available'] ?? 0.0;
@@ -141,7 +158,7 @@ final class ProductionController
 
                     $item['target'] = $status['target'] ?? (float)($item['min_zasoba'] ?? 0.0);
 
-                    $item['deficit'] = $status['deficit'] ?? 0.0;
+                    $item['deficit'] = $effectiveDeficit;
 
                     $item['ratio'] = $status['ratio'] ?? 0.0;
 

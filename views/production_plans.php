@@ -70,7 +70,9 @@
 <style>
 
 
-.page-note { margin-top:-0.2rem; color:#546e7a; }
+.page-note { margin-top:-0.2rem; color:#546e7a; }
+.with-tooltip { display:inline-flex; align-items:center; gap:0.35rem; white-space:nowrap; font-weight:inherit; }
+.info-icon { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#eceff1; color:#37474f; font-size:0.8rem; cursor:help; }
 
 
 .product-filter-form {
