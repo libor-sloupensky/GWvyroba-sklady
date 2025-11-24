@@ -54,6 +54,8 @@ final class StockService
         }
 
         $pdo = DB::pdo();
+        $directDemand = self::buildDirectDemandMap($consumptionDays);
+        $parentsMap = self::getBomGraph()['parents'] ?? [];
         $filterSql = '';
         $filterParams = [];
         if ($skuFilter && count($skuFilter) > 0) {
@@ -61,17 +63,23 @@ final class StockService
             $filterSql = " AND sku IN ({$placeholders})";
             $filterParams = array_values($skuFilter);
         }
-        $stmt = $pdo->prepare('SELECT sku, vyrobni_doba_dni, min_davka FROM produkty WHERE nast_zasob = \'auto\'' . $filterSql);
+        $stmt = $pdo->prepare('SELECT p.sku, p.vyrobni_doba_dni, p.min_davka, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.nast_zasob = \'auto\'' . $filterSql);
         $stmt->execute($filterParams);
         $autos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         if (!$autos) {
             return;
         }
-        $demandMap = self::buildDemandMap($consumptionDays);
         $updates = [];
         foreach ($autos as $row) {
             $sku = (string)$row['sku'];
-            $daily = (float)($demandMap[$sku] ?? 0.0);
+            $daily = (float)($directDemand[$sku] ?? 0.0);
+            $hasParent = !empty($parentsMap[$sku]);
+            $hasDirectDemand = ($daily > 0.0) || !$hasParent;
+            $isNonstock = ((int)($row['is_nonstock'] ?? 0) === 1);
+            if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
+                $updates[] = [0.0, $sku];
+                continue;
+            }
             $effectiveDays = $stockDays + max(0, (int)$row['vyrobni_doba_dni']);
             $target = $daily * $effectiveDays;
             $minBatch = (float)$row['min_davka'];
@@ -145,6 +153,47 @@ final class StockService
         }
         self::$demandCache[$days] = $total;
         return $total;
+    }
+
+    /**
+     * Returns average daily direct demand per SKU (bez kaskády).
+     */
+    public static function buildDirectDemandMap(int $days): array
+    {
+        $days = max(1, $days);
+        if (isset(self::$demandCache['direct'][$days])) {
+            return self::$demandCache['direct'][$days];
+        }
+        $since = (new DateTimeImmutable("-{$days} days"))->format('Y-m-d 00:00:00');
+        $pdo = DB::pdo();
+        $stmt = $pdo->prepare(
+            'SELECT sku, SUM(mnozstvi) AS demand
+             FROM polozky_eshop
+             WHERE duzp >= ? AND sku IS NOT NULL AND sku <> \'\'
+             GROUP BY sku'
+        );
+        $stmt->execute([$since]);
+        $base = [];
+        foreach ($stmt as $row) {
+            $sku = trim((string)$row['sku']);
+            if ($sku === '') {
+                continue;
+            }
+            $base[$sku] = ((float)$row['demand']) / $days;
+        }
+        if (empty($base)) {
+            $fallback = $pdo->prepare('SELECT sku, SUM(CASE WHEN mnozstvi < 0 THEN -mnozstvi ELSE 0 END) AS demand FROM polozky_pohyby WHERE datum >= ? GROUP BY sku');
+            $fallback->execute([$since]);
+            foreach ($fallback as $row) {
+                $sku = trim((string)$row['sku']);
+                if ($sku === '') {
+                    continue;
+                }
+                $base[$sku] = ((float)$row['demand']) / $days;
+            }
+        }
+        self::$demandCache['direct'][$days] = $base;
+        return $base;
     }
 
     /**
@@ -314,15 +363,24 @@ final class StockService
         $stockDays = $settings['stock_days'];
         $consumptionDays = $settings['consumption_days'];
         $demandMap = self::buildDemandMap($consumptionDays);
+        $directDemandMap = self::buildDirectDemandMap($consumptionDays);
         $stockMap = self::buildStockMap($skus);
         $reservationMap = self::buildReservationMap($skus);
         $meta = self::fetchProductsMeta($skus);
+        $parentsMap = self::getBomGraph()['parents'] ?? [];
         $status = [];
         foreach ($skus as $sku) {
             $row = $meta[$sku] ?? null;
             $mode = $row['nast_zasob'] ?? 'manual';
             $daily = max(0.0, (float)($demandMap[$sku] ?? 0.0));
-            if ($mode === 'auto') {
+            $directDaily = max(0.0, (float)($directDemandMap[$sku] ?? 0.0));
+            $hasParent = !empty($parentsMap[$sku]);
+            $hasDirectDemand = ($directDaily > 0.0) || !empty($reservationMap[$sku]) || !$hasParent;
+            $isNonstock = (bool)($row['is_nonstock'] ?? false);
+
+            if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
+                $target = 0.0;
+            } elseif ($mode === 'auto') {
                 $effectiveDays = $stockDays + max(0, (int)($row['vyrobni_doba_dni'] ?? 0));
                 $target = $daily * $effectiveDays;
                 $minBatch = max(0.0, (float)($row['min_davka'] ?? 0.0));
@@ -353,12 +411,12 @@ final class StockService
 
     /**
      * @param array<int,string> $skus
-     * @return array<string,array{nast_zasob:string,min_zasoba:float,min_davka:float,vyrobni_doba_dni:int}>
+     * @return array<string,array{nast_zasob:string,min_zasoba:float,min_davka:float,vyrobni_doba_dni:int,is_nonstock:int}>
      */
     private static function fetchProductsMeta(array $skus): array
     {
         $placeholders = implode(',', array_fill(0, count($skus), '?'));
-        $stmt = DB::pdo()->prepare("SELECT sku, nast_zasob, min_zasoba, min_davka, vyrobni_doba_dni FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt = DB::pdo()->prepare("SELECT p.sku, p.nast_zasob, p.min_zasoba, p.min_davka, p.vyrobni_doba_dni, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku IN ({$placeholders})");
         $stmt->execute($skus);
         $map = [];
         foreach ($stmt as $row) {
@@ -368,6 +426,7 @@ final class StockService
                 'min_zasoba' => (float)($row['min_zasoba'] ?? 0.0),
                 'min_davka' => (float)($row['min_davka'] ?? 0.0),
                 'vyrobni_doba_dni' => (int)($row['vyrobni_doba_dni'] ?? 0),
+                'is_nonstock' => (int)($row['is_nonstock'] ?? 0),
             ];
         }
         return $map;
