@@ -820,6 +820,8 @@ final class ProductionController
         $status = $statusMap[$sku] ?? [];
 
         $needed = max(0.0, (float)($status['deficit'] ?? 0.0));
+        $available = (float)($status['available'] ?? 0.0);
+        $needFromParents = 0.0;
 
         $node = [
 
