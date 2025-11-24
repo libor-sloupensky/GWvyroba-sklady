@@ -832,6 +832,21 @@ ORDER BY m.month_end, serie_label
      */
     private function runTemplateQuery(string $sql, array $params): array
     {
+        // Filter only parameters actually present in the SQL to avoid HY093 mismatch
+        if (!empty($params)) {
+            $used = [];
+            foreach ($params as $k => $v) {
+                if (is_int($k)) {
+                    $used[$k] = $v;
+                    continue;
+                }
+                $needle = ':' . $k;
+                if (strpos($sql, $needle) !== false) {
+                    $used[$k] = $v;
+                }
+            }
+            $params = $used;
+        }
         $stmt = DB::pdo()->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);

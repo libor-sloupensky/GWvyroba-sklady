@@ -253,17 +253,14 @@
       items.forEach((fav) => {
         const li = document.createElement('li');
         const left = document.createElement('div');
-        const title = document.createElement('div');
+        const title = document.createElement('a');
         title.className = 'favorite-title';
+        title.href = '#';
         title.textContent = fav.title;
+        title.onclick = (e) => { e.preventDefault(); loadFavorite(fav, true); };
         left.appendChild(title);
         const actions = document.createElement('div');
         actions.className = 'favorite-actions';
-        const btnLoad = document.createElement('button');
-        btnLoad.type = 'button';
-        btnLoad.textContent = 'Načíst';
-        btnLoad.onclick = () => loadFavorite(fav, true);
-        actions.appendChild(btnLoad);
         if (node === favMine) {
           const btnDel = document.createElement('button');
           btnDel.type = 'button';
