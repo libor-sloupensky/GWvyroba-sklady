@@ -64,7 +64,7 @@ final class StockService
             $filterSql = " AND sku IN ({$placeholders})";
             $filterParams = array_values($skuFilter);
         }
-        $stmt = $pdo->prepare('SELECT p.sku, p.vyrobni_doba_dni, p.min_davka, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.nast_zasob = \'auto\'' . $filterSql);
+        $stmt = $pdo->prepare('SELECT p.sku, p.vyrobni_doba_dni, p.min_davka, p.min_zasoba, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.nast_zasob = \'auto\'' . $filterSql);
         $stmt->execute($filterParams);
         $autos = $stmt->fetchAll(PDO::FETCH_ASSOC);
         if (!$autos) {
@@ -74,22 +74,14 @@ final class StockService
         foreach ($autos as $row) {
             $sku = (string)$row['sku'];
             $daily = (float)($directDemand[$sku] ?? 0.0);
-            $hasParent = !empty($parentsMap[$sku]);
-            $hasDirectDemand = ($daily > 0.0) || !$hasParent;
             $isNonstock = ((int)($row['is_nonstock'] ?? 0) === 1);
-            if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
+            if ($isNonstock) {
                 $updates[] = [0.0, $sku];
                 continue;
             }
             $effectiveDays = $stockDays + max(0, (int)$row['vyrobni_doba_dni']);
             $target = $daily * $effectiveDays;
-            $target = max($target, 0.0);
-            // spodní hranice min_zasoba i při nulové spotřebě
-            $minStock = 0.0;
-            $minCol = DB::pdo()->prepare('SELECT min_zasoba FROM produkty WHERE sku=? LIMIT 1');
-            $minCol->execute([$sku]);
-            $minStock = (float)($minCol->fetchColumn() ?: 0.0);
-            $target = max($target, $minStock);
+            $target = max($target, (float)($row['min_zasoba'] ?? 0.0));
             $minBatch = (float)$row['min_davka'];
             if ($minBatch > 0.0 && $target > 0.0) {
                 $target = max($target, $minBatch);
@@ -383,10 +375,10 @@ final class StockService
             $daily = max(0.0, (float)($demandMap[$sku] ?? 0.0));
             $directDaily = max(0.0, (float)($directDemandMap[$sku] ?? 0.0));
             $hasParent = !empty($parentsMap[$sku]);
-            $hasDirectDemand = ($directDaily > 0.0) || !empty($reservationMap[$sku]) || !$hasParent;
+            $hasDirectDemand = true; // vždy počítáme cíl (kromě nonstock)
             $isNonstock = (bool)($row['is_nonstock'] ?? false);
 
-            if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
+            if ($isNonstock) {
                 $target = 0.0;
             } elseif ($mode === 'auto') {
                 $effectiveDays = $stockDays + max(0, (int)($row['vyrobni_doba_dni'] ?? 0));
