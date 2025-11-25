@@ -399,22 +399,28 @@ final class ProductionController
 
             $basics = $this->fetchBasicsForSkus($relevant);
 
+            $ancestorNeedCache = [];
+            $computeAncestorNeed = function (string $nodeSku) use (&$computeAncestorNeed, &$ancestorNeedCache, $parentsMap, $statusMap): float {
+                $key = mb_strtolower($nodeSku, 'UTF-8');
+                if (isset($ancestorNeedCache[$key])) {
+                    return $ancestorNeedCache[$key];
+                }
+                $need = 0.0;
+                foreach ($parentsMap[$nodeSku] ?? [] as $edge) {
+                    $parentSku = (string)$edge['sku'];
+                    $parentDef = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
+                    $parentTotal = max($parentDef, $computeAncestorNeed($parentSku));
+                    $need += max(0.0, $parentTotal * (float)($edge['koeficient'] ?? 0.0));
+                }
+                $ancestorNeedCache[$key] = $need;
+                return $need;
+            };
+
             $rootStatus = $statusMap[$sku] ?? [];
             $rootTarget = max(0.0, (float)($rootStatus['target'] ?? 0.0));
             $rootAvailable = (float)($rootStatus['available'] ?? 0.0);
-            $rootCoverage = max(0.0, $rootAvailable - $rootTarget);
             $ownDeficit = max(0.0, $rootTarget - $rootAvailable);
-            $parentNeed = 0.0;
-            foreach ($parentsMap[$sku] ?? [] as $edge) {
-                $parentSku = (string)$edge['sku'];
-                $parentDef = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
-                if ($parentDef <= 0.0) {
-                    continue;
-                }
-                $parentNeed += $parentDef * (float)($edge['koeficient'] ?? 0.0);
-            }
-            $parentResidual = max(0.0, $parentNeed - $rootCoverage);
-            $rootNeed = max($ownDeficit, $parentResidual);
+            $rootNeed = max($ownDeficit, $computeAncestorNeed($sku));
 
             $tree = $this->buildDemandTreeNode(
 
@@ -858,7 +864,6 @@ final class ProductionController
         $coverage = max(0.0, $available - $target);
         $parentNeedResidual = max(0.0, $contribution - $coverage);
         $needed = max($ownDeficit, $parentNeedResidual);
-        $needFromParents = 0.0;
 
         $node = [
 
@@ -936,16 +941,7 @@ final class ProductionController
 
             }
 
-            $parentNeeded = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
-
-            if ($parentNeeded <= 0.0) {
-
-                continue;
-
-            }
-
             $childContribution = $needed * $edgePayload['koeficient'];
-            $needFromParents += $childContribution;
 
             $node['children'][] = $this->buildDemandTreeNode(
 
@@ -970,8 +966,7 @@ final class ProductionController
         }
 
         // Potřeba na této úrovni: buď vlastní deficit, nebo požadavek od rodičů po odečtení dostupných zásob
-        $needFromParents = max(0.0, $needFromParents - max(0.0, $available - $target));
-        $node['needed'] = max($needed, $needFromParents);
+        $node['needed'] = $needed;
 
         return $node;
 
