@@ -167,6 +167,7 @@ final class ImportController
                     $importTs,
                 ]);
                 $docCount++;
+                $movementBuckets = [];
                 foreach ($doc['items'] as $item) {
                     $code = (string)($item['code'] ?? '');
                     $stock = (string)($item['stock'] ?? '');
@@ -231,34 +232,41 @@ final class ImportController
                                     if ($childQty === 0.0 || $childSku === '') {
                                         continue;
                                     }
-                                    $childRef = $this->buildMovementRef($eshop, $docNumber, $childSku);
-                                    $deleteMovement->execute([$childRef]);
                                     $childUnit = $edge['edge_unit'] ?? $edge['merna_jednotka'] ?? null;
-                                    $movementInsert->execute([
-                                        $duzp,
-                                        $childSku,
-                                        $childQty,
-                                        $childUnit,
-                                        'odpis',
-                                        sprintf('Doklad %s / %s', $eshop, $docNumber),
-                                        $childRef,
-                                    ]);
+                                    if (!isset($movementBuckets[$childSku])) {
+                                        $movementBuckets[$childSku] = ['qty' => 0.0, 'unit' => $childUnit];
+                                    }
+                                    $movementBuckets[$childSku]['qty'] += $childQty;
+                                    if ($movementBuckets[$childSku]['unit'] === null && $childUnit !== null) {
+                                        $movementBuckets[$childSku]['unit'] = $childUnit;
+                                    }
                                 }
                             } else {
-                                $ref = $this->buildMovementRef($eshop, $docNumber, (string)$sku);
-                                $deleteMovement->execute([$ref]);
-                                $movementInsert->execute([
-                                    $duzp,
-                                    $sku,
-                                    $movementQty,
-                                    $this->emptyToNull($item['unit'] ?? null),
-                                    'odpis',
-                                    sprintf('Doklad %s / %s', $eshop, $docNumber),
-                                    $ref,
-                                ]);
+                                $key = (string)$sku;
+                                if (!isset($movementBuckets[$key])) {
+                                    $movementBuckets[$key] = ['qty' => 0.0, 'unit' => $this->emptyToNull($item['unit'] ?? null)];
+                                }
+                                $movementBuckets[$key]['qty'] += $movementQty;
+                                if ($movementBuckets[$key]['unit'] === null) {
+                                    $movementBuckets[$key]['unit'] = $this->emptyToNull($item['unit'] ?? null);
+                                }
                             }
                         }
                     }
+                }
+                // zapiš pohyby agregovaně pro tento doklad
+                foreach ($movementBuckets as $skuValue => $payload) {
+                    $ref = $this->buildMovementRef($eshop, $docNumber, (string)$skuValue);
+                    $deleteMovement->execute([$ref]);
+                    $movementInsert->execute([
+                        $duzp,
+                        $skuValue,
+                        $payload['qty'],
+                        $payload['unit'],
+                        'odpis',
+                        sprintf('Doklad %s / %s', $eshop, $docNumber),
+                        $ref,
+                    ]);
                 }
             }
             $pdo->commit();
