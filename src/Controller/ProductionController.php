@@ -399,28 +399,31 @@ final class ProductionController
 
             $basics = $this->fetchBasicsForSkus($relevant);
 
-            $ancestorNeedCache = [];
-            $computeAncestorNeed = function (string $nodeSku) use (&$computeAncestorNeed, &$ancestorNeedCache, $parentsMap, $statusMap): float {
+            $neededMemo = [];
+            $computeNeeded = function (string $nodeSku) use (&$computeNeeded, &$neededMemo, $parentsMap, $statusMap): float {
                 $key = mb_strtolower($nodeSku, 'UTF-8');
-                if (isset($ancestorNeedCache[$key])) {
-                    return $ancestorNeedCache[$key];
+                if (isset($neededMemo[$key])) {
+                    return $neededMemo[$key];
                 }
-                $need = 0.0;
+                $st = $statusMap[$nodeSku] ?? [];
+                $target = max(0.0, (float)($st['target'] ?? 0.0));
+                $available = (float)($st['available'] ?? 0.0);
+                $ownDef = max(0.0, $target - $available);
+                $coverage = max(0.0, $available - $target);
+                $parentNeed = 0.0;
                 foreach ($parentsMap[$nodeSku] ?? [] as $edge) {
-                    $parentSku = (string)$edge['sku'];
-                    $parentDef = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
-                    $parentTotal = max($parentDef, $computeAncestorNeed($parentSku));
-                    $need += max(0.0, $parentTotal * (float)($edge['koeficient'] ?? 0.0));
+                    $coef = (float)($edge['koeficient'] ?? 0.0);
+                    if ($coef <= 0.0) {
+                        continue;
+                    }
+                    $parentNeed += $computeNeeded((string)$edge['sku']) * $coef;
                 }
-                $ancestorNeedCache[$key] = $need;
+                $need = max($ownDef, max(0.0, $parentNeed - $coverage));
+                $neededMemo[$key] = $need;
                 return $need;
             };
 
-            $rootStatus = $statusMap[$sku] ?? [];
-            $rootTarget = max(0.0, (float)($rootStatus['target'] ?? 0.0));
-            $rootAvailable = (float)($rootStatus['available'] ?? 0.0);
-            $ownDeficit = max(0.0, $rootTarget - $rootAvailable);
-            $rootNeed = max($ownDeficit, $computeAncestorNeed($sku));
+            $rootNeed = $computeNeeded($sku);
 
             $tree = $this->buildDemandTreeNode(
 
@@ -438,7 +441,8 @@ final class ProductionController
 
                 null,
 
-                true
+                true,
+                $computeNeeded
 
             );
 
@@ -840,7 +844,8 @@ final class ProductionController
 
         ?array $edge,
 
-        bool $isRoot = false
+        bool $isRoot = false,
+        ?\Closure $computeNeeded = null
 
     ): array {
 
@@ -857,13 +862,7 @@ final class ProductionController
         ];
 
         $status = $statusMap[$sku] ?? [];
-
-        $target = max(0.0, (float)($status['target'] ?? 0.0));
-        $available = (float)($status['available'] ?? 0.0);
-        $ownDeficit = max(0.0, $target - $available);
-        $coverage = max(0.0, $available - $target);
-        $parentNeedResidual = max(0.0, $contribution - $coverage);
-        $needed = max($ownDeficit, $parentNeedResidual);
+        $needed = $computeNeeded ? max(0.0, (float)$computeNeeded($sku)) : max(0.0, (float)($status['deficit'] ?? 0.0));
 
         $node = [
 
@@ -959,7 +958,8 @@ final class ProductionController
 
                 $edgePayload,
 
-                false
+                false,
+                $computeNeeded
 
             );
 
