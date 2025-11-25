@@ -399,7 +399,22 @@ final class ProductionController
 
             $basics = $this->fetchBasicsForSkus($relevant);
 
-            $rootNeed = max(0.0, (float)($statusMap[$sku]['deficit'] ?? 0.0));
+            $rootStatus = $statusMap[$sku] ?? [];
+            $rootTarget = max(0.0, (float)($rootStatus['target'] ?? 0.0));
+            $rootAvailable = (float)($rootStatus['available'] ?? 0.0);
+            $rootCoverage = max(0.0, $rootAvailable - $rootTarget);
+            $ownDeficit = max(0.0, $rootTarget - $rootAvailable);
+            $parentNeed = 0.0;
+            foreach ($parentsMap[$sku] ?? [] as $edge) {
+                $parentSku = (string)$edge['sku'];
+                $parentDef = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
+                if ($parentDef <= 0.0) {
+                    continue;
+                }
+                $parentNeed += $parentDef * (float)($edge['koeficient'] ?? 0.0);
+            }
+            $parentResidual = max(0.0, $parentNeed - $rootCoverage);
+            $rootNeed = max($ownDeficit, $parentResidual);
 
             $tree = $this->buildDemandTreeNode(
 
