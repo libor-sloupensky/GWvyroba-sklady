@@ -400,16 +400,34 @@ final class ProductionController
             $basics = $this->fetchBasicsForSkus($relevant);
 
             $neededMemo = [];
-            $computeNeeded = function (string $nodeSku) use (&$computeNeeded, &$neededMemo, $parentsMap, $statusMap): float {
+            $computing = [];
+            $computeNeeded = function (string $nodeSku) use (&$computeNeeded, &$neededMemo, &$computing, $parentsMap, $statusMap): float {
                 $key = mb_strtolower($nodeSku, 'UTF-8');
                 if (isset($neededMemo[$key])) {
                     return $neededMemo[$key];
                 }
+                if (isset($computing[$key])) {
+                    // cycle guard
+                    return 0.0;
+                }
+                $computing[$key] = true;
                 $st = $statusMap[$nodeSku] ?? [];
-                $target = max(0.0, (float)($st['target'] ?? 0.0));
+                $mode = (string)($st['mode'] ?? 'manual');
+                $targetRaw = max(0.0, (float)($st['target'] ?? 0.0));
+                $daily = max(0.0, (float)($st['daily'] ?? 0.0));
+                $reservations = max(0.0, (float)($st['reservations'] ?? 0.0));
                 $available = (float)($st['available'] ?? 0.0);
-                $ownDef = max(0.0, $target - $available);
-                $coverage = max(0.0, $available - $target);
+                $hasDirect = ($daily > 0.0) || ($reservations > 0.0);
+                $targetOwn = 0.0;
+                if ($mode === 'auto' && $hasDirect) {
+                    $targetOwn = $targetRaw;
+                } elseif ($mode !== 'auto' && $targetRaw > 0.0) {
+                    $targetOwn = $targetRaw;
+                }
+
+                $ownNeed = max(0.0, $targetOwn - $available);
+                $coverage = max(0.0, $available - $targetOwn);
+
                 $parentNeed = 0.0;
                 foreach ($parentsMap[$nodeSku] ?? [] as $edge) {
                     $coef = (float)($edge['koeficient'] ?? 0.0);
@@ -418,8 +436,9 @@ final class ProductionController
                     }
                     $parentNeed += $computeNeeded((string)$edge['sku']) * $coef;
                 }
-                $need = max($ownDef, max(0.0, $parentNeed - $coverage));
+                $need = max($ownNeed, max(0.0, $parentNeed - $coverage));
                 $neededMemo[$key] = $need;
+                unset($computing[$key]);
                 return $need;
             };
 
@@ -940,7 +959,8 @@ final class ProductionController
 
             }
 
-            $childContribution = $needed * $edgePayload['koeficient'];
+            $parentNeed = $computeNeeded ? max(0.0, (float)$computeNeeded($parentSku)) : max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
+            $childContribution = $parentNeed * $edgePayload['koeficient'];
 
             $node['children'][] = $this->buildDemandTreeNode(
 
