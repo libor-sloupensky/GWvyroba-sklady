@@ -74,8 +74,10 @@ final class StockService
         foreach ($autos as $row) {
             $sku = (string)$row['sku'];
             $daily = (float)($directDemand[$sku] ?? 0.0);
+            $hasParent = !empty($parentsMap[$sku]);
             $isNonstock = ((int)($row['is_nonstock'] ?? 0) === 1);
-            if ($isNonstock) {
+            $hasDirectDemand = !$hasParent || $daily > 0.0; // rezervace neřešíme při přepočtu targetu
+            if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
                 $updates[] = [0.0, $sku];
                 continue;
             }
@@ -375,10 +377,10 @@ final class StockService
             $daily = max(0.0, (float)($demandMap[$sku] ?? 0.0));
             $directDaily = max(0.0, (float)($directDemandMap[$sku] ?? 0.0));
             $hasParent = !empty($parentsMap[$sku]);
-            $hasDirectDemand = true; // vždy počítáme cíl (kromě nonstock)
+            $hasDirectDemand = !$hasParent || $directDaily > 0.0 || !empty($reservationMap[$sku]);
             $isNonstock = (bool)($row['is_nonstock'] ?? false);
 
-            if ($isNonstock) {
+            if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
                 $target = 0.0;
             } elseif ($mode === 'auto') {
                 $effectiveDays = $stockDays + max(0, (int)($row['vyrobni_doba_dni'] ?? 0));
