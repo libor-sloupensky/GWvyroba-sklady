@@ -837,8 +837,12 @@ final class ProductionController
 
         $status = $statusMap[$sku] ?? [];
 
-        $needed = max(0.0, (float)($status['deficit'] ?? 0.0));
+        $target = max(0.0, (float)($status['target'] ?? 0.0));
         $available = (float)($status['available'] ?? 0.0);
+        $ownDeficit = max(0.0, $target - $available);
+        $coverage = max(0.0, $available - $target);
+        $parentNeedResidual = max(0.0, $contribution - $coverage);
+        $needed = max($ownDeficit, $parentNeedResidual);
         $needFromParents = 0.0;
 
         $node = [
@@ -925,7 +929,7 @@ final class ProductionController
 
             }
 
-            $childContribution = $parentNeeded * $edgePayload['koeficient'];
+            $childContribution = $needed * $edgePayload['koeficient'];
             $needFromParents += $childContribution;
 
             $node['children'][] = $this->buildDemandTreeNode(
@@ -951,8 +955,8 @@ final class ProductionController
         }
 
         // Potřeba na této úrovni: buď vlastní deficit, nebo požadavek od rodičů po odečtení dostupných zásob
-        $needFromParents = max(0.0, $needFromParents - $available);
-        $node['needed'] = max($needed, $needFromParents, (float)$node['contribution']);
+        $needFromParents = max(0.0, $needFromParents - max(0.0, $available - $target));
+        $node['needed'] = max($needed, $needFromParents);
 
         return $node;
 
