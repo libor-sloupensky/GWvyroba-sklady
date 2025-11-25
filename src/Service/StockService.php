@@ -83,6 +83,13 @@ final class StockService
             }
             $effectiveDays = $stockDays + max(0, (int)$row['vyrobni_doba_dni']);
             $target = $daily * $effectiveDays;
+            $target = max($target, 0.0);
+            // spodní hranice min_zasoba i při nulové spotřebě
+            $minStock = 0.0;
+            $minCol = DB::pdo()->prepare('SELECT min_zasoba FROM produkty WHERE sku=? LIMIT 1');
+            $minCol->execute([$sku]);
+            $minStock = (float)($minCol->fetchColumn() ?: 0.0);
+            $target = max($target, $minStock);
             $minBatch = (float)$row['min_davka'];
             if ($minBatch > 0.0 && $target > 0.0) {
                 $target = max($target, $minBatch);
@@ -384,6 +391,7 @@ final class StockService
             } elseif ($mode === 'auto') {
                 $effectiveDays = $stockDays + max(0, (int)($row['vyrobni_doba_dni'] ?? 0));
                 $target = $daily * $effectiveDays;
+                $target = max($target, (float)($row['min_zasoba'] ?? 0.0));
                 $minBatch = max(0.0, (float)($row['min_davka'] ?? 0.0));
                 if ($minBatch > 0.0 && $target > 0.0) {
                     $target = max($target, $minBatch);
