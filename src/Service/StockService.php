@@ -76,7 +76,7 @@ final class StockService
             $daily = (float)($directDemand[$sku] ?? 0.0);
             $hasParent = !empty($parentsMap[$sku]);
             $isNonstock = ((int)($row['is_nonstock'] ?? 0) === 1);
-            $hasDirectDemand = !$hasParent || $daily > 0.0; // rezervace neřešíme při přepočtu targetu
+            $hasDirectDemand = $daily > 0.0; // rezervace neřešíme při přepočtu targetu
             if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
                 $updates[] = [0.0, $sku];
                 continue;
@@ -377,7 +377,7 @@ final class StockService
             $daily = max(0.0, (float)($demandMap[$sku] ?? 0.0));
             $directDaily = max(0.0, (float)($directDemandMap[$sku] ?? 0.0));
             $hasParent = !empty($parentsMap[$sku]);
-            $hasDirectDemand = !$hasParent || $directDaily > 0.0 || !empty($reservationMap[$sku]);
+            $hasDirectDemand = ($directDaily > 0.0) || !empty($reservationMap[$sku]);
             $isNonstock = (bool)($row['is_nonstock'] ?? false);
 
             if ($isNonstock || (!$hasDirectDemand && $hasParent)) {
