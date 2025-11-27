@@ -127,6 +127,15 @@ final class ProductionController
                 $statusSkus = array_values(array_unique(array_filter($statusSkus)));
 
                 $statusMap = $statusSkus ? StockService::getStatusForSkus($statusSkus) : [];
+                if (!empty($statusSkus)) {
+                    $dovy = $this->loadDovyrobitMap($statusSkus);
+                    foreach ($dovy as $dSku => $dVal) {
+                        if (!isset($statusMap[$dSku])) {
+                            $statusMap[$dSku] = [];
+                        }
+                        $statusMap[$dSku]['deficit'] = (float)$dVal;
+                    }
+                }
 
 
 
@@ -396,6 +405,13 @@ final class ProductionController
             }
 
             $statusMap = StockService::getStatusForSkus($relevant);
+            $dovy = $this->loadDovyrobitMap($relevant);
+            foreach ($dovy as $dSku => $dVal) {
+                if (!isset($statusMap[$dSku])) {
+                    $statusMap[$dSku] = [];
+                }
+                $statusMap[$dSku]['deficit'] = (float)$dVal;
+            }
 
             $basics = $this->fetchBasicsForSkus($relevant);
 
@@ -580,6 +596,25 @@ final class ProductionController
 
         return $list;
 
+    }
+
+    /**
+     * @param array<int,string> $skus
+     * @return array<string,float>
+     */
+    private function loadDovyrobitMap(array $skus): array
+    {
+        if (empty($skus)) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($skus), '?'));
+        $stmt = DB::pdo()->prepare("SELECT sku,dovyrobit FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt->execute(array_values($skus));
+        $map = [];
+        foreach ($stmt as $row) {
+            $map[(string)$row['sku']] = (float)$row['dovyrobit'];
+        }
+        return $map;
     }
 
 
