@@ -20,6 +20,8 @@ final class ProductionController
     {
 
         $this->requireAuth();
+        // Přepočet dovyrobit při načtení plánů
+        $this->recalcDovyrobit();
 
         $pdo = DB::pdo();
 
@@ -602,6 +604,14 @@ final class ProductionController
             $map[(string)$row['sku']] = (float)$row['dovyrobit'];
         }
         return $map;
+    }
+
+    private function recalcDovyrobit(): void
+    {
+        $script = __DIR__ . '/../../scripts/recalc_dovyrobit.php';
+        if (is_file($script)) {
+            require $script;
+        }
     }
 
 
