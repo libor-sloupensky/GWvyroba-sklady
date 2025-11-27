@@ -9,8 +9,11 @@ use App\Support\DB;
 use App\Service\StockService;
 
 if (php_sapi_name() !== 'cli') {
-    echo "Run from CLI.\n";
-    exit(1);
+    header('Content-Type: text/plain; charset=utf-8');
+    if (!isset($_GET['run'])) {
+        echo "Add ?run=1 to execute recalculation.\n";
+        exit(0);
+    }
 }
 
 $pdo = DB::pdo();
