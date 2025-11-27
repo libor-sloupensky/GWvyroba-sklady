@@ -8,12 +8,20 @@ require __DIR__ . '/../src/bootstrap.php';
 use App\Support\DB;
 use App\Service\StockService;
 
+$embedRun = $GLOBALS['__RUN_RECALC_INLINE'] ?? false;
+
 if (php_sapi_name() !== 'cli') {
-    header('Content-Type: text/plain; charset=utf-8');
-    if (!isset($_GET['run'])) {
+    if (!$embedRun && !isset($_GET['run'])) {
+        if (!headers_sent()) {
+            header('Content-Type: text/plain; charset=utf-8');
+        }
         echo "Add ?run=1 to execute recalculation.\n";
-        exit(0);
+        return;
     }
+}
+
+if (!isset($GLOBALS['__RECALC_ALREADY_RUNNING'])) {
+    $GLOBALS['__RECALC_ALREADY_RUNNING'] = true;
 }
 
 $pdo = DB::pdo();
@@ -120,4 +128,6 @@ foreach ($updateRows as $sku => $need) {
 
 $pdo->commit();
 
-echo "dovyrobit recalculated for " . count($updateRows) . " SKUs\n";
+if (!$embedRun) {
+    echo "dovyrobit recalculated for " . count($updateRows) . " SKUs\n";
+}

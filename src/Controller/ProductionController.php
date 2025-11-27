@@ -610,7 +610,9 @@ final class ProductionController
     {
         $script = __DIR__ . '/../../scripts/recalc_dovyrobit.php';
         if (is_file($script)) {
+            $GLOBALS['__RUN_RECALC_INLINE'] = true;
             require $script;
+            unset($GLOBALS['__RUN_RECALC_INLINE']);
         }
     }
 
