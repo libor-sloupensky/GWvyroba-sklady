@@ -488,6 +488,7 @@ final class ProductionController
         if ($ref !== '') {
 
             DB::pdo()->prepare('DELETE FROM polozky_pohyby WHERE ref_id=?')->execute([$ref]);
+            DB::pdo()->prepare('UPDATE produkty p JOIN polozky_pohyby pp ON pp.ref_id=? AND pp.sku=p.sku SET p.dovyrobit = GREATEST(p.dovyrobit - ABS(pp.mnozstvi),0)')->execute([$ref]);
 
         }
 
