@@ -124,11 +124,11 @@ final class ProductionController
 
                 }
 
-                $statusSkus = array_values(array_unique(array_filter($statusSkus)));
+            $statusSkus = array_values(array_unique(array_filter($statusSkus)));
 
-                $statusMap = $statusSkus ? StockService::getStatusForSkus($statusSkus) : [];
-                if (!empty($statusSkus)) {
-                    $dovy = $this->loadDovyrobitMap($statusSkus);
+            $statusMap = $statusSkus ? StockService::getStatusForSkus($statusSkus) : [];
+            if (!empty($statusSkus)) {
+                $dovy = $this->loadDovyrobitMap($statusSkus);
                     foreach ($dovy as $dSku => $dVal) {
                         if (!isset($statusMap[$dSku])) {
                             $statusMap[$dSku] = [];
@@ -145,18 +145,6 @@ final class ProductionController
 
                     $status = $statusMap[$sku] ?? [];
 
-                    $parentNeed = 0.0;
-                    foreach ($parents[$sku] ?? [] as $edge) {
-                        $parentSku = (string)$edge['sku'];
-                        $parentDef = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
-                        if ($parentDef <= 0.0) {
-                            continue;
-                        }
-                        $parentNeed += $parentDef * (float)($edge['koeficient'] ?? 0.0);
-                    }
-                    $available = (float)($status['available'] ?? 0.0);
-                    $effectiveDeficit = max((float)($status['deficit'] ?? 0.0), max(0.0, $parentNeed - $available));
-
                     $item['stock'] = $status['stock'] ?? 0.0;
 
                     $item['stav'] = $status['available'] ?? 0.0;
@@ -167,7 +155,7 @@ final class ProductionController
 
                     $item['target'] = $status['target'] ?? (float)($item['min_zasoba'] ?? 0.0);
 
-                    $item['deficit'] = $effectiveDeficit;
+                    $item['deficit'] = (float)($status['deficit'] ?? 0.0);
 
                     $item['ratio'] = $status['ratio'] ?? 0.0;
 
@@ -458,7 +446,7 @@ final class ProductionController
                 return $need;
             };
 
-            $rootNeed = $computeNeeded($sku);
+            $rootNeed = (float)($statusMap[$sku]['deficit'] ?? 0.0);
 
             $tree = $this->buildDemandTreeNode(
 
@@ -476,8 +464,7 @@ final class ProductionController
 
                 null,
 
-                true,
-                $computeNeeded
+                true
 
             );
 
@@ -917,7 +904,7 @@ final class ProductionController
         ];
 
         $status = $statusMap[$sku] ?? [];
-        $needed = $computeNeeded ? max(0.0, (float)$computeNeeded($sku)) : max(0.0, (float)($status['deficit'] ?? 0.0));
+        $needed = max(0.0, (float)($status['deficit'] ?? 0.0));
 
         $node = [
 
@@ -995,7 +982,7 @@ final class ProductionController
 
             }
 
-            $parentNeed = $computeNeeded ? max(0.0, (float)$computeNeeded($parentSku)) : max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
+            $parentNeed = max(0.0, (float)($statusMap[$parentSku]['deficit'] ?? 0.0));
             $childContribution = $parentNeed * $edgePayload['koeficient'];
 
             $node['children'][] = $this->buildDemandTreeNode(
@@ -1014,8 +1001,7 @@ final class ProductionController
 
                 $edgePayload,
 
-                false,
-                $computeNeeded
+                false
 
             );
 
