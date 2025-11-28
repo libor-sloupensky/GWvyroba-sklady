@@ -4415,7 +4415,7 @@
 
 
 
-    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>Potřeba položky</th><th>Požadavek na ${tree.sku}</th><th>Koeficient</th><th>Režim</th></tr></thead>`;
+    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>Potřeba položky <span class="info-icon" title="Vlastní potřeba uzlu v jeho měrné jednotce (cílový stav mínus zásoba).">i</span></th><th>Požadavek na ${tree.sku} <span class="info-icon" title="Část celkové poptávky kořene přepočtená koeficienty do měrné jednotky tohoto uzlu.">i</span></th><th>Koeficient</th><th>Režim</th></tr></thead>`;
 
 
 
