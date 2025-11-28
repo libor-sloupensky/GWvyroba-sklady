@@ -1701,6 +1701,13 @@ closeModal();
     flattenTree(tree).forEach((row) => {
 
 
+
+      if (row.node.is_nonstock) {
+        return;
+      }
+
+
+
       const tr = document.createElement('tr');
 
 

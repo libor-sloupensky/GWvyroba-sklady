@@ -4386,6 +4386,13 @@ closeModal();
 
 
 
+      if (row.node.is_nonstock) {
+        return;
+      }
+
+
+
+
 
 
       const tr = document.createElement('tr');

@@ -405,6 +405,13 @@ final class ProductionController
                 }
                 $statusMap[$dSku]['deficit'] = (float)$dVal;
             }
+            $dovy = $this->loadDovyrobitMap($relevant);
+            foreach ($dovy as $dSku => $dVal) {
+                if (!isset($statusMap[$dSku])) {
+                    $statusMap[$dSku] = [];
+                }
+                $statusMap[$dSku]['deficit'] = (float)$dVal;
+            }
 
             $basics = $this->fetchBasicsForSkus($relevant);
 
@@ -916,6 +923,8 @@ final class ProductionController
 
             'merna_jednotka' => '',
 
+            'is_nonstock' => false,
+
         ];
 
         $status = $statusMap[$sku] ?? [];
@@ -930,6 +939,8 @@ final class ProductionController
             'typ' => $info['typ'],
 
             'merna_jednotka' => $info['merna_jednotka'],
+            'is_nonstock' => !empty($info['is_nonstock']),
+
 
             'status' => $status,
 
@@ -1056,7 +1067,7 @@ final class ProductionController
 
         $placeholders = implode(',', array_fill(0, count($skus), '?'));
 
-        $stmt = DB::pdo()->prepare("SELECT sku,nazev,typ,merna_jednotka FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt = DB::pdo()->prepare("SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code=p.typ WHERE p.sku IN ({$placeholders})");
 
         $stmt->execute($skus);
 
@@ -1073,6 +1084,7 @@ final class ProductionController
                 'typ' => (string)($row['typ'] ?? ''),
 
                 'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+                'is_nonstock' => ((int)($row['is_nonstock'] ?? 0) === 1),
 
             ];
 
@@ -1398,4 +1410,3 @@ final class ProductionController
     }
 
 }
-
