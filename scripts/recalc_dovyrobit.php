@@ -43,15 +43,21 @@ foreach ($stmt as $row) {
     $parents[$child][] = ['sku' => $parent, 'coef' => $coef];
 }
 
-// status a meta
-$allSkus = array_values(array_unique(array_merge(array_keys($children), array_keys($parents))));
-if (!$allSkus) {
+// status a meta pro všechny produkty
+$allProducts = [];
+$prodStmt = $pdo->query('SELECT sku FROM produkty');
+foreach ($prodStmt as $row) {
+    $sku = trim((string)$row['sku']);
+    if ($sku !== '') {
+        $allProducts[] = $sku;
+    }
+}
+if (!$allProducts) {
     $pdo->commit();
     return;
 }
-$status = StockService::getStatusForSkus($allSkus);
-$metaStmt = $pdo->prepare('SELECT p.sku, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku IN (' . implode(',', array_fill(0, count($allSkus), '?')) . ')');
-$metaStmt->execute($allSkus);
+$status = StockService::getStatusForSkus($allProducts);
+$metaStmt = $pdo->query('SELECT p.sku, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ');
 $meta = [];
 foreach ($metaStmt as $m) {
     $meta[(string)$m['sku']] = (int)$m['is_nonstock'] === 1;
@@ -59,8 +65,8 @@ foreach ($metaStmt as $m) {
 
 // kořeny: skladové položky bez skladového rodiče
 $roots = [];
-foreach ($allSkus as $sku) {
-    if ($meta[$sku] ?? false) continue;
+foreach ($allProducts as $sku) {
+    if ($meta[$sku] ?? false) continue; // nonstock není kořen
     $hasStockParent = false;
     foreach ($parents[$sku] ?? [] as $edge) {
         if (!($meta[$edge['sku']] ?? false)) {
