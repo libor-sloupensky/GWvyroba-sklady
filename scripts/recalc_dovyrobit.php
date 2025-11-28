@@ -96,11 +96,14 @@ $computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$chi
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0); // already stock - reservations
+    $baseNeed = $isNonstock ? 0.0 : max(0.0, (float)($st['deficit'] ?? 0.0)); // vlastní deficit z targetu
 
-    // Základní pravidlo: potřeba na této úrovni je požadavek rodičů mínus dostupné kusy.
-    // Už nevyužíváme žádný cílový stav ani min_dávku.
+    // Potřeba od rodičů (přepočtená přes koeficienty) po započtení dostupných kusů.
     $parentNeed = max(0.0, $incoming);
-    $needHere = $isNonstock ? $parentNeed : max(0.0, $parentNeed - $available);
+    $missingForParents = $isNonstock ? $parentNeed : max(0.0, $parentNeed - $available);
+
+    // Celková potřeba je maximum z vlastní potřeby (baseNeed) a požadavku rodičů.
+    $needHere = max($baseNeed, $missingForParents);
 
     $updateRows[$sku] = ($updateRows[$sku] ?? 0.0) + $needHere;
 
