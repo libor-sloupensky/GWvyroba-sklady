@@ -115,12 +115,13 @@ while ($queue) {
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0); // stock - reservations
-    $baseTarget = $isNonstock ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0)); // vlastní deficit z targetu
+    $available = (float)($st['available'] ?? 0.0); // stock - reservations
+    $isRootNode = in_array($sku, $roots, true);
+    $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
 
     $incoming = max(0.0, (float)($incomingSum[$sku] ?? 0.0));
     $totalDemand = $incoming + $baseTarget;
     $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
-
     $updateRows[$sku] = $needHere;
 
     foreach ($children[$sku] ?? [] as $edge) {
@@ -146,8 +147,14 @@ foreach ($incomingSum as $sku => $inc) {
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0);
+    $isRootNode = in_array($sku, $roots, true);
+    $available = (float)($st['available'] ?? 0.0);
+    $isRootNode = in_array($sku, $roots, true);
+    $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
     $incoming = max(0.0, (float)$inc);
-    $needHere = $isNonstock ? $incoming : max(0.0, $incoming - $available);
+    $totalDemand = $incoming + $baseTarget;
+    $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
+    $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
     $updateRows[$sku] = $needHere;
 }
 
