@@ -2633,7 +2633,7 @@
 
 
 
-    <small>Volba "Odečíst subpotomky" automaticky odečte všechny komponenty (i do mínusu). Volba "Odečíst do mínusu" zapíše jen hotový produkt a komponenty je potřeba odepsat ručně.</small>
+    <small>Volba "Odečíst komponenty do mínusu" odečte komponenty dle BOM i v případě, že na skladě chybí. Pokud chcete zapsat jen hotový produkt a komponenty řešit ručně, zvolte "Jen hotový produkt".</small>
 
 
 
@@ -2645,13 +2645,13 @@
 
 
 
-      <button type="button" data-action="components">Odečíst subpotomky (doporučeno)</button>
+      <button type="button" data-action="components">Odečíst komponenty do mínusu (doporučeno)</button>
 
 
 
 
 
-      <button type="button" data-action="minus">Odečíst do mínusu</button>
+      <button type="button" data-action="manual">Jen hotový produkt (bez komponent)</button>
 
 
 
@@ -3139,8 +3139,7 @@
 
 
 
-      if (action === 'components') {
-
+      if (action === 'components' || action === 'minus') {
 
 
 
@@ -3150,9 +3149,7 @@
 
 
 
-
-      } else if (action === 'minus') {
-
+      } else if (action === 'manual') {
 
 
 
@@ -3162,13 +3159,7 @@
 
 
 
-
       }
-
-
-
-
-
       closeModal();
 
 

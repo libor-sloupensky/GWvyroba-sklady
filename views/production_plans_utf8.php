@@ -1206,16 +1206,16 @@
     <ul id="production-deficit-list"></ul>
 
 
-    <small>Volba ďż˝,ďż˝'A?ďż˝?sÂ¬ďż˝aďż˝lOdeďż˝,ďż˝?zďż˝aÂ¤A"ďż˝?sA,Â­st subpotomkyďż˝,ďż˝'A?ďż˝?sÂ¬ďż˝aďż˝?s automaticky odeďż˝,ďż˝?zďż˝aÂ¤te vA"ďż˝.A<ďż˝??echny komponenty (i do mA"ďż˝?sA,Â­nusu). Volba ďż˝,ďż˝'A?ďż˝?sÂ¬ďż˝aďż˝lOdeďż˝,ďż˝?zďż˝aÂ¤A"ďż˝?sA,Â­st do mA"ďż˝?sA,Â­nusuďż˝,ďż˝'A?ďż˝?sÂ¬ďż˝aďż˝?s zapA"ďż˝?sA,Â­A"ďż˝.A<ďż˝??e jen hotovA"ďż˝?sA<LA produkt a komponenty je potA"ďż˝.A?ďż˝?zďż˝'eba odepsat ruďż˝,ďż˝?zďż˝aÂ¤nďż˝,ďż˝?zA?ďż˝,ďż˝Lz.</small>
+    <small>Volba "Odečíst komponenty do mínusu" odečte komponenty dle BOM i v případě, že na skladě chybí. Pokud chcete zapsat jen hotový produkt a komponenty řešit ručně, zvolte "Jen hotový produkt".</small>
 
 
     <div class="production-modal-buttons">
 
 
-      <button type="button" data-action="components">Odeďż˝,ďż˝?zďż˝aÂ¤A"ďż˝?sA,Â­st subpotomky (doporuďż˝,ďż˝?zďż˝aÂ¤eno)</button>
+      <button type="button" data-action="components">Odečíst komponenty do mínusu (doporučeno)</button>
 
 
-      <button type="button" data-action="minus">Odeďż˝,ďż˝?zďż˝aÂ¤A"ďż˝?sA,Â­st do mA"ďż˝?sA,Â­nusu</button>
+      <button type="button" data-action="manual">Jen hotový produkt (bez komponent)</button>
 
 
       <button type="button" data-action="cancel">ZruA"ďż˝.A<ďż˝??it</button>
@@ -1389,13 +1389,13 @@
       }
 
 
-      if (action === 'components') {
+      if (action === 'components' || action === 'minus') {
 
 
         submitProduction(pendingForm, 'odecti_subpotomky');
 
 
-      } else if (action === 'minus') {
+      } else if (action === 'manual') {
 
 
         submitProduction(pendingForm, 'korekce');
@@ -1404,7 +1404,7 @@
       }
 
 
-      closeModal();
+closeModal();
 
 
     });
