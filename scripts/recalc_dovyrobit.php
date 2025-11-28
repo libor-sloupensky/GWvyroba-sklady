@@ -93,12 +93,9 @@ $updateRows = [];
 
 $computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$children, &$status, &$meta, &$updateRows): void {
     $st = $status[$sku] ?? [];
-    $metaRow = $meta[$sku] ?? ['is_nonstock' => false, 'min_zasoba' => 0.0, 'min_davka' => 0.0];
+    $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
-    $minStock = (float)($metaRow['min_zasoba'] ?? 0.0);
-    $minBatch = (float)($metaRow['min_davka'] ?? 0.0);
     $target = max(0.0, (float)($st['target'] ?? 0.0));
-    $target = max($target, $minStock, $minBatch);
     $available = (float)($st['available'] ?? 0.0);
     $ownNeed = $isNonstock ? 0.0 : max(0.0, $target - $available);
     $coverage = $isNonstock ? 0.0 : max(0.0, $available - $target);

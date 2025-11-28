@@ -241,7 +241,10 @@ final class ProductionController
         $metaStmt->execute([$sku]);
         $meta = $metaStmt->fetch();
 
-        if ($sku === '' || $qty <= 0 || empty($meta)) {
+        $isStockCorrection = ($mode === 'korekce_skladu');
+        $qtyInvalid = $isStockCorrection ? ($qty == 0.0) : ($qty <= 0.0);
+
+        if ($sku === '' || $qtyInvalid || empty($meta)) {
 
             $this->redirect($returnUrl ?: '/production/plans');
 
