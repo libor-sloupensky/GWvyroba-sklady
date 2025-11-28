@@ -57,10 +57,14 @@ if (!$allProducts) {
     return;
 }
 $status = StockService::getStatusForSkus($allProducts);
-$metaStmt = $pdo->query('SELECT p.sku, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ');
+$metaStmt = $pdo->query('SELECT p.sku, p.min_zasoba, p.min_davka, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ');
 $meta = [];
 foreach ($metaStmt as $m) {
-    $meta[(string)$m['sku']] = (int)$m['is_nonstock'] === 1;
+    $meta[(string)$m['sku']] = [
+        'is_nonstock' => (int)$m['is_nonstock'] === 1,
+        'min_zasoba' => (float)($m['min_zasoba'] ?? 0.0),
+        'min_davka' => (float)($m['min_davka'] ?? 0.0),
+    ];
 }
 
 // kořeny: skladové položky bez skladového rodiče
@@ -83,8 +87,12 @@ $updateRows = [];
 
 $computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$children, &$status, &$meta, &$updateRows): void {
     $st = $status[$sku] ?? [];
-    $isNonstock = (bool)($meta[$sku] ?? false);
+    $metaRow = $meta[$sku] ?? ['is_nonstock' => false, 'min_zasoba' => 0.0, 'min_davka' => 0.0];
+    $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
+    $minStock = (float)($metaRow['min_zasoba'] ?? 0.0);
+    $minBatch = (float)($metaRow['min_davka'] ?? 0.0);
     $target = max(0.0, (float)($st['target'] ?? 0.0));
+    $target = max($target, $minStock, $minBatch);
     $available = (float)($st['available'] ?? 0.0);
     $ownNeed = $isNonstock ? 0.0 : max(0.0, $target - $available);
     $coverage = $isNonstock ? 0.0 : max(0.0, $available - $target);
