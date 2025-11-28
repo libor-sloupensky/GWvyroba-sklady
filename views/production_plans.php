@@ -2633,7 +2633,7 @@
 
 
 
-    <small>Volba "Odečíst komponenty do mínusu" odečte komponenty dle BOM i v případě, že na skladě chybí. Pokud chcete zapsat jen hotový produkt a komponenty řešit ručně, zvolte "Jen hotový produkt".</small>
+            <small>Volba "Odečíst do mínusu" odečte komponenty dle BOM i když na skladě chybí. Pokud nechcete pokračovat, zrušte.</small>
 
 
 
@@ -2644,21 +2644,12 @@
 
 
 
-
-      <button type="button" data-action="components">Odečíst komponenty do mínusu (doporučeno)</button>
-
-
-
-
-
-      <button type="button" data-action="manual">Jen hotový produkt (bez komponent)</button>
-
+      <button type="button" data-action="components">Odečíst do mínusu</button>
 
 
 
 
       <button type="button" data-action="cancel">Zrušit</button>
-
 
 
 
@@ -3149,18 +3140,8 @@
 
 
 
-      } else if (action === 'manual') {
-
-
-
-
-        submitProduction(pendingForm, 'korekce');
-
-
-
-
       }
-      closeModal();
+closeModal();
 
 
 
@@ -3224,11 +3205,7 @@
 
 
 
-
-
     listEl.innerHTML = '';
-
-
 
 
 
@@ -3236,23 +3213,12 @@
 
 
 
-
-
       const li = document.createElement('li');
-
-
-
-
-
-      const name = item.nazev ? `${item.sku} – ${item.nazev}` : item.sku;
-
-
-
-
-
-      li.textContent = `${name}: potřeba ${item.required}, dostupné ${item.available}, chybí ${item.missing}`;
-
-
+      const name = item.nazev ? `${item.sku} - ${item.nazev}` : item.sku;
+      li.append(document.createTextNode(`${name}: potřeba ${item.required}, dostupné ${item.available}, `));
+      const missing = document.createElement('strong');
+      missing.textContent = `chybí ${item.missing}`;
+      li.appendChild(missing);
 
 
 
@@ -3260,15 +3226,13 @@
 
 
 
-
-
     });
 
 
 
-
-
   }
+
+
 
 
 

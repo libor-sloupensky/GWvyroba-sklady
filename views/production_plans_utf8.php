@@ -1206,19 +1206,22 @@
     <ul id="production-deficit-list"></ul>
 
 
-    <small>Volba "Odečíst komponenty do mínusu" odečte komponenty dle BOM i v případě, že na skladě chybí. Pokud chcete zapsat jen hotový produkt a komponenty řešit ručně, zvolte "Jen hotový produkt".</small>
+            <small>Volba "Odečíst do mínusu" odečte komponenty dle BOM i když na skladě chybí. Pokud nechcete pokračovat, zrušte.</small>
 
 
     <div class="production-modal-buttons">
 
 
-      <button type="button" data-action="components">Odečíst komponenty do mínusu (doporučeno)</button>
 
 
-      <button type="button" data-action="manual">Jen hotový produkt (bez komponent)</button>
+      <button type="button" data-action="components">Odečíst do mínusu</button>
 
 
-      <button type="button" data-action="cancel">ZruA"ďż˝.A<ďż˝??it</button>
+
+
+      <button type="button" data-action="cancel">Zrušit</button>
+
+
 
 
     </div>
@@ -1392,18 +1395,14 @@
       if (action === 'components' || action === 'minus') {
 
 
+
+
         submitProduction(pendingForm, 'odecti_subpotomky');
 
 
-      } else if (action === 'manual') {
-
-
-        submitProduction(pendingForm, 'korekce');
 
 
       }
-
-
 closeModal();
 
 
@@ -1437,28 +1436,35 @@ closeModal();
   function renderDeficits(deficits) {
 
 
-    listEl.innerHTML = ';
+
+    listEl.innerHTML = '';
+
 
 
     deficits.forEach((item) => {
 
 
+
       const li = document.createElement('li');
+      const name = item.nazev ? `${item.sku} - ${item.nazev}` : item.sku;
+      li.append(document.createTextNode(`${name}: potřeba ${item.required}, dostupné ${item.available}, `));
+      const missing = document.createElement('strong');
+      missing.textContent = `chybí ${item.missing}`;
+      li.appendChild(missing);
 
-
-      const name = item.nazev ? `${item.sku} ďż˝,ďż˝'A?ďż˝?sÂ¬A?ďż˝,ďż˝L> ${item.nazev}` : item.sku;
-
-
-      li.textContent = `${name}: potA"ďż˝.A?ďż˝?zďż˝'eba ${item.required}, dostupnA"ďż˝?sA,Â© ${item.available}, chybA"ďż˝?sA,Â­ ${item.missing}`;
 
 
       listEl.appendChild(li);
 
 
+
     });
 
 
+
   }
+
+
 
 
 
