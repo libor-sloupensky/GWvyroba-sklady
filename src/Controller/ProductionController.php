@@ -948,6 +948,11 @@ final class ProductionController
 
             $parentSku = (string)$parentEdge['sku'];
 
+            // Skip nonstock parents in demand tree view
+            if (!empty($meta[$parentSku]['is_nonstock'])) {
+                continue;
+            }
+
             $edgeUnit = $parentEdge['merna_jednotka'] ?? '';
 
             if ($edgeUnit === '') {
@@ -1030,7 +1035,7 @@ final class ProductionController
 
     /**
 
-     * @return array<string,array{sku:string,nazev:string,typ:string,merna_jednotka:string}>
+     * @return array<string,array{sku:string,nazev:string,typ:string,merna_jednotka:string,is_nonstock:bool}>
 
      */
 
