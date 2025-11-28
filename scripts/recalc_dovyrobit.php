@@ -95,12 +95,12 @@ $computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$chi
     $st = $status[$sku] ?? [];
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
-    $target = max(0.0, (float)($st['target'] ?? 0.0));
-    $available = (float)($st['available'] ?? 0.0);
-    $ownNeed = $isNonstock ? 0.0 : max(0.0, $target - $available);
-    $coverage = $isNonstock ? 0.0 : max(0.0, $available - $target);
-    $parentNeed = max(0.0, $incoming - $coverage);
-    $needHere = $isNonstock ? $parentNeed : max($ownNeed, $parentNeed);
+    $available = (float)($st['available'] ?? 0.0); // already stock - reservations
+
+    // Základní pravidlo: potřeba na této úrovni je požadavek rodičů mínus dostupné kusy.
+    // Už nevyužíváme žádný cílový stav ani min_dávku.
+    $parentNeed = max(0.0, $incoming);
+    $needHere = $isNonstock ? $parentNeed : max(0.0, $parentNeed - $available);
 
     $updateRows[$sku] = ($updateRows[$sku] ?? 0.0) + $needHere;
 

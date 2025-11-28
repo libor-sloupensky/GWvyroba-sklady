@@ -39,9 +39,6 @@ $currentUser = $_SESSION['user'] ?? null;
     nav a { color:#fff; text-decoration:none; }
     .container { max-width: 1200px; margin: 1rem auto; background:#fff; border:1px solid #e5e5e5; border-radius: 12px; padding: 14px 16px; }
     .footer { position: fixed; right: 1rem; bottom: 1rem; background:#fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color:#333; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    .upload-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-left:6px; background:#cfd8dc; box-shadow:0 0 0 1px #ccc inset; vertical-align:middle; }
-    .upload-dot[data-state="uploading"] { background:#d50000; box-shadow:0 0 0 1px #b71c1c inset; }
-    .upload-dot[data-state="done"] { background:#2e7d32; box-shadow:0 0 0 1px #1b5e20 inset; }
     .notice { padding:8px 10px; border:1px solid #ddd; background:#f9f9f9; border-radius:8px; }
     table { border-collapse: collapse; width: 100%; }
     th,td { padding: 6px 8px; border-bottom:1px solid #eee; text-align:left; }
@@ -82,27 +79,9 @@ $currentUser = $_SESSION['user'] ?? null;
     <?php require __DIR__ . '/' . basename($view ?? 'home.php'); ?>
   </main>
   <div class="footer print-hide">
-    <div><strong>Poslední úprava:</strong> <?= date('Y-m-d H:i:s', (int)$fi['mtime']) ?> <span class="upload-dot" id="upload-status-dot" title="Stav nahrávání"></span></div>
+    <div><strong>Poslední úprava:</strong> <?= date('Y-m-d H:i:s', (int)$fi['mtime']) ?></div>
     <div><strong>Verze/Deploy:</strong> <?= htmlspecialchars((string)$version, ENT_QUOTES, 'UTF-8') ?></div>
-    <script>
-    (function () {
-      const dot = document.getElementById('upload-status-dot');
-      if (!dot) return;
-      const setState = (state) => {
-        dot.dataset.state = state;
-        dot.title = state === 'uploading' ? 'Nahravani probiha' : 'Nahravani dokonceno';
-      };
-      setState('idle');
-      window.addEventListener('load', () => setState('done'));
-      document.querySelectorAll('form').forEach((form) => {
-        if (!form.querySelector('input[type="file"]')) return;
-        form.addEventListener('submit', () => setState('uploading'));
-      });
-      document.addEventListener('upload:started', () => setState('uploading'));
-      document.addEventListener('upload:finished', () => setState('done'));
-    }());
-  </script>
-</div>
+  </div>
 </body>
 </html>
 
