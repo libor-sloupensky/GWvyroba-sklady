@@ -70,10 +70,16 @@ foreach ($metaStmt as $m) {
 // kořeny: skladové položky bez skladového rodiče
 $roots = [];
 foreach ($allProducts as $sku) {
-    if ($meta[$sku] ?? false) continue; // nonstock není kořen
+    $metaRow = $meta[$sku] ?? [];
+    $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
+    if ($isNonstock) {
+        continue; // nonstock není kořen
+    }
     $hasStockParent = false;
     foreach ($parents[$sku] ?? [] as $edge) {
-        if (!($meta[$edge['sku']] ?? false)) {
+        $parentMeta = $meta[$edge['sku']] ?? [];
+        $parentNonstock = (bool)($parentMeta['is_nonstock'] ?? false);
+        if (!$parentNonstock) {
             $hasStockParent = true;
             break;
         }
