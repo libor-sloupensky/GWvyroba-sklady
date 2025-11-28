@@ -89,6 +89,7 @@ foreach ($allProducts as $sku) {
     }
 }
 
+
 $updateRows = [];
 $incomingSum = [];
 
