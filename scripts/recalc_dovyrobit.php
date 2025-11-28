@@ -115,11 +115,11 @@ while ($queue) {
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0); // stock - reservations
-    $baseNeed = $isNonstock ? 0.0 : max(0.0, (float)($st['deficit'] ?? 0.0)); // vlastní deficit z targetu
+    $baseTarget = $isNonstock ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0)); // vlastní deficit z targetu
 
     $incoming = max(0.0, (float)($incomingSum[$sku] ?? 0.0));
-    $missingForParents = $isNonstock ? $incoming : max(0.0, $incoming - $available);
-    $needHere = max($baseNeed, $missingForParents);
+    $totalDemand = $incoming + $baseTarget;
+    $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
 
     $updateRows[$sku] = $needHere;
 
@@ -146,10 +146,10 @@ foreach ($incomingSum as $sku => $inc) {
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0);
-    $baseNeed = $isNonstock ? 0.0 : max(0.0, (float)($st['deficit'] ?? 0.0));
+    $baseTarget = $isNonstock ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
     $incoming = max(0.0, (float)$inc);
-    $missingForParents = $isNonstock ? $incoming : max(0.0, $incoming - $available);
-    $needHere = max($baseNeed, $missingForParents);
+    $totalDemand = $incoming + $baseTarget;
+    $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
     $updateRows[$sku] = $needHere;
 }
 
