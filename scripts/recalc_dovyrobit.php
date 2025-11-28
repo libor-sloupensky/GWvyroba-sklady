@@ -90,34 +90,66 @@ foreach ($allProducts as $sku) {
 }
 
 $updateRows = [];
+$incomingSum = [];
 
-$computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$children, &$status, &$meta, &$updateRows): void {
+// Prepare indegree for topological propagation (parent -> child edges)
+$indegree = [];
+foreach ($children as $parent => $edges) {
+    foreach ($edges as $edge) {
+        $childSku = (string)$edge['sku'];
+        $indegree[$childSku] = ($indegree[$childSku] ?? 0) + 1;
+    }
+}
+
+$queue = $roots;
+$processed = [];
+while ($queue) {
+    $sku = array_shift($queue);
+    if (isset($processed[$sku])) {
+        continue;
+    }
+    $processed[$sku] = true;
+
     $st = $status[$sku] ?? [];
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
-    $available = (float)($st['available'] ?? 0.0); // already stock - reservations
+    $available = (float)($st['available'] ?? 0.0); // stock - reservations
     $baseNeed = $isNonstock ? 0.0 : max(0.0, (float)($st['deficit'] ?? 0.0)); // vlastní deficit z targetu
 
-    // Potřeba od rodičů (přepočtená přes koeficienty) po započtení dostupných kusů.
-    $parentNeed = max(0.0, $incoming);
-    $missingForParents = $isNonstock ? $parentNeed : max(0.0, $parentNeed - $available);
-
-    // Celková potřeba je maximum z vlastní potřeby (baseNeed) a požadavku rodičů.
+    $incoming = max(0.0, (float)($incomingSum[$sku] ?? 0.0));
+    $missingForParents = $isNonstock ? $incoming : max(0.0, $incoming - $available);
     $needHere = max($baseNeed, $missingForParents);
 
-    $updateRows[$sku] = ($updateRows[$sku] ?? 0.0) + $needHere;
+    $updateRows[$sku] = $needHere;
 
     foreach ($children[$sku] ?? [] as $edge) {
         $coef = (float)$edge['coef'];
         if ($coef <= 0) {
             continue;
         }
-        $computeNeed((string)$edge['sku'], $needHere * $coef);
+        $childSku = (string)$edge['sku'];
+        $incomingSum[$childSku] = ($incomingSum[$childSku] ?? 0.0) + ($needHere * $coef);
+        $indegree[$childSku] = ($indegree[$childSku] ?? 1) - 1;
+        if ($indegree[$childSku] <= 0) {
+            $queue[] = $childSku;
+        }
     }
-};
+}
 
-foreach ($roots as $root) {
-    $computeNeed($root, 0.0);
+// Fallback for any nodes not reached (cycles or disconnected): compute need from incomingSum without propagation
+foreach ($incomingSum as $sku => $inc) {
+    if (isset($processed[$sku])) {
+        continue;
+    }
+    $st = $status[$sku] ?? [];
+    $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
+    $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
+    $available = (float)($st['available'] ?? 0.0);
+    $baseNeed = $isNonstock ? 0.0 : max(0.0, (float)($st['deficit'] ?? 0.0));
+    $incoming = max(0.0, (float)$inc);
+    $missingForParents = $isNonstock ? $incoming : max(0.0, $incoming - $available);
+    $needHere = max($baseNeed, $missingForParents);
+    $updateRows[$sku] = $needHere;
 }
 
 $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=? WHERE sku=?');
