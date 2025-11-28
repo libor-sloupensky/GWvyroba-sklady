@@ -94,13 +94,12 @@ $computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$chi
     $daily = (float)($st['daily'] ?? 0.0);
     $mode = (string)($metaRow['mode'] ?? 'manual');
     $reservations = (float)($st['reservations'] ?? 0.0);
-    $hasDirect = ($daily > 0.0) || ($reservations > 0.0);
     $minStock = (float)($metaRow['min_zasoba'] ?? 0.0);
     $minBatch = (float)($metaRow['min_davka'] ?? 0.0);
     $target = 0.0;
     if ($isNonstock) {
         $target = 0.0;
-    } elseif ($mode === 'auto' && $hasDirect) {
+    } elseif ($mode === 'auto') {
         $target = $daily * max(0, $stockDays);
         $target = max($target, $minStock);
         if ($minBatch > 0.0 && $target > 0.0) {
