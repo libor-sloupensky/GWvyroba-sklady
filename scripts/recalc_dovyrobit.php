@@ -52,11 +52,16 @@ if (!$allSkus) {
     exit(0);
 }
 $status = StockService::getStatusForSkus($allSkus);
-$metaStmt = $pdo->prepare('SELECT p.sku, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku IN (' . implode(',', array_fill(0, count($allSkus), '?')) . ')');
+$metaStmt = $pdo->prepare('SELECT p.sku, p.nast_zasob, p.min_zasoba, p.min_davka, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku IN (' . implode(',', array_fill(0, count($allSkus), '?')) . ')');
 $metaStmt->execute($allSkus);
 $meta = [];
 foreach ($metaStmt as $m) {
-    $meta[(string)$m['sku']] = (int)$m['is_nonstock'] === 1;
+    $meta[(string)$m['sku']] = [
+        'is_nonstock' => (int)$m['is_nonstock'] === 1,
+        'mode' => (string)($m['nast_zasob'] ?? 'manual'),
+        'min_zasoba' => (float)($m['min_zasoba'] ?? 0.0),
+        'min_davka' => (float)($m['min_davka'] ?? 0.0),
+    ];
 }
 
 // find roots: skladové položky bez skladového rodiče
@@ -78,22 +83,31 @@ foreach ($allSkus as $sku) {
 
 $processed = [];
 $updateRows = [];
+$settings = StockService::getSettings();
+$stockDays = (int)($settings['stock_days'] ?? 0);
 
-$computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$children, &$status, &$meta, &$processed, &$updateRows): void {
+$computeNeed = function (string $sku, float $incoming) use (&$computeNeed, &$children, &$status, &$meta, &$processed, &$updateRows, $stockDays): void {
     $st = $status[$sku] ?? [];
-    $isNonstock = $meta[$sku] ?? false;
+    $metaRow = $meta[$sku] ?? ['is_nonstock' => false, 'mode' => 'manual', 'min_zasoba' => 0.0, 'min_davka' => 0.0];
+    $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0);
-    $target = 0.0;
     $daily = (float)($st['daily'] ?? 0.0);
-    $mode = (string)($st['mode'] ?? 'manual');
+    $mode = (string)($metaRow['mode'] ?? 'manual');
     $reservations = (float)($st['reservations'] ?? 0.0);
     $hasDirect = ($daily > 0.0) || ($reservations > 0.0);
+    $minStock = (float)($metaRow['min_zasoba'] ?? 0.0);
+    $minBatch = (float)($metaRow['min_davka'] ?? 0.0);
+    $target = 0.0;
     if ($isNonstock) {
         $target = 0.0;
     } elseif ($mode === 'auto' && $hasDirect) {
-        $target = max(0.0, (float)($st['target'] ?? 0.0));
+        $target = $daily * max(0, $stockDays);
+        $target = max($target, $minStock);
+        if ($minBatch > 0.0 && $target > 0.0) {
+            $target = max($target, $minBatch);
+        }
     } elseif ($mode !== 'auto') {
-        $target = max(0.0, (float)($st['target'] ?? 0.0));
+        $target = max($minStock, $minBatch);
     }
 
     $ownNeed = max(0.0, $target - $available);

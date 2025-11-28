@@ -4415,7 +4415,8 @@
 
 
 
-    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>Dovyrobit <span class="info-icon" title="Hodnota 'dovyrobit' pro tento uzel v jeho měrné jednotce.">i</span></th><th>Požadavek na ${tree.sku} <span class="info-icon" title="Příspěvek všech rodičů přepočtený do měrné jednotky tohoto uzlu.">i</span></th><th>Koeficient</th><th>Režim</th></tr></thead>`;
+    const rootUnit = tree.merna_jednotka || '';
+    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>Dovyrobit <span class="info-icon" title="Hodnota 'dovyrobit' pro tento uzel v jeho měrné jednotce.">i</span></th><th>Požadavek na ${tree.sku} <span class="info-icon" title="Příspěvek všech rodičů přepočtený do měrné jednotky kořene (${rootUnit || '—'}).">i</span></th><th>Koeficient</th><th>Režim</th></tr></thead>`;
 
 
 
@@ -4532,7 +4533,7 @@
 
       const unit = row.node.merna_jednotka || '';
       tr.appendChild(createCell(`${formatNumber(row.node.needed, 0)} ${unit}`.trim()));
-      tr.appendChild(createCell(`${formatNumber(row.node.contribution, 0)} ${unit}`.trim()));
+      tr.appendChild(createCell(`${formatNumber(row.node.contribution, 0)} ${rootUnit}`.trim()));
 
 
 
