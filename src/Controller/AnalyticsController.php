@@ -682,61 +682,57 @@ SELECT
   m.month_end AS stav_ke_dni,
   CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'Celkem' END AS serie_label,
   CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all') ELSE 'all' END AS serie_key,
-  :znacka_label AS znacka,
-  :skupina_label AS skupina,
-  :typ_label AS typ,
-  ROUND(SUM(p.skl_hodnota * (
-      COALESCE(s.stav, 0)
-      + COALESCE((
-        SELECT SUM(pp.mnozstvi)
-        FROM polozky_pohyby pp
-        WHERE pp.sku = p.sku
-          AND (inv.closed_at IS NULL OR pp.datum > inv.closed_at)
-          AND pp.datum <= m.month_end
-      ), 0)
-      - COALESCE((
-        SELECT SUM(r.mnozstvi)
-        FROM rezervace r
-        WHERE r.sku = p.sku
-          AND r.platna_do >= m.month_end
-      ), 0)
-  )), 0) AS hodnota_czk
+  CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'neznámá') ELSE 'vše' END AS znacka,
+  CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'neznámá') ELSE 'vše' END AS skupina,
+  CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'vše' END AS typ,
+  ROUND(SUM(p.skl_hodnota * stav_qty), 0) AS hodnota_czk
 FROM (
-  SELECT LAST_DAY(:start_date) AS month_end
-  UNION
-  SELECT LAST_DAY(:end_date)
-  UNION
-  SELECT LEAST(LAST_DAY(:end_date), CURDATE())
-  UNION
-  SELECT LAST_DAY(datum) FROM polozky_pohyby WHERE datum BETWEEN :start_date AND :end_date GROUP BY LAST_DAY(datum)
+  SELECT DISTINCT month_end FROM (
+    SELECT LAST_DAY(:start_date) AS month_end
+    UNION
+    SELECT LAST_DAY(:end_date)
+    UNION
+    SELECT LEAST(LAST_DAY(:end_date), CURDATE())
+    UNION
+    SELECT LAST_DAY(datum) AS month_end FROM polozky_pohyby WHERE datum BETWEEN :start_date AND :end_date
+  ) mm
 ) m
 LEFT JOIN (
   SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
 ) inv ON 1=1
 JOIN produkty p ON p.aktivni = 1
-LEFT JOIN inventura_stavy s ON s.inventura_id = inv.id AND s.sku = p.sku
+LEFT JOIN produkty_znacky zn ON zn.id = p.znacka_id
+LEFT JOIN produkty_skupiny sg ON sg.id = p.skupina_id
+LEFT JOIN (
+  SELECT p2.sku, m2.month_end,
+    (COALESCE(s2.stav, 0)
+     + COALESCE((SELECT SUM(pp.mnozstvi) FROM polozky_pohyby pp WHERE pp.sku = p2.sku AND (inv2.closed_at IS NULL OR pp.datum > inv2.closed_at) AND pp.datum <= m2.month_end), 0)
+     - COALESCE((SELECT SUM(r.mnozstvi) FROM rezervace r WHERE r.sku = p2.sku AND r.platna_do >= m2.month_end), 0)
+    ) AS stav_qty
+  FROM (
+    SELECT DISTINCT month_end FROM (
+      SELECT LAST_DAY(:start_date) AS month_end
+      UNION
+      SELECT LAST_DAY(:end_date)
+      UNION
+      SELECT LEAST(LAST_DAY(:end_date), CURDATE())
+      UNION
+      SELECT LAST_DAY(datum) AS month_end FROM polozky_pohyby WHERE datum BETWEEN :start_date AND :end_date
+    ) mm2
+  ) m2
+  CROSS JOIN produkty p2
+  LEFT JOIN (
+    SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
+  ) inv2 ON 1=1
+  LEFT JOIN inventura_stavy s2 ON s2.inventura_id = inv2.id AND s2.sku = p2.sku
+) st ON st.month_end = m.month_end AND st.sku = p.sku
 WHERE m.month_end BETWEEN :start_date AND :end_date
   AND (inv.id IS NULL OR m.month_end >= COALESCE(DATE(inv.closed_at), :start_date))
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
-GROUP BY m.month_end, serie_key, serie_label
-HAVING ROUND(SUM(p.skl_hodnota * (
-      COALESCE(s.stav, 0)
-      + COALESCE((
-        SELECT SUM(pp.mnozstvi)
-        FROM polozky_pohyby pp
-        WHERE pp.sku = p.sku
-          AND (inv.closed_at IS NULL OR pp.datum > inv.closed_at)
-          AND pp.datum <= m.month_end
-      ), 0)
-      - COALESCE((
-        SELECT SUM(r.mnozstvi)
-        FROM rezervace r
-        WHERE r.sku = p.sku
-          AND r.platna_do >= m.month_end
-      ), 0)
-  )), 0) <> 0
+GROUP BY m.month_end, serie_key, serie_label, znacka, skupina, typ
+HAVING SUM(st.stav_qty) <> 0
 ORDER BY m.month_end, serie_label
 ",
                 'params' => [
