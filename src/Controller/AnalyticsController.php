@@ -680,8 +680,16 @@ ORDER BY mesic, serie_label
                 'sql' => "
 SELECT
   CURDATE() AS stav_ke_dni,
-  CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'Celkem' END AS serie_label,
-  CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all') ELSE 'all' END AS serie_key,
+  CASE 
+    WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 THEN 'Vše'
+    WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé')
+    ELSE 'Celkem'
+  END AS serie_label,
+  CASE 
+    WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 THEN 'all'
+    WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all')
+    ELSE 'all'
+  END AS serie_key,
   CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'neznámá') ELSE 'vše' END AS znacka,
   CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'neznámá') ELSE 'vše' END AS skupina,
   CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'vše' END AS typ,
@@ -717,6 +725,7 @@ WHERE p.aktivni = 1
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
+  AND (:has_sku = 0 OR p.sku IN (%sku%))
 GROUP BY serie_key, serie_label, znacka, skupina, typ
 HAVING SUM(
       COALESCE(snap.stav, 0)
@@ -731,6 +740,7 @@ ORDER BY serie_label
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
+                    ['name' => 'sku', 'label' => 'SKU', 'type' => 'string_multi', 'required' => false, 'default' => []],
                 ],
                 'suggested_render' => 'table',
             ],
@@ -805,6 +815,11 @@ ORDER BY serie_label
                         $filtered[] = $v;
                     }
                     $validated[$name] = array_values($filtered);
+                    break;
+                case 'string_multi':
+                    $vals = is_array($raw) ? $raw : explode(',', (string)$raw);
+                    $vals = array_values(array_filter(array_map('trim', $vals), static fn($v) => $v !== ''));
+                    $validated[$name] = $vals;
                     break;
                 default:
                     $validated[$name] = $raw;
@@ -893,11 +908,17 @@ ORDER BY serie_label
                 }));
             }
         }
+        if (isset($params['sku']) && is_array($params['sku'])) {
+            $params['sku'] = array_values(array_filter($params['sku'], static function ($v) {
+                return trim((string)$v) !== '';
+            }));
+        }
         $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
         $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
         $params['has_znacka'] = !empty($params['znacka_id']) ? 1 : 0;
         $params['has_skupina'] = !empty($params['skupina_id']) ? 1 : 0;
         $params['has_typ'] = !empty($params['typ']) ? 1 : 0;
+        $params['has_sku'] = !empty($params['sku']) ? 1 : 0;
         // doplň labely pro stock template
         if (!empty($template['params'])) {
             $params['znacka_label'] = $this->selectionLabel($template['params'], 'znacka_id', $params['znacka_id'] ?? []);
