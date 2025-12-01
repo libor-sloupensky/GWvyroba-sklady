@@ -262,8 +262,6 @@ final class ProductionController
 
         if ($mode === 'korekce_skladu') {
 
-            $this->requireAdmin();
-
             $pdo = DB::pdo();
 
             $ref = 'corr-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));

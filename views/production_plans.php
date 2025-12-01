@@ -2340,15 +2340,7 @@
 
 
 
-              <?php if (!empty($isAdmin)): ?>
-
-
-
-                <button type="submit" name="modus" value="korekce_skladu" data-mode="korekce_skladu" title="Korekce: ru?n? p?i?te nebo ode?te z?sobu pouze tohoto produktu, bez dopadu na komponenty.">Korekce</button>
-
-
-
-              <?php endif; ?>
+              <button type="submit" name="modus" value="korekce_skladu" data-mode="korekce_skladu" title="Korekce: ru?n? p?i?te nebo ode?te z?sobu pouze tohoto produktu, bez dopadu na komponenty.">Korekce</button>
 
 
 
