@@ -677,78 +677,112 @@ ORDER BY mesic, serie_label
             'stock_value_by_month' => [
                 'title' => 'Sklady',
                 'description' => 'Aktuální skladová hodnota = Dostupné * skl_hodnota; filtr značky, skupiny a typu.',
-                'sql' => "SELECT
-  MAX(stav_ke_dni) AS stav_ke_dni,
+                'sql' => "
+SELECT
+  m.month_end AS stav_ke_dni,
   CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END AS serie_label,
   CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END AS serie_key,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END AS znacka,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END AS skupina,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END AS typ,
-  ROUND(SUM(hodnota_czk), 0) AS hodnota_czk
+  ROUND(SUM(p.skl_hodnota * (
+    COALESCE(snap.stav, 0)
+    + COALESCE((
+        SELECT SUM(pm.mnozstvi)
+        FROM polozky_pohyby pm
+        WHERE pm.sku = p.sku
+          AND (inv.last_closed IS NULL OR pm.datum > inv.last_closed)
+          AND pm.datum <= m.month_end
+    ), 0)
+    - COALESCE((
+        SELECT SUM(r.mnozstvi)
+        FROM rezervace r
+        WHERE r.sku = p.sku
+          AND r.platna_do >= m.month_end
+    ), 0)
+  )), 0) AS hodnota_czk,
+  SUM((
+    COALESCE(snap.stav, 0)
+    + COALESCE((
+        SELECT SUM(pm.mnozstvi)
+        FROM polozky_pohyby pm
+        WHERE pm.sku = p.sku
+          AND (inv.last_closed IS NULL OR pm.datum > inv.last_closed)
+          AND pm.datum <= m.month_end
+    ), 0)
+    - COALESCE((
+        SELECT SUM(r.mnozstvi)
+        FROM rezervace r
+        WHERE r.sku = p.sku
+          AND r.platna_do >= m.month_end
+    ), 0)
+  )) AS stav_kusy
 FROM (
   SELECT
-    CASE WHEN :end_date IS NOT NULL THEN LEAST(DATE(:end_date), CURDATE()) ELSE CURDATE() END AS stav_ke_dni,
+    DATE_ADD(DATE_FORMAT(:start_date, '%Y-%m-01'), INTERVAL seq MONTH) AS month_start,
+    LEAST(LAST_DAY(DATE_ADD(DATE_FORMAT(:start_date, '%Y-%m-01'), INTERVAL seq MONTH)), :end_date) AS month_end
+  FROM (
+    SELECT a.n + b.n * 10 AS seq
+    FROM (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a
+    CROSS JOIN (SELECT 0 n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) b
+  ) seqs
+  WHERE DATE_ADD(DATE_FORMAT(:start_date, '%Y-%m-01'), INTERVAL seq MONTH) <= :end_date
+) m
+JOIN produkty p ON p.aktivni = 1
+LEFT JOIN produkty_znacky zn ON zn.id = p.znacka_id
+LEFT JOIN produkty_skupiny sg ON sg.id = p.skupina_id
+LEFT JOIN (
+  SELECT s.sku, s.stav
+  FROM inventura_stavy s
+  WHERE s.inventura_id = (
+    SELECT id FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
+  )
+) snap ON snap.sku = p.sku
+CROSS JOIN (
+  SELECT
     CASE 
-      WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 AND :has_sku = 0 THEN 'Vse'
-      WHEN :has_typ = 1 THEN COALESCE(p.typ, 'nezname')
-      ELSE 'Celkem'
-    END AS serie_label,
-    CASE 
-      WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 AND :has_sku = 0 THEN 'all'
-      WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all')
-      ELSE 'all'
-    END AS serie_key,
-    CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'neznam?') ELSE 'vse' END AS znacka,
-    CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'neznam?') ELSE 'vse' END AS skupina,
-    CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'nezname') ELSE 'vse' END AS typ,
-    SUM(
-      COALESCE(snap.stav, 0)
-      + COALESCE(mov.qty, 0)
-      - COALESCE(rez.qty, 0)
-    ) AS stav_kusy,
-    SUM(p.skl_hodnota * (
-      COALESCE(snap.stav, 0)
-      + COALESCE(mov.qty, 0)
-      - COALESCE(rez.qty, 0)
-    )) AS hodnota_czk
-  FROM produkty p
-  LEFT JOIN produkty_znacky zn ON zn.id = p.znacka_id
-  LEFT JOIN produkty_skupiny sg ON sg.id = p.skupina_id
-  LEFT JOIN (
-    SELECT s.sku, s.stav
-    FROM inventura_stavy s
-    WHERE s.inventura_id = (
-      SELECT id FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
-    )
-  ) snap ON snap.sku = p.sku
-  LEFT JOIN (
-    SELECT sku, SUM(mnozstvi) AS qty
-    FROM polozky_pohyby
-    WHERE (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1) IS NULL
-       OR datum > (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1)
-    GROUP BY sku
-  ) mov ON mov.sku = p.sku
-  LEFT JOIN (
-    SELECT sku, SUM(mnozstvi) AS qty
-    FROM rezervace
-    WHERE platna_do >= CURDATE()
-    GROUP BY sku
-  ) rez ON rez.sku = p.sku
-  WHERE p.aktivni = 1
-    AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
-    AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
-    AND (:has_typ = 0 OR p.typ IN (%typ%))
-    AND (:has_sku = 0 OR p.sku IN (%sku%))
-  GROUP BY serie_key, serie_label, znacka, skupina, typ
-) base
+      WHEN (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1) IS NULL THEN NULL
+      ELSE (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1)
+    END AS last_closed
+) inv
+CROSS JOIN (
+  SELECT 1 AS one
+) constants
+CROSS JOIN (
+  SELECT 1 AS dummy
+) t
+CROSS JOIN (
+  SELECT 1 AS dummy2
+) t2
+WHERE (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
+  AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
+  AND (:has_typ = 0 OR p.typ IN (%typ%))
+  AND (:has_sku = 0 OR p.sku IN (%sku%))
 GROUP BY
+  m.month_end,
   CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END,
   CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END
-HAVING SUM(stav_kusy) <> 0
-ORDER BY serie_label",
+HAVING SUM((
+    COALESCE(snap.stav, 0)
+    + COALESCE((
+        SELECT SUM(pm.mnozstvi)
+        FROM polozky_pohyby pm
+        WHERE pm.sku = p.sku
+          AND (inv.last_closed IS NULL OR pm.datum > inv.last_closed)
+          AND pm.datum <= m.month_end
+    ), 0)
+    - COALESCE((
+        SELECT SUM(r.mnozstvi)
+        FROM rezervace r
+        WHERE r.sku = p.sku
+          AND r.platna_do >= m.month_end
+    ), 0)
+  )) <> 0
+ORDER BY m.month_end, serie_label
+", 
 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
