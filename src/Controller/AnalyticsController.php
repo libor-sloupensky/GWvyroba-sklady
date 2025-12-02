@@ -687,7 +687,7 @@ ORDER BY mesic, serie_label
   ROUND(SUM(hodnota_czk), 0) AS hodnota_czk
 FROM (
   SELECT
-    CURDATE() AS stav_ke_dni,
+    CASE WHEN :end_date IS NOT NULL THEN LEAST(DATE(:end_date), CURDATE()) ELSE CURDATE() END AS stav_ke_dni,
     CASE 
       WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 AND :has_sku = 0 THEN 'Vse'
       WHEN :has_typ = 1 THEN COALESCE(p.typ, 'nezname')
