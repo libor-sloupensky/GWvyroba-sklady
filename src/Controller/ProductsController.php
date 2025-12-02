@@ -890,15 +890,15 @@ final class ProductsController
         $pdo = DB::pdo();
 
         $stmt = $pdo->prepare("UPDATE produkty SET {$field}=? WHERE sku=?");
-
         $stmt->execute([$normalized, $sku]);
-
         if ($stmt->rowCount() === 0) {
-
-            echo json_encode(['ok'=>false,'error'=>'Produkt nenalezen.']);
-
-            return;
-
+            // Pokud se hodnota nezměnila, rowCount může být 0; ověř existenci SKU
+            $exists = $pdo->prepare('SELECT 1 FROM produkty WHERE sku=? LIMIT 1');
+            $exists->execute([$sku]);
+            if ($exists->fetchColumn() === false) {
+                echo json_encode(['ok'=>false,'error'=>'Produkt nenalezen.']);
+                return;
+            }
         }
 
         $response = ['ok' => true];
