@@ -678,63 +678,81 @@ ORDER BY mesic, serie_label
                 'title' => 'Sklady',
                 'description' => 'Aktuální skladová hodnota = Dostupné * skl_hodnota; filtr značky, skupiny a typu.',
                 'sql' => "
+WITH base AS (
+  SELECT
+    CURDATE() AS stav_ke_dni,
+    CASE 
+      WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 AND :has_sku = 0 THEN 'Vse'
+      WHEN :has_typ = 1 THEN COALESCE(p.typ, 'nezname')
+      ELSE 'Celkem'
+    END AS serie_label,
+    CASE 
+      WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 AND :has_sku = 0 THEN 'all'
+      WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all')
+      ELSE 'all'
+    END AS serie_key,
+    CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'neznam?') ELSE 'vse' END AS znacka,
+    CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'neznam?') ELSE 'vse' END AS skupina,
+    CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'nezname') ELSE 'vse' END AS typ,
+    SUM(
+      COALESCE(snap.stav, 0)
+      + COALESCE(mov.qty, 0)
+      - COALESCE(rez.qty, 0)
+    ) AS stav_kusy,
+    SUM(p.skl_hodnota * (
+      COALESCE(snap.stav, 0)
+      + COALESCE(mov.qty, 0)
+      - COALESCE(rez.qty, 0)
+    )) AS hodnota_czk
+  FROM produkty p
+  LEFT JOIN produkty_znacky zn ON zn.id = p.znacka_id
+  LEFT JOIN produkty_skupiny sg ON sg.id = p.skupina_id
+  LEFT JOIN (
+    SELECT s.sku, s.stav
+    FROM inventura_stavy s
+    WHERE s.inventura_id = (
+      SELECT id FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
+    )
+  ) snap ON snap.sku = p.sku
+  LEFT JOIN (
+    SELECT sku, SUM(mnozstvi) AS qty
+    FROM polozky_pohyby
+    WHERE (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1) IS NULL
+       OR datum > (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1)
+    GROUP BY sku
+  ) mov ON mov.sku = p.sku
+  LEFT JOIN (
+    SELECT sku, SUM(mnozstvi) AS qty
+    FROM rezervace
+    WHERE platna_do >= CURDATE()
+    GROUP BY sku
+  ) rez ON rez.sku = p.sku
+  WHERE p.aktivni = 1
+    AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
+    AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
+    AND (:has_typ = 0 OR p.typ IN (%typ%))
+    AND (:has_sku = 0 OR p.sku IN (%sku%))
+  GROUP BY serie_key, serie_label, znacka, skupina, typ
+)
 SELECT
-  CURDATE() AS stav_ke_dni,
-  CASE 
-    WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 THEN 'Vše'
-    WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé')
-    ELSE 'Celkem'
-  END AS serie_label,
-  CASE 
-    WHEN :has_znacka = 0 AND :has_skupina = 0 AND :has_typ = 0 THEN 'all'
-    WHEN :has_typ = 1 THEN COALESCE(p.typ, 'all')
-    ELSE 'all'
-  END AS serie_key,
-  CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'neznámá') ELSE 'vše' END AS znacka,
-  CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'neznámá') ELSE 'vše' END AS skupina,
-  CASE WHEN :has_typ = 1 THEN COALESCE(p.typ, 'neznámé') ELSE 'vše' END AS typ,
-  ROUND(SUM(p.skl_hodnota * (
-      COALESCE(snap.stav, 0)
-      + COALESCE(mov.qty, 0)
-      - COALESCE(rez.qty, 0)
-  )), 0) AS hodnota_czk
-FROM produkty p
-LEFT JOIN produkty_znacky zn ON zn.id = p.znacka_id
-LEFT JOIN produkty_skupiny sg ON sg.id = p.skupina_id
-LEFT JOIN (
-  SELECT s.sku, s.stav
-  FROM inventura_stavy s
-  WHERE s.inventura_id = (
-    SELECT id FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1
-  )
-) snap ON snap.sku = p.sku
-LEFT JOIN (
-  SELECT sku, SUM(mnozstvi) AS qty
-  FROM polozky_pohyby
-  WHERE (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1) IS NULL
-     OR datum > (SELECT closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1)
-  GROUP BY sku
-) mov ON mov.sku = p.sku
-LEFT JOIN (
-  SELECT sku, SUM(mnozstvi) AS qty
-  FROM rezervace
-  WHERE platna_do >= CURDATE()
-  GROUP BY sku
-) rez ON rez.sku = p.sku
-WHERE p.aktivni = 1
-  AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
-  AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
-  AND (:has_typ = 0 OR p.typ IN (%typ%))
-  AND (:has_sku = 0 OR p.sku IN (%sku%))
-GROUP BY serie_key, serie_label, znacka, skupina, typ
-HAVING SUM(
-      COALESCE(snap.stav, 0)
-      + COALESCE(mov.qty, 0)
-      - COALESCE(rez.qty, 0)
-  ) <> 0
+  MAX(stav_ke_dni) AS stav_ke_dni,
+  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END AS serie_label,
+  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END AS serie_key,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END AS znacka,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END AS skupina,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END AS typ,
+  ROUND(SUM(hodnota_czk), 0) AS hodnota_czk
+FROM base
+GROUP BY
+  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END,
+  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END
+HAVING SUM(stav_kusy) <> 0
 ORDER BY serie_label
 ",
-                'params' => [
+'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
@@ -919,6 +937,8 @@ ORDER BY serie_label
         $params['has_skupina'] = !empty($params['skupina_id']) ? 1 : 0;
         $params['has_typ'] = !empty($params['typ']) ? 1 : 0;
         $params['has_sku'] = !empty($params['sku']) ? 1 : 0;
+        // pokud nejsou zvoleny žádné filtry, agregujeme vše do jednoho řádku
+        $params['aggregate_all'] = ($params['has_znacka'] === 0 && $params['has_skupina'] === 0 && $params['has_typ'] === 0 && $params['has_sku'] === 0) ? 1 : 0;
         // doplň labely pro stock template
         if (!empty($template['params'])) {
             $params['znacka_label'] = $this->selectionLabel($template['params'], 'znacka_id', $params['znacka_id'] ?? []);
