@@ -889,16 +889,21 @@ final class ProductsController
 
         $pdo = DB::pdo();
 
-        $stmt = $pdo->prepare("UPDATE produkty SET {$field}=? WHERE sku=?");
-        $stmt->execute([$normalized, $sku]);
-        if ($stmt->rowCount() === 0) {
-            // Pokud se hodnota nezměnila, rowCount může být 0; ověř existenci SKU
-            $exists = $pdo->prepare('SELECT 1 FROM produkty WHERE sku=? LIMIT 1');
-            $exists->execute([$sku]);
-            if ($exists->fetchColumn() === false) {
-                echo json_encode(['ok'=>false,'error'=>'Produkt nenalezen.']);
-                return;
+        try {
+            $stmt = $pdo->prepare("UPDATE produkty SET {$field}=? WHERE sku=?");
+            $stmt->execute([$normalized, $sku]);
+            if ($stmt->rowCount() === 0) {
+                // Pokud se hodnota nezměnila, rowCount může být 0; ověř existenci SKU
+                $exists = $pdo->prepare('SELECT 1 FROM produkty WHERE sku=? LIMIT 1');
+                $exists->execute([$sku]);
+                if ($exists->fetchColumn() === false) {
+                    echo json_encode(['ok'=>false,'error'=>'Produkt nenalezen.']);
+                    return;
+                }
             }
+        } catch (\Throwable $e) {
+            echo json_encode(['ok'=>false,'error'=>'Chyba při ukládání: '.$e->getMessage()]);
+            return;
         }
 
         $response = ['ok' => true];
@@ -1123,7 +1128,7 @@ final class ProductsController
 
             }
 
-            echo json_encode(['ok'=>false,'error'=>'NepodaĹ™ilo se uloĹľit vazbu.']);
+            echo json_encode(['ok'=>false,'error'=>'Nepodarilo se ulozit vazbu: '.$e->getMessage()]);
 
         }
 
