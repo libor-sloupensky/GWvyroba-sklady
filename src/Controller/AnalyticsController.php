@@ -677,8 +677,15 @@ ORDER BY mesic, serie_label
             'stock_value_by_month' => [
                 'title' => 'Sklady',
                 'description' => 'Aktuální skladová hodnota = Dostupné * skl_hodnota; filtr značky, skupiny a typu.',
-                'sql' => "
-WITH base AS (
+                'sql' => "SELECT
+  MAX(stav_ke_dni) AS stav_ke_dni,
+  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END AS serie_label,
+  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END AS serie_key,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END AS znacka,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END AS skupina,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END AS typ,
+  ROUND(SUM(hodnota_czk), 0) AS hodnota_czk
+FROM (
   SELECT
     CURDATE() AS stav_ke_dni,
     CASE 
@@ -733,16 +740,7 @@ WITH base AS (
     AND (:has_typ = 0 OR p.typ IN (%typ%))
     AND (:has_sku = 0 OR p.sku IN (%sku%))
   GROUP BY serie_key, serie_label, znacka, skupina, typ
-)
-SELECT
-  MAX(stav_ke_dni) AS stav_ke_dni,
-  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END AS serie_label,
-  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END AS serie_key,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END AS znacka,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END AS skupina,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END AS typ,
-  ROUND(SUM(hodnota_czk), 0) AS hodnota_czk
-FROM base
+) base
 GROUP BY
   CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END,
   CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END,
@@ -750,8 +748,7 @@ GROUP BY
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END
 HAVING SUM(stav_kusy) <> 0
-ORDER BY serie_label
-",
+ORDER BY serie_label",
 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
