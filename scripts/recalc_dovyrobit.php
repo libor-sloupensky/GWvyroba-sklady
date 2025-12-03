@@ -6,6 +6,7 @@ require __DIR__ . '/../src/bootstrap.php';
 use App\Support\DB;
 use App\Service\StockService;
 
+// noop: placeholder to mark last review
 $embedRun = $GLOBALS['__RUN_RECALC_INLINE'] ?? false;
 
 if (php_sapi_name() !== 'cli') {
