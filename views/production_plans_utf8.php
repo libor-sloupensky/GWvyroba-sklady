@@ -1314,7 +1314,7 @@
       const qty = parseFloat((qtyField.value || ').replace(',', '.'));
 
 
-      if (!qty || qty <= 0) {
+      if (!qty || qty === 0) {
 
 
         alert('Zadejte mnoA"ďż˝.A"ďż˝lstvA"ďż˝?sA,Â­ vA"ďż˝?sA<LAroby.');

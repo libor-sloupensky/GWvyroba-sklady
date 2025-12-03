@@ -242,7 +242,10 @@ final class ProductionController
         $meta = $metaStmt->fetch();
 
         $isStockCorrection = ($mode === 'korekce_skladu');
-        $qtyInvalid = $isStockCorrection ? ($qty == 0.0) : ($qty <= 0.0);
+        $allowNegativeProduction = in_array($mode, ['odecti_subpotomky', 'korekce'], true);
+        $qtyInvalid = $isStockCorrection
+            ? ($qty == 0.0)
+            : ($allowNegativeProduction ? ($qty == 0.0) : ($qty <= 0.0));
 
         if ($sku === '' || $qtyInvalid || empty($meta)) {
 
@@ -275,7 +278,7 @@ final class ProductionController
             return;
 
         }
-        if ($sku === '' || $qty <= 0) {
+        if ($sku === '' || $qty == 0.0) {
 
             $this->redirect($returnUrl ?: '/production/plans');
 

@@ -115,7 +115,6 @@ while ($queue) {
     $metaRow = $meta[$sku] ?? ['is_nonstock' => false];
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0); // stock - reservations
-    $available = (float)($st['available'] ?? 0.0); // stock - reservations
     $isRootNode = in_array($sku, $roots, true);
     $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
 
@@ -148,12 +147,9 @@ foreach ($incomingSum as $sku => $inc) {
     $isNonstock = (bool)($metaRow['is_nonstock'] ?? false);
     $available = (float)($st['available'] ?? 0.0);
     $isRootNode = in_array($sku, $roots, true);
-    $available = (float)($st['available'] ?? 0.0);
-    $isRootNode = in_array($sku, $roots, true);
     $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
     $incoming = max(0.0, (float)$inc);
     $totalDemand = $incoming + $baseTarget;
-    $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
     $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
     $updateRows[$sku] = $needHere;
 }

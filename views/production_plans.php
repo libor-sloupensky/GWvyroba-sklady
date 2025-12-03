@@ -2966,13 +2966,13 @@
 
 
 
-      if (qty <= 0) {
+      if (qty === 0) {
 
 
 
 
 
-        alert('Zadejte mno?stv? v?roby.');
+        alert('Zadejte nenulov? mno?stv? v?roby.');
 
 
 
