@@ -680,12 +680,10 @@ ORDER BY mesic, serie_label
                 'sql' => "
 SELECT
   m.month_end AS stav_ke_dni,
-  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE 'all' END AS serie_label,
-  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE 'all' END AS serie_key,
-  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END AS serie_label,
-  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END AS serie_key,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END AS znacka,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END AS skupina,
+  'Vse' AS serie_label,
+  'all' AS serie_key,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(zn.nazev, 'bez znacky') END AS znacka,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(sg.nazev, 'bez skupiny') END AS skupina,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END AS typ,
   ROUND(SUM(p.skl_hodnota * (
     COALESCE(snap.stav, 0)
@@ -762,10 +760,10 @@ WHERE (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_sku = 0 OR p.sku IN (%sku%))
 GROUP BY
   m.month_end,
-  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END,
-  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE skupina END,
+  'all',
+  'Vse',
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(zn.nazev, 'bez znacky') END,
+  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(sg.nazev, 'bez skupiny') END,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END
 HAVING SUM((
     COALESCE(snap.stav, 0)
@@ -784,7 +782,7 @@ HAVING SUM((
     ), 0)
   )) <> 0
 ORDER BY m.month_end, serie_label
-", 
+",
 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
