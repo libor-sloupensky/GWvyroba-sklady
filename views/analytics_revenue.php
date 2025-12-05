@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /** @var string $title */
 /** @var array $templates */
 /** @var array $favoritesV2 */
@@ -423,6 +423,24 @@
     return colors[i % colors.length];
   }
 
+  async function toJsonSafe(res) {
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) {
+      const snippet = text ? text.slice(0, 200) : '(prázdná odpověď)';
+      throw new Error('Neplatná JSON odpověď: ' + snippet);
+    }
+    if (!res.ok) {
+      const message = (data && data.error) ? data.error : (text || HTTP );
+      throw new Error(message);
+    }
+    if (!data) {
+      const snippet = text ? text.slice(0, 200) : '(prázdná odpověď)';
+      throw new Error('Neplatná odpověď: ' + snippet);
+    }
+    return data;
+  }
+
   async function runQuery() {
     errorBox.style.display = 'none';
     const tplId = selectTpl.value;
@@ -431,7 +449,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: tplId, params: toParams() })
     });
-    const data = await res.json();
+    const data = await toJsonSafe(res);
     if (!data.ok) throw new Error(data.error || 'Dotaz selhal.');
     state.lastRows = data.rows || [];
     renderChart(state.lastRows);
@@ -478,7 +496,7 @@
         const params = new URLSearchParams();
         contactIds.forEach(id => params.append('ids[]', id));
         const res = await fetch('/analytics/contacts/by-id?' + params.toString());
-        const data = await res.json();
+        const data = await toJsonSafe(res);
         if (data.ok) {
           state.contacts = data.items || [];
           renderChips();
@@ -501,7 +519,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
     });
-    const data = await res.json();
+    const data = await toJsonSafe(res);
     if (data.ok) {
       state.favorites = data.favorites || { mine: [], shared: [] };
       renderFavorites();
@@ -524,7 +542,7 @@
         is_public: favPublic.checked ? 1 : 0,
       }),
     });
-    const data = await res.json();
+    const data = await toJsonSafe(res);
     if (!data.ok) {
       alert(data.error || 'Uložení selhalo.');
       return;
@@ -535,7 +553,7 @@
 
   async function refreshFavorites() {
     const res = await fetch('/analytics/favorite/list');
-    const data = await res.json();
+    const data = await toJsonSafe(res);
     if (data.ok) {
       state.favorites = data.favorites || { mine: [], shared: [] };
       renderFavorites();
@@ -570,7 +588,7 @@
     }
     suggestTimeout = setTimeout(async () => {
       const res = await fetch('/analytics/contacts?q=' + encodeURIComponent(q));
-      const data = await res.json();
+      const data = await toJsonSafe(res);
       const items = data.items || [];
       contactDropdown.innerHTML = '';
       if (!items.length) {
