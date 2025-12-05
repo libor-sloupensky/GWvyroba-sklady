@@ -2192,7 +2192,7 @@
 
 
 
-        <?php $computedTarget = (float)($item['dovyrobit'] ?? 0) + (float)($item['available'] ?? 0); ?>
+        <?php $computedTarget = (float)($item['dovyrobit'] ?? 0) + (float)($item['available'] ?? 0); // noop calc ?>
         <td class="qty-cell"><?= $formatQty($computedTarget, 0) ?></td>
 
 
