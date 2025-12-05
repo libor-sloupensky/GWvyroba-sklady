@@ -350,7 +350,7 @@ final class ProductionController
 
         $qty = (float)($data['mnozstvi'] ?? 0);
 
-        if ($sku === '' || $qty <= 0) {
+        if ($sku === '' || $qty == 0.0) {
 
             echo json_encode(['ok'=>false,'error'=>'Zadejte platnĂ© SKU i mnoĹľstvĂ­.']);
 
