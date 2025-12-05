@@ -680,6 +680,8 @@ ORDER BY mesic, serie_label
                 'sql' => "
 SELECT
   m.month_end AS stav_ke_dni,
+  CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE 'all' END AS serie_label,
+  CASE WHEN :aggregate_all = 1 THEN 'all' ELSE 'all' END AS serie_key,
   CASE WHEN :aggregate_all = 1 THEN 'Vse' ELSE serie_label END AS serie_label,
   CASE WHEN :aggregate_all = 1 THEN 'all' ELSE serie_key END AS serie_key,
   CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE znacka END AS znacka,
