@@ -431,7 +431,7 @@
       throw new Error('Neplatná JSON odpověď: ' + snippet);
     }
     if (!res.ok) {
-      const message = (data && data.error) ? data.error : (text || HTTP );
+      const message = (data && data.error) ? data.error : (text || `HTTP ${res.status}`);
       throw new Error(message);
     }
     if (!data) {
