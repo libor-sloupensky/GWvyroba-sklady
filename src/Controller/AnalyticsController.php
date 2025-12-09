@@ -10,6 +10,7 @@ final class AnalyticsController
 {
     // No-op change to trigger deployment; logic unchanged.
     // Another no-op touch.
+    // Small no-op tweak to force refresh.
 
     // PoznĂˇmka: Tipy a aliasy nĂ­Ĺľe se odvozujĂ­ od aktuĂˇlnĂ­ho schĂ©matu DB, proto udrĹľuj aktualizovanĂ© pokyny, pokud se DB mÄ›nĂ­.
     public function revenue(): void
@@ -1093,5 +1094,4 @@ ORDER BY m.month_end, serie_label
         $stmt->execute([$userId, $title, $prompt, $isPublic ? 1 : 0]);
     }
 }
-
 
