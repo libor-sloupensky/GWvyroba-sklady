@@ -191,7 +191,7 @@ final class AnalyticsController
         $payload = $this->collectJson();
         $id = (int)($payload['id'] ?? 0);
         if ($id <= 0) {
-            echo json_encode(['ok' => false, 'error' => 'NeplatnĂ© ID.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => false, 'error' => 'Neplatné ID.'], JSON_UNESCAPED_UNICODE);
             return;
         }
         $userId = $this->currentUserId();
@@ -232,7 +232,7 @@ final class AnalyticsController
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             return $rows ?: [];
         } catch (\Throwable $e) {
-            // PĹ™idĂˇme SQL do hlĂˇĹˇky, aby bylo vidÄ›t, co spadlo (pomĹŻĹľe s ladÄ›nĂ­m GROUP BY/HAVING).
+            // Přidáme SQL do hlášky, aby bylo vidět, co spadlo (pomůže s laděním GROUP BY/HAVING).
             throw new \RuntimeException($e->getMessage() . ' | SQL: ' . $sql, 0, $e);
         }
     }
@@ -256,12 +256,12 @@ final class AnalyticsController
     {
         $clean = strtolower(preg_replace('/\s+/', ' ', $sql));
         if (!preg_match('/^select\s+/i', $sql) || str_contains($sql, ';')) {
-            throw new \RuntimeException('Povoleny jsou jen dotazy SELECT bez stĹ™ednĂ­kĹŻ.');
+            throw new \RuntimeException('Povoleny jsou jen dotazy SELECT bez středníků.');
         }
         $blocked = [' insert ', ' update ', ' delete ', ' drop ', ' alter ', ' truncate ', ' create ', ' into ', ' outfile ', ' infile ', ' grant ', ' revoke '];
         foreach ($blocked as $word) {
             if (str_contains($clean, $word)) {
-                throw new \RuntimeException('Dotaz musĂ­ bĂ˝t pouze SELECT nad reportovacĂ­mi daty.');
+                throw new \RuntimeException('Dotaz musí být pouze SELECT nad reportovacími daty.');
             }
         }
     }
@@ -339,7 +339,7 @@ PROMPT;
         }
         $json = json_decode($result, true);
         if (!is_array($json) || empty($json['choices'][0]['message']['content'])) {
-            throw new \RuntimeException('NeplatnĂˇ odpovÄ›ÄŹ OpenAI');
+            throw new \RuntimeException('Neplatná odpověď OpenAI');
         }
         return (string)$json['choices'][0]['message']['content'];
     }
@@ -347,11 +347,11 @@ PROMPT;
     private function openAiStatus(): array
     {
         $key = $this->resolveOpenAiKey();
-        // JednoduchĂ˝ health check, jen ovÄ›Ĺ™ujeme, Ĺľe klĂ­ÄŤ existuje
+        // Jednoduchý health check, jen ověřujeme, že klíč existuje
         if ($key === '') {
             return [
                 'ready' => false,
-                'message' => 'ChybĂ­ promÄ›nnĂˇ OPENAI_API_KEY â€“ poĹľĂˇdejte sprĂˇvce hostingu o doplnÄ›nĂ­.',
+                'message' => 'Chybí proměnná OPENAI_API_KEY – požádejte správce hostingu o doplnění.',
             ];
         }
         return [
@@ -362,7 +362,7 @@ PROMPT;
 
     private function sanitizeSql(string $sql): string
     {
-        // Odebereme koncovĂ© stĹ™ednĂ­ky a whitespace, internĂ­ stĹ™ednĂ­ky dĂˇl blokuje validateSqlIsSafe
+        // Odebereme koncové středníky a whitespace, interní středníky dál blokuje validateSqlIsSafe
         return rtrim($sql, " \r\n\t;");
     }
 
@@ -419,8 +419,8 @@ PROMPT;
         if (!in_array($role, $allowed, true)) {
             http_response_code(403);
             $this->render('forbidden.php', [
-                'title' => 'PĹ™Ă­stup odepĹ™en',
-                'message' => 'NemĂˇte oprĂˇvnÄ›nĂ­ pro AnalĂ˝zu.',
+                'title' => 'Přístup odepřen',
+                'message' => 'Nemáte oprávnění pro Analýzu.',
             ]);
             exit;
         }
@@ -454,7 +454,7 @@ PROMPT;
 
         $templates = $this->loadTemplatesV2();
         if (!isset($templates[$templateId])) {
-            echo json_encode(['ok' => false, 'error' => 'NeznĂˇmĂˇ Ĺˇablona.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => false, 'error' => 'Neznámá šablona.'], JSON_UNESCAPED_UNICODE);
             return;
         }
         $template = $templates[$templateId];
@@ -493,13 +493,13 @@ PROMPT;
         $isPublic = (bool)($payload['is_public'] ?? true);
 
         if ($title === '') {
-            echo json_encode(['ok' => false, 'error' => 'NĂˇzev je povinnĂ˝.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => false, 'error' => 'Název je povinný.'], JSON_UNESCAPED_UNICODE);
             return;
         }
 
         $templates = $this->loadTemplatesV2();
         if (!isset($templates[$templateId])) {
-            echo json_encode(['ok' => false, 'error' => 'NeznĂˇmĂˇ Ĺˇablona.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => false, 'error' => 'Neznámá šablona.'], JSON_UNESCAPED_UNICODE);
             return;
         }
         [$validated, $errors] = $this->validateTemplateParams($templates[$templateId], $params);
@@ -524,7 +524,7 @@ PROMPT;
         $payload = $this->collectJson();
         $id = (int)($payload['id'] ?? 0);
         if ($id <= 0) {
-            echo json_encode(['ok' => false, 'error' => 'ChybĂ­ ID.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => false, 'error' => 'Chybí ID.'], JSON_UNESCAPED_UNICODE);
             return;
         }
         $userId = $this->currentUserId();
@@ -561,7 +561,7 @@ PROMPT;
                 $parts[] = $r['firma'];
             }
             if (!empty($r['ic'])) {
-                $parts[] = 'IÄŚ ' . $r['ic'];
+                $parts[] = 'IČ ' . $r['ic'];
             }
             if (!empty($r['email'])) {
                 $parts[] = $r['email'];
@@ -571,7 +571,7 @@ PROMPT;
             }
             return [
                 'id' => (int)$r['id'],
-                'label' => trim(implode(' â€˘ ', $parts)),
+                'label' => trim(implode(' • ', $parts)),
             ];
         }, $rows ?: []);
         echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
@@ -606,14 +606,14 @@ PROMPT;
                 $parts[] = $r['firma'];
             }
             if (!empty($r['ic'])) {
-                $parts[] = 'IÄŚ ' . $r['ic'];
+                $parts[] = 'IČ ' . $r['ic'];
             }
             if (!empty($r['email'])) {
                 $parts[] = $r['email'];
             }
             return [
                 'id' => (int)$r['id'],
-                'label' => trim(implode(' â€˘ ', $parts)),
+                'label' => trim(implode(' • ', $parts)),
             ];
         }, $rows ?: []);
         echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
@@ -627,7 +627,7 @@ PROMPT;
         $defaultStart = (new \DateTimeImmutable('-18 months'))->format('Y-m-d');
         $defaultEnd = (new \DateTimeImmutable('today'))->format('Y-m-d');
         $eshops = [
-            'vsechny', // explicit volba pro souÄŤet vĹˇech kanĂˇlĹŻ
+            'vsechny', // explicit volba pro součet všech kanálů
             'b2b.wormup.com',
             'gogrig.com',
             'grig.cz',
@@ -641,8 +641,8 @@ PROMPT;
 
         return [
             'monthly_revenue_by_ic' => [
-                'title' => 'MÄ›sĂ­ÄŤnĂ­ trĹľby',
-                'description' => 'SouÄŤet trĹľeb bez DPH podle DUZP po mÄ›sĂ­cĂ­ch; filtry kontakt (IÄŚ/e-mail/firma) a kanĂˇl.',
+                'title' => 'Měsíční tržby',
+                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál.',
                 'sql' => "
 SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS mesic,
        CASE
@@ -680,7 +680,7 @@ ORDER BY mesic, serie_label
             ],
             'stock_value_by_month' => [
                 'title' => 'Sklady',
-                'description' => 'AktuĂˇlnĂ­ skladovĂˇ hodnota = DostupnĂ© * skl_hodnota; filtr znaÄŤky, skupiny a typu.',
+                'description' => 'Aktuální skladová hodnota = Dostupné * skl_hodnota; filtr značky, skupiny a typu.',
                 'sql' => "
 SELECT
   m.month_end AS stav_ke_dni,
@@ -790,7 +790,7 @@ ORDER BY m.month_end, serie_label
 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'znacka_id', 'label' => 'ZnaÄŤka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
+                    ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
                     ['name' => 'sku', 'label' => 'SKU', 'type' => 'string_multi', 'required' => false, 'default' => []],
@@ -816,14 +816,14 @@ ORDER BY m.month_end, serie_label
             $default = $param['default'] ?? null;
             $raw = $input[$name] ?? $default;
             if ($raw === null && $required) {
-                $errors[] = "ChybĂ­ parametr {$name}.";
+                $errors[] = "Chybí parametr {$name}.";
                 continue;
             }
             switch ($type) {
                 case 'date':
                     $val = trim((string)$raw);
                     if ($val === '') {
-                        $errors[] = "ChybĂ­ datum {$name}.";
+                        $errors[] = "Chybí datum {$name}.";
                         break;
                     }
                     $validated[$name] = $val;
@@ -839,7 +839,7 @@ ORDER BY m.month_end, serie_label
                     $val = trim((string)$raw);
                     $allowed = (array)($param['values'] ?? []);
                     if ($val !== '' && !in_array($val, $allowed, true)) {
-                        $errors[] = "NeplatnĂˇ hodnota pro {$name}.";
+                        $errors[] = "Neplatná hodnota pro {$name}.";
                     }
                     $validated[$name] = $val;
                     break;
@@ -862,7 +862,7 @@ ORDER BY m.month_end, serie_label
                             continue;
                         }
                         if (!in_array($v, $allowedValues, true)) {
-                            $errors[] = "NeplatnĂˇ hodnota pro {$name}.";
+                            $errors[] = "Neplatná hodnota pro {$name}.";
                             continue;
                         }
                         $filtered[] = $v;
@@ -908,7 +908,7 @@ ORDER BY m.month_end, serie_label
     }
 
     /**
-     * Pokud jsou parametry pole, nahradĂ­ placeholdery %name% za jednotlivĂ© bindy (params jsou by-ref).
+     * Pokud jsou parametry pole, nahradí placeholdery %name% za jednotlivé bindy (params jsou by-ref).
      * @param array<string,mixed> $params
      */
     private function expandArrayParams(string $sql, array &$params): string
@@ -940,24 +940,24 @@ ORDER BY m.month_end, serie_label
     }
 
     /**
-     * DoplnĂ­ booleovskĂ© pĹ™Ă­znaky podle pole parametrĹŻ.
+     * Doplní booleovské příznaky podle pole parametrů.
      * @param array<string,mixed> $params
      * @return array<string,mixed>
      */
     private function hydrateFlagsForTemplate(array $params, array $template = []): array
     {
-        // "vsechny" znamenĂˇ neomezovat kanĂˇl -> chovej se jako prĂˇzdnĂ˝ vĂ˝bÄ›r
+        // "vsechny" znamená neomezovat kanál -> chovej se jako prázdný výběr
         if (isset($params['eshop_source']) && is_array($params['eshop_source'])) {
             $params['eshop_source'] = array_values(array_filter($params['eshop_source'], static function ($v) {
                 $v = strtolower((string)$v);
-                return $v !== 'vsechny' && $v !== 'vĹˇechny';
+                return $v !== 'vsechny' && $v !== 'všechny';
             }));
         }
         foreach (['znacka_id', 'skupina_id', 'typ'] as $key) {
             if (isset($params[$key]) && is_array($params[$key])) {
                 $params[$key] = array_values(array_filter($params[$key], static function ($v) {
                     $v = strtolower((string)$v);
-                    return $v !== 'vse' && $v !== 'vĹˇe';
+                    return $v !== 'vse' && $v !== 'vše';
                 }));
             }
         }
@@ -972,9 +972,9 @@ ORDER BY m.month_end, serie_label
         $params['has_skupina'] = !empty($params['skupina_id']) ? 1 : 0;
         $params['has_typ'] = !empty($params['typ']) ? 1 : 0;
         $params['has_sku'] = !empty($params['sku']) ? 1 : 0;
-        // pokud nejsou zvoleny ĹľĂˇdnĂ© filtry, agregujeme vĹˇe do jednoho Ĺ™Ăˇdku
+        // pokud nejsou zvoleny žádné filtry, agregujeme vše do jednoho řádku
         $params['aggregate_all'] = ($params['has_znacka'] === 0 && $params['has_skupina'] === 0 && $params['has_typ'] === 0 && $params['has_sku'] === 0) ? 1 : 0;
-        // doplĹ labely pro stock template
+        // doplň labely pro stock template
         if (!empty($template['params'])) {
             $params['znacka_label'] = $this->selectionLabel($template['params'], 'znacka_id', $params['znacka_id'] ?? []);
             $params['skupina_label'] = $this->selectionLabel($template['params'], 'skupina_id', $params['skupina_id'] ?? []);
@@ -992,7 +992,7 @@ ORDER BY m.month_end, serie_label
         $selected = is_array($selected) ? $selected : [$selected];
         $selected = array_filter(array_map('strval', $selected));
         if (empty($selected)) {
-            return 'vĹˇe';
+            return 'vše';
         }
         $map = [];
         foreach ($paramsDef as $def) {
@@ -1010,7 +1010,7 @@ ORDER BY m.month_end, serie_label
         $labels = [];
         foreach ($selected as $val) {
             if ($val === 'vse') {
-                return 'vĹˇe';
+                return 'vše';
             }
             $labels[] = $map[$val] ?? $val;
         }
@@ -1064,7 +1064,7 @@ ORDER BY m.month_end, serie_label
     {
         $stmt = DB::pdo()->query('SELECT DISTINCT typ FROM produkty WHERE typ IS NOT NULL AND typ <> "" ORDER BY typ');
         $types = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
-        array_unshift($types, 'vse'); // moĹľnost "vĹˇe"
+        array_unshift($types, 'vse'); // možnost "vše"
         return $types;
     }
 
@@ -1076,7 +1076,7 @@ ORDER BY m.month_end, serie_label
         $stmt = DB::pdo()->query("SELECT {$idCol} AS id, {$labelCol} AS nazev FROM {$table} ORDER BY nazev");
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $out = [];
-        $out[] = ['value' => 'vse', 'label' => 'VĹˇe'];
+        $out[] = ['value' => 'vse', 'label' => 'vše'];
         foreach ($rows as $row) {
             $out[] = [
                 'value' => (string)$row['id'],
