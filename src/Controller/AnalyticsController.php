@@ -12,14 +12,14 @@ final class AnalyticsController
     // Another no-op touch.
     // Small no-op tweak to force refresh.
 
-    // PoznĂˇmka: Tipy a aliasy nĂ­Ĺľe se odvozujĂ­ od aktuĂˇlnĂ­ho schĂ©matu DB, proto udrĹľuj aktualizovanĂ© pokyny, pokud se DB mÄ›nĂ­.
+    // Poznámka: Tipy a aliasy níže se odvozují od aktuálního schématu DB, proto udržuj aktualizované pokyny, pokud se DB mění.
     public function revenue(): void
     {
         $this->requireRole(['admin', 'superadmin']);
         $templates = $this->loadTemplatesV2();
         $favoritesV2 = $this->loadFavoritesV2();
         $this->render('analytics_revenue.php', [
-            'title' => 'AnalĂ˝za',
+            'title' => 'Analýza',
             'templates' => $templates,
             'favoritesV2' => $favoritesV2,
         ]);
@@ -36,13 +36,13 @@ final class AnalyticsController
         $saveFavorite = !empty($payload['saveFavorite']);
 
         if ($prompt === '') {
-            $this->jsonError('Zadejte prosĂ­m prompt.');
+            $this->jsonError('Zadejte prosím prompt.');
             return;
         }
 
         $apiKey = $this->resolveOpenAiKey();
         if ($apiKey === '') {
-            $this->jsonError('ChybĂ­ serverovĂˇ promÄ›nnĂˇ OPENAI_API_KEY.');
+            $this->jsonError('Chybí serverová proměnná OPENAI_API_KEY.');
             return;
         }
 
@@ -63,13 +63,13 @@ final class AnalyticsController
         try {
             $aiResponse = $this->callOpenAi($apiKey, $requestBody);
         } catch (\Throwable $e) {
-            $this->jsonError('OpenAI API nenĂ­ dostupnĂ©: ' . $e->getMessage());
+            $this->jsonError('OpenAI API není dostupné: ' . $e->getMessage());
             return;
         }
 
         $plan = $this->parseAiPlan($aiResponse);
         if ($plan === null) {
-            $this->jsonError('AI vrĂˇtila neoÄŤekĂˇvanĂ˝ vĂ˝stup.');
+            $this->jsonError('AI vrátila neočekávaný výstup.');
             return;
         }
 
@@ -85,12 +85,12 @@ final class AnalyticsController
             } catch (\Throwable $e) {
                 $message = $e->getMessage();
                 $missingCol = $schema->extractMissingColumn($message);
-                if ($missingCol) {
-                    $suggest = $schema->suggestColumns($missingCol, $tables);
-                    if (!empty($suggest)) {
-                        $message = "NeznĂˇmĂ˝ sloupec '{$missingCol}'. Zkuste: " . implode(', ', $suggest);
+                    if ($missingCol) {
+                        $suggest = $schema->suggestColumns($missingCol, $tables);
+                        if (!empty($suggest)) {
+                            $message = "Neznámý sloupec '{$missingCol}'. Zkuste: " . implode(', ', $suggest);
+                        }
                     }
-                }
                 $renderedOutputs[] = [
                     'type' => 'error',
                     'title' => $output['title'] ?? 'Dotaz nelze spustit',
@@ -169,7 +169,7 @@ final class AnalyticsController
         $title = trim((string)($payload['title'] ?? ''));
         $prompt = trim((string)($payload['prompt'] ?? ''));
         if ($title === '' || $prompt === '') {
-            echo json_encode(['ok' => false, 'error' => 'NĂˇzev i text promptu jsou povinnĂ©.'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['ok' => false, 'error' => 'N?zev i text promptu jsou povinn?.'], JSON_UNESCAPED_UNICODE);
             return;
         }
         $this->saveFavorite($title, $prompt);
@@ -438,7 +438,7 @@ PROMPT;
         $templates = $this->loadTemplatesV2();
         $favoritesV2 = $this->loadFavoritesV2();
         $this->render('analytics_revenue.php', [
-            'title' => 'AnalĂ˝za',
+            'title' => 'Analýza',
             'templates' => $templates,
             'favoritesV2' => $favoritesV2,
         ]);
@@ -1094,4 +1094,3 @@ ORDER BY m.month_end, serie_label
         $stmt->execute([$userId, $title, $prompt, $isPublic ? 1 : 0]);
     }
 }
-
