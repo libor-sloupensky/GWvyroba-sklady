@@ -127,6 +127,20 @@ try {
         ['currencyId' => 9, 'label' => 'eur'],
     ];
     $importCtrl = new ImportController();
+    // cookies a tokeny pro export
+    $exportCookieHeader = "";
+    if (preg_match_all("/^set-cookie:\s*([^;]+)/im", $loginPage['headers'] . "\n" . $exportPage['headers'], $m)) {
+        $pairs = [];
+        foreach ($m[1] as $cookie) {
+            $parts = explode("=", $cookie, 2);
+            if (count($parts) === 2) {
+                $pairs[] = trim($parts[0]) . "=" . trim($parts[1]);
+            }
+        }
+        if (!empty($pairs)) {
+            $exportCookieHeader = implode("; ", array_unique($pairs));
+        }
+    }
     foreach ($imports as $imp) {
         $label = $imp['label'];
         $body = [
@@ -138,6 +152,7 @@ try {
             'format' => 'xml.stormware.cz',
             'linkProformaInvoicesInit' => '',
             '__csrf__' => $exportCsrf,
+            'buttonAction' => 'export',
         ];
         $exportHeaders = [
             'Content-Type: application/x-www-form-urlencoded',
@@ -145,6 +160,9 @@ try {
             'Origin: ' . $baseUrl,
             'Referer: ' . $exportUrl,
         ];
+        if ($exportCookieHeader !== '') {
+            $exportHeaders[] = 'Cookie: ' . $exportCookieHeader;
+        }
         logLine("Stahuji export {$label} {$from} - {$to}");
         $exportResp = httpRequest($exportUrl, 'POST', $body, $exportHeaders, $cookieFile);
         if ($exportResp['status'] >= 400) {
