@@ -116,6 +116,10 @@ try {
         $snippet = substr(trim($loginResp['body']), 0, 400);
         throw new RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status'] . ' Snippet: ' . $snippet);
     }
+    // načti export stránku a vytáhni aktuální CSRF pro export
+    $exportPage = httpRequest($exportUrl, 'GET', null, [], $cookieFile);
+    $exportCsrf = extractCsrf($exportPage['body']) ?? $csrf;
+
     $from = ensureDate('yesterday');
     $to = ensureDate('today');
     $imports = [
@@ -133,10 +137,13 @@ try {
             'currencyId' => $imp['currencyId'],
             'format' => 'xml.stormware.cz',
             'linkProformaInvoicesInit' => '',
+            '__csrf__' => $exportCsrf,
         ];
         $exportHeaders = [
             'Content-Type: application/x-www-form-urlencoded',
-            'X-Csrf-Token: ' . $csrf,
+            'X-Csrf-Token: ' . $exportCsrf,
+            'Origin: ' . $baseUrl,
+            'Referer: ' . $exportUrl,
         ];
         logLine("Stahuji export {$label} {$from} - {$to}");
         $exportResp = httpRequest($exportUrl, 'POST', $body, $exportHeaders, $cookieFile);
