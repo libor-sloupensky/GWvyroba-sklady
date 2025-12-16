@@ -11,7 +11,7 @@ use App\Controller\ImportController;
 
 session_start();
 
-$baseUrl   = 'https://www.wormup.com';
+$baseUrl   = 'https://gworm.wormup.com';
 $loginUrl  = $baseUrl . '/admin/login/';
 $exportUrl = $baseUrl . '/admin/export-faktur/';
 $email     = 'libor@wormup.com';
@@ -102,6 +102,7 @@ try {
     $loginHeaders = [
         'Content-Type: application/x-www-form-urlencoded',
         'X-Csrf-Token: ' . $csrf,
+        'Referer: ' . $loginUrl,
     ];
     $loginResp = httpRequest($loginUrl, 'POST', [
         'action' => 'login',
