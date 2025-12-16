@@ -11,7 +11,7 @@ use App\Controller\ImportController;
 
 session_start();
 
-$baseUrl   = 'https://gworm.wormup.com';
+$baseUrl   = 'https://www.wormup.com';
 $loginUrl  = $baseUrl . '/admin/login/';
 $exportUrl = $baseUrl . '/admin/export-faktur/';
 $email     = 'libor@wormup.com';
