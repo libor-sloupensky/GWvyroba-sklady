@@ -46,7 +46,7 @@ final class ImportController
                 throw new \RuntimeException('XML neobsahuje žádné doklady.');
             }
             $batch = date('YmdHis');
-            [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch);
+            [$docCount, $itemCount, $missingSku, $skipped] = $this->persistInvoices($eshop, $series, $documents, $batch);
             $eshops = $this->loadEshops();
             $outstanding = $this->collectOutstandingMissingSku();
             $displayRows = $this->filterOutstandingRows($outstanding['rows'], 'unmatched');
@@ -61,7 +61,8 @@ final class ImportController
                 'outstandingMissing'=>$this->groupRowsByEshop($displayRows),
                 'outstandingDays'=>$outstanding['days'],
                 'viewMode'=>'unmatched',
-                'viewModes'=>$this->viewModes()
+                'viewModes'=>$this->viewModes(),
+                'skipped'=>$skipped,
             ]);
         } catch (\Throwable $e) {
             $this->renderImportForm(['error'=>$e->getMessage(), 'selectedEshop'=>$eshop]);
@@ -119,7 +120,7 @@ final class ImportController
 
     /**
      * @param array<int,array<string,mixed>> $documents
-     * @return array{0:int,1:int,2:array<int,array<string,string>>}
+     * @return array{0:int,1:int,2:array<int,array<string,string>>,3:array<int,array<string,string>>}
      */
     private function persistInvoices(string $eshop, array $series, array $documents, string $batch): array
     {
@@ -135,11 +136,20 @@ final class ImportController
         $docCount = 0;
         $itemCount = 0;
         $missingSku = [];
+        $skipped = [];
         $pdo->beginTransaction();
         try {
             foreach ($documents as $doc) {
                 $docNumber = (string)$doc['cislo_dokladu'];
-                $this->validateSeriesNumber($series, $docNumber);
+                try {
+                    $this->validateSeriesNumber($series, $docNumber);
+                } catch (\Throwable $e) {
+                    $skipped[] = [
+                        'cislo_dokladu' => $docNumber,
+                        'duvod' => $e->getMessage(),
+                    ];
+                    continue;
+                }
                 $duzp = $this->normalizeDate($doc['duzp'] ?? null);
                 if ($duzp === null) {
                     throw new \RuntimeException("Doklad {$docNumber} nemá platné DUZP.");
@@ -274,7 +284,7 @@ final class ImportController
             $pdo->rollBack();
             throw $e;
         }
-        return [$docCount, $itemCount, $missingSku];
+        return [$docCount, $itemCount, $missingSku, $skipped];
     }
 
     /**

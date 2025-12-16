@@ -13,6 +13,16 @@
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
+<?php if (!empty($skipped ?? [])): ?>
+  <div class="error" style="margin:0.5rem 0;">
+    <strong>Přeskočené doklady:</strong>
+    <ul>
+      <?php foreach ($skipped as $s): ?>
+        <li><?= htmlspecialchars((string)($s['cislo_dokladu'] ?? ''),ENT_QUOTES,'UTF-8') ?> — <?= htmlspecialchars((string)($s['duvod'] ?? ''),ENT_QUOTES,'UTF-8') ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+<?php endif; ?>
 <?php if (!empty($viewModes ?? []) && isset($viewMode)): ?>
   <p class="muted">Zobrazení: <?= htmlspecialchars((string)($viewModes[$viewMode] ?? ''),ENT_QUOTES,'UTF-8') ?></p>
 <?php endif; ?>
