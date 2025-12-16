@@ -7,10 +7,13 @@
 .cell-ignored { background:#fdecea; }
 .summary-ok { color:#2e7d32; font-weight:600; }
 </style>
-<?php $formatQty = static function ($value): string {
+<?php
+$formatQty = static function ($value): string {
     $num = (float)$value;
     return number_format($num, 0, '', '');
-}; ?>
+};
+$currentView = $viewMode ?? 'unmatched';
+?>
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p class="summary-ok"><strong>Importované doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
 <?php if (!empty($skipped ?? [])): ?>
@@ -22,16 +25,6 @@
       <?php endforeach; ?>
     </ul>
   </div>
-<?php endif; ?>
-<?php if (!empty($viewModes ?? [])): ?>
-  <?php $currentView = $viewMode ?? 'unmatched'; ?>
-  <label for="view-select" class="muted">Zobrazení:
-    <select id="view-select" onchange="window.location.href='?view='+encodeURIComponent(this.value);">
-      <?php foreach ($viewModes as $key => $label): ?>
-        <option value="<?= htmlspecialchars((string)$key,ENT_QUOTES,'UTF-8') ?>"<?= $currentView === $key ? ' selected' : '' ?>><?= htmlspecialchars((string)$label,ENT_QUOTES,'UTF-8') ?></option>
-      <?php endforeach; ?>
-    </select>
-  </label>
 <?php endif; ?>
 
 <h2>Nahrát další XML</h2>
@@ -78,7 +71,18 @@
 <?php endif; ?>
 
 <?php if (!empty($outstandingMissing)): ?>
-  <h3>Nespárované položky za posledních <?= (int)($outstandingDays ?? 30) ?> dní</h3>
+  <?php if (!empty($viewModes ?? [])): ?>
+    <div style="margin:0.4rem 0;">
+      <label for="view-select" class="muted">Zobrazení:
+        <select id="view-select" onchange="window.location.href='?view='+encodeURIComponent(this.value);">
+          <?php foreach ($viewModes as $key => $label): ?>
+            <option value="<?= htmlspecialchars((string)$key,ENT_QUOTES,'UTF-8') ?>"<?= $currentView === $key ? ' selected' : '' ?>><?= htmlspecialchars((string)$label,ENT_QUOTES,'UTF-8') ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+    </div>
+  <?php endif; ?>
+  <h3>Nespárované položky za posledních <?= (int)($outstandingDays ?? 30) ?> dnů</h3>
   <?php foreach ($outstandingMissing as $eshopName => $items): if (empty($items)) continue; ?>
     <h4><?= htmlspecialchars((string)$eshopName,ENT_QUOTES,'UTF-8') ?></h4>
     <table>
