@@ -928,6 +928,10 @@ final class ImportController
 
     private function requireAdmin(): void
     {
+        // CLI skripty (cron) mohou importovat bez interaktivního přihlášení
+        if (PHP_SAPI === 'cli') {
+            return;
+        }
         $u = $_SESSION['user'] ?? null;
         if (!$u) {
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '/';
@@ -937,6 +941,32 @@ final class ImportController
         if (!in_array(($u['role'] ?? 'user'), ['admin', 'superadmin'], true)) {
             $this->forbidden('Přístup jen pro administrátory.');
         }
+    }
+
+    /**
+     * Programový import Pohoda XML (pro cron/CLI). Vrací souhrn bez renderu.
+     * @return array<string,mixed>
+     */
+    public function importPohodaFromStringCli(string $eshop, string $xml): array
+    {
+        $eshop = trim($eshop);
+        if ($eshop === '' || !$this->isKnownEshop($eshop)) {
+            throw new \RuntimeException('Zvolte e-shop z nastaveného seznamu.');
+        }
+        $xml = $this->ensureUtf8($xml);
+        $series = $this->loadSeries($eshop);
+        $documents = $this->parsePohodaXml($xml);
+        if (empty($documents)) {
+            throw new \RuntimeException('XML neobsahuje žádné doklady.');
+        }
+        $batch = date('YmdHis');
+        [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch);
+        return [
+            'batch' => $batch,
+            'doklady' => $docCount,
+            'polozky' => $itemCount,
+            'missingSku' => $missingSku,
+        ];
     }
 
     private function render(string $view, array $vars = []): void
