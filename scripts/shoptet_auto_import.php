@@ -99,12 +99,13 @@ try {
     if ($csrf === '') {
         throw new RuntimeException('CSRF token z login stránky nenalezen.');
     }
-$loginHeaders = [
+    $loginHeaders = [
         'Content-Type: application/x-www-form-urlencoded',
         'X-Csrf-Token: ' . $csrf,
         'Referer: ' . $loginUrl,
         'Origin: ' . $baseUrl,
         'Accept-Language: cs,en;q=0.8',
+        'Cookie: shoptetCsrfToken=' . $csrf,
     ];
     $loginResp = httpRequest($loginUrl, 'POST', [
         'action' => 'login',
