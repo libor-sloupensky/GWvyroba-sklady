@@ -99,10 +99,11 @@ try {
     if ($csrf === '') {
         throw new RuntimeException('CSRF token z login stránky nenalezen.');
     }
-    $loginHeaders = [
+$loginHeaders = [
         'Content-Type: application/x-www-form-urlencoded',
         'X-Csrf-Token: ' . $csrf,
         'Referer: ' . $loginUrl,
+        'Accept-Language: cs,en;q=0.8',
     ];
     $loginResp = httpRequest($loginUrl, 'POST', [
         'action' => 'login',
@@ -110,7 +111,8 @@ try {
         'password' => $password,
     ], $loginHeaders, $cookieFile);
     if ($loginResp['status'] >= 400) {
-        throw new RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status']);
+        $snippet = substr(trim($loginResp['body']), 0, 400);
+        throw new RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status'] . ' Snippet: ' . $snippet);
     }
     $from = ensureDate('yesterday');
     $to = ensureDate('today');
