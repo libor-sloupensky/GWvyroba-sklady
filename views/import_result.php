@@ -5,14 +5,14 @@
 .status-note { font-size:12px; color:#607d8b; display:block; }
 .cell-matched { background:#e6f4ea; }
 .cell-ignored { background:#fdecea; }
+.summary-ok { color:#2e7d32; font-weight:600; }
 </style>
 <?php $formatQty = static function ($value): string {
     $num = (float)$value;
     return number_format($num, 0, '', '');
 }; ?>
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
-<p><strong>Batch:</strong> <?= htmlspecialchars((string)($batch ?? ''),ENT_QUOTES,'UTF-8') ?></p>
-<p><strong>Doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
+<p class="summary-ok"><strong>Importované doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
 <?php if (!empty($skipped ?? [])): ?>
   <div class="error" style="margin:0.5rem 0;">
     <strong>Přeskočené doklady:</strong>
@@ -23,8 +23,15 @@
     </ul>
   </div>
 <?php endif; ?>
-<?php if (!empty($viewModes ?? []) && isset($viewMode)): ?>
-  <p class="muted">Zobrazení: <?= htmlspecialchars((string)($viewModes[$viewMode] ?? ''),ENT_QUOTES,'UTF-8') ?></p>
+<?php if (!empty($viewModes ?? [])): ?>
+  <?php $currentView = $viewMode ?? 'unmatched'; ?>
+  <label for="view-select" class="muted">Zobrazení:
+    <select id="view-select" onchange="window.location.href='?view='+encodeURIComponent(this.value);">
+      <?php foreach ($viewModes as $key => $label): ?>
+        <option value="<?= htmlspecialchars((string)$key,ENT_QUOTES,'UTF-8') ?>"<?= $currentView === $key ? ' selected' : '' ?>><?= htmlspecialchars((string)$label,ENT_QUOTES,'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+  </label>
 <?php endif; ?>
 
 <h2>Nahrát další XML</h2>
