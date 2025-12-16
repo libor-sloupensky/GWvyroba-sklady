@@ -110,10 +110,7 @@ try {
         'action' => 'login',
         'email' => $email,
         'password' => $password,
-        'csrf-token' => $csrf,
-        'csrf' => $csrf,
-        'csrfToken' => $csrf,
-        'shoptetCsrfToken' => $csrf,
+        '__csrf__' => $csrf, // dle HAR z prohlížeče
     ], $loginHeaders, $cookieFile);
     if ($loginResp['status'] >= 400) {
         $snippet = substr(trim($loginResp['body']), 0, 400);
