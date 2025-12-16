@@ -103,12 +103,15 @@ $loginHeaders = [
         'Content-Type: application/x-www-form-urlencoded',
         'X-Csrf-Token: ' . $csrf,
         'Referer: ' . $loginUrl,
+        'Origin: ' . $baseUrl,
         'Accept-Language: cs,en;q=0.8',
     ];
     $loginResp = httpRequest($loginUrl, 'POST', [
         'action' => 'login',
         'email' => $email,
         'password' => $password,
+        'csrf-token' => $csrf,
+        'csrf' => $csrf,
     ], $loginHeaders, $cookieFile);
     if ($loginResp['status'] >= 400) {
         $snippet = substr(trim($loginResp['body']), 0, 400);
