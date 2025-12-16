@@ -49,7 +49,8 @@ final class ImportController
             [$docCount, $itemCount, $missingSku, $skipped] = $this->persistInvoices($eshop, $series, $documents, $batch);
             $eshops = $this->loadEshops();
             $outstanding = $this->collectOutstandingMissingSku();
-            $displayRows = $this->filterOutstandingRows($outstanding['rows'], 'unmatched');
+            $viewMode = $this->currentViewMode();
+            $displayRows = $this->filterOutstandingRows($outstanding['rows'], $viewMode);
             $this->render('import_result.php', [
                 'title'=>'Import dokončen',
                 'batch'=>$batch,
@@ -60,7 +61,7 @@ final class ImportController
                 'selectedEshop'=>$eshop,
                 'outstandingMissing'=>$this->groupRowsByEshop($displayRows),
                 'outstandingDays'=>$outstanding['days'],
-                'viewMode'=>'unmatched',
+                'viewMode'=>$viewMode,
                 'viewModes'=>$this->viewModes(),
                 'skipped'=>$skipped,
             ]);

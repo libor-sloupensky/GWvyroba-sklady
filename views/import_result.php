@@ -14,8 +14,8 @@
 <?php if (!empty($notice)): ?><div class="notice"><?= htmlspecialchars((string)$notice,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <p class="summary-ok"><strong>Importované doklady:</strong> <?= (int)($summary['doklady'] ?? 0) ?>, <strong>Položky:</strong> <?= (int)($summary['polozky'] ?? 0) ?></p>
 <?php if (!empty($skipped ?? [])): ?>
-  <div class="error" style="margin:0.5rem 0;">
-    <strong>Přeskočené doklady:</strong>
+  <div class="error" style="margin:0.5rem 0; color:#b71c1c;">
+    <strong>Přeskočené doklady (chyba):</strong>
     <ul>
       <?php foreach ($skipped as $s): ?>
         <li><?= htmlspecialchars((string)($s['cislo_dokladu'] ?? ''),ENT_QUOTES,'UTF-8') ?> — <?= htmlspecialchars((string)($s['duvod'] ?? ''),ENT_QUOTES,'UTF-8') ?></li>
