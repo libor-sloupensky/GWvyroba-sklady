@@ -105,7 +105,6 @@ try {
         'Referer: ' . $loginUrl,
         'Origin: ' . $baseUrl,
         'Accept-Language: cs,en;q=0.8',
-        'Cookie: shoptetCsrfToken=' . $csrf,
     ];
     $loginResp = httpRequest($loginUrl, 'POST', [
         'action' => 'login',
@@ -113,6 +112,8 @@ try {
         'password' => $password,
         'csrf-token' => $csrf,
         'csrf' => $csrf,
+        'csrfToken' => $csrf,
+        'shoptetCsrfToken' => $csrf,
     ], $loginHeaders, $cookieFile);
     if ($loginResp['status'] >= 400) {
         $snippet = substr(trim($loginResp['body']), 0, 400);
