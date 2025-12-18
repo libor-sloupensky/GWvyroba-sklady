@@ -5,8 +5,10 @@ require __DIR__ . '/../src/bootstrap.php';
 
 use App\Controller\ImportController;
 
+$err = defined('STDERR') ? STDERR : fopen('php://stderr', 'w');
+
 if (PHP_SAPI !== 'cli') {
-    fwrite(STDERR, "Pouze pro CLI.\n");
+    fwrite($err, "Pouze pro CLI.\n");
     exit(1);
 }
 
@@ -14,13 +16,13 @@ $eshop = $argv[1] ?? 'wormup.com';
 $file = $argv[2] ?? '';
 
 if ($file === '' || !is_file($file)) {
-    fwrite(STDERR, "Použití: php scripts/import_pohoda_cli.php <eshop_source> <soubor.xml>\n");
+    fwrite($err, "Použití: php scripts/import_pohoda_cli.php <eshop_source> <soubor.xml>\n");
     exit(1);
 }
 
 $xml = file_get_contents($file);
 if ($xml === false) {
-    fwrite(STDERR, "Nelze načíst soubor {$file}\n");
+    fwrite($err, "Nelze načíst soubor {$file}\n");
     exit(1);
 }
 
@@ -39,6 +41,6 @@ try {
     }
     exit(0);
 } catch (Throwable $e) {
-    fwrite(STDERR, "Chyba importu: " . $e->getMessage() . "\n");
+    fwrite($err, "Chyba importu: " . $e->getMessage() . "\n");
     exit(2);
 }
