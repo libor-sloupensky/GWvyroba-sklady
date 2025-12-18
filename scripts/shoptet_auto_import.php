@@ -145,6 +145,11 @@ try {
             'X-Csrf-Token: ' . $exportCsrf,
             'Origin: ' . $baseUrl,
             'Referer: ' . $baseUrl . '/admin/danove-doklady/',
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language: cs,en;q=0.8',
+            'Accept-Encoding: gzip, deflate, br',
+            'Connection: keep-alive',
+            'Upgrade-Insecure-Requests: 1',
         ];
         logLine("Stahuji export {$label} {$from} - {$to}");
         $exportResp = httpRequest($exportUrl, 'POST', $body, $exportHeaders, $cookieFile);
