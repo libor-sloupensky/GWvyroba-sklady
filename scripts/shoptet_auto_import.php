@@ -44,6 +44,7 @@ function httpRequest(string $url, string $method = 'GET', ?array $data = null, a
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_MAXREDIRS => 5,
+        CURLOPT_ENCODING => '',
     ];
     if ($cookieFile) {
         $opts[CURLOPT_COOKIEJAR] = $cookieFile;
@@ -116,6 +117,8 @@ try {
         $snippet = substr(trim($loginResp['body']), 0, 400);
         throw new RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status'] . ' Snippet: ' . $snippet);
     }
+    // navštiv přehled dokladů (kvůli cookies jako previousUrl/NOCACHE)
+    httpRequest($baseUrl . '/admin/danove-doklady/', 'GET', null, [], $cookieFile);
     // načti export stránku a vytáhni aktuální CSRF pro export
     $exportPage = httpRequest($exportUrl, 'GET', null, [], $cookieFile);
     $exportCsrf = extractCsrf($exportPage['body']) ?? $csrf;
@@ -154,7 +157,8 @@ try {
         logLine("Stahuji export {$label} {$from} - {$to}");
         $exportResp = httpRequest($exportUrl, 'POST', $body, $exportHeaders, $cookieFile);
         if ($exportResp['status'] >= 400) {
-            throw new RuntimeException("Export {$label} selhal, HTTP {$exportResp['status']}");
+            $snippet = substr(trim($exportResp['body']), 0, 400);
+            throw new RuntimeException("Export {$label} selhal, HTTP {$exportResp['status']} Snippet: {$snippet}");
         }
         $xmlContent = $exportResp['body'];
         if (stripos($exportResp['headers'], 'application/xml') === false && stripos($exportResp['headers'], 'text/xml') === false) {
