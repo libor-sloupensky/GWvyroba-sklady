@@ -96,6 +96,33 @@ function ensureDate(string $d): string
     return $dt->format('d.m.Y');
 }
 
+/**
+ * Načte cookies z cURL cookiejar souboru (Netscape formát) a vrátí je jako pole name=>value.
+ * @return array<string,string>
+ */
+function loadCookies(string $cookieFile): array
+{
+    if (!is_file($cookieFile)) {
+        return [];
+    }
+    $cookies = [];
+    foreach (file($cookieFile, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+        if (!$line || $line[0] === '#') {
+            continue;
+        }
+        $parts = explode("\t", $line);
+        if (count($parts) < 7) {
+            continue;
+        }
+        $name = $parts[5] ?? '';
+        $value = $parts[6] ?? '';
+        if ($name !== '') {
+            $cookies[$name] = $value;
+        }
+    }
+    return $cookies;
+}
+
 $cookieFile = tempnam(sys_get_temp_dir(), 'shoptet_cookies_');
 try {
     $loginPage = httpRequest($loginUrl, 'GET', null, [], $cookieFile);
@@ -145,6 +172,12 @@ try {
     $importCtrl = new ImportController();
     foreach ($imports as $imp) {
         $label = $imp['label'];
+        // sestav Cookie header z cookiejar + přidej klíčové cookies, které si prohlížeč nastavuje JS
+        $cookieMap = loadCookies($cookieFile);
+        $cookieMap['language'] = $cookieMap['language'] ?? 'cs';
+        $cookieMap['NOCACHE'] = $cookieMap['NOCACHE'] ?? '1';
+        $cookieMap['previousUrl'] = $cookieMap['previousUrl'] ?? urlencode($baseUrl . '/admin/danove-doklady/');
+        $cookieHeader = implode('; ', array_map(fn($k, $v) => $k . '=' . $v, array_keys($cookieMap), $cookieMap));
         $body = [
             'action' => 'export',
             'documentType' => 'invoice',
@@ -166,6 +199,7 @@ try {
             'Accept-Encoding: gzip, deflate, br',
             'Connection: keep-alive',
             'Upgrade-Insecure-Requests: 1',
+            'Cookie: ' . $cookieHeader,
         ];
         logLine("Stahuji export {$label} {$from} - {$to}");
         $exportResp = httpRequest($exportUrl, 'POST', $body, $exportHeaders, $cookieFile);
