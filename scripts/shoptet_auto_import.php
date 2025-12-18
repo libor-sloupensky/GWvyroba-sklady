@@ -83,6 +83,9 @@ function extractCsrf(string $html): ?string
     if (preg_match('#shoptet\\.csrf\\.token\\s*=\\s*"([^"]+)"#', $html, $m)) {
         return $m[1];
     }
+    if (preg_match('#name="__csrf__"[^>]*value="([^"]+)"#', $html, $m)) {
+        return $m[1];
+    }
     return null;
 }
 
