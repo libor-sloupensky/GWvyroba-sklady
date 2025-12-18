@@ -122,6 +122,16 @@ try {
     // načti export stránku a vytáhni aktuální CSRF pro export
     $exportPage = httpRequest($exportUrl, 'GET', null, [], $cookieFile);
     $exportCsrf = extractCsrf($exportPage['body']) ?? $csrf;
+    // zkus obnovit CSRF token
+    try {
+        $refresh = httpRequest($baseUrl . '/admin/csrf-refresh/', 'GET', null, [], $cookieFile);
+        $refToken = extractCsrf($refresh['body']);
+        if ($refToken) {
+            $exportCsrf = $refToken;
+        }
+    } catch (\Throwable) {
+        // ignoruj, použij exportCsrf
+    }
 
     $from = ensureDate('yesterday');
     $to = ensureDate('today');
