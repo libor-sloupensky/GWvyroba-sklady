@@ -10,6 +10,9 @@ require __DIR__ . '/../src/bootstrap.php';
 use App\Controller\ImportController;
 
 session_start();
+if (PHP_SAPI !== 'cli') {
+    header('Content-Type: text/plain; charset=utf-8');
+}
 
 $baseUrl   = 'https://www.wormup.com';
 $loginUrl  = $baseUrl . '/admin/login/';
@@ -227,10 +230,16 @@ try {
     logLine('Hotovo.');
 } catch (Throwable $e) {
     logLine('CHYBA: ' . $e->getMessage(), 'ERROR');
+    if (PHP_SAPI !== 'cli') {
+        echo "FAIL: " . $e->getMessage();
+    }
     exit(1);
 } finally {
     if ($cookieFile && file_exists($cookieFile)) {
         @unlink($cookieFile);
     }
+}
+if (PHP_SAPI !== 'cli') {
+    echo "OK: Hotovo.";
 }
 exit(0);
