@@ -127,31 +127,37 @@ final class InventoryController
         }
         $payload = $this->collectRequestData();
         $sku = $this->toUtf8((string)($payload['sku'] ?? ''));
+        
         $qtyRaw = (string)($payload['quantity'] ?? '');
         $qtyRaw = str_replace(',', '.', $qtyRaw);
         if ($sku === '' || $qtyRaw === '' || !is_numeric($qtyRaw)) {
-            echo json_encode(['ok' => false, 'error' => 'Zadejte platné SKU a množství.']);
+            echo json_encode(['ok' => false, 'error' => 'Zadejte platn? SKU a mno?stv?.']);
             return;
         }
-        $qty = (float)$qtyRaw;
-        if ($qty == 0.0) {
-            echo json_encode(['ok' => false, 'error' => 'Množství nesmí být 0.']);
-            return;
-        }
+        $desiredQty = (float)$qtyRaw; // zad?no jako aktu?ln? fyzick? stav
         $product = $this->loadProduct($sku);
         if (!$product) {
             echo json_encode(['ok' => false, 'error' => 'Produkt nebyl nalezen.']);
             return;
         }
+        // aktu?ln? o?ek?van? stav (baseline + pohyby) k tomuto okam?iku
+        $currentQty = $this->calculateExpectedStock($inventory, [$sku], true)[$sku] ?? 0.0;
+        $delta = $desiredQty - $currentQty;
+        if ($delta == 0.0) {
+            $rowData = $this->buildInventoryRow($product, $inventory);
+            echo json_encode(['ok' => true, 'row' => $rowData]);
+            return;
+        }
+
         $pdo = DB::pdo();
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare('INSERT INTO inventura_polozky (inventura_id, sku, mnozstvi, created_at) VALUES (?,?,?,NOW())');
-            $stmt->execute([$inventory['id'], $sku, $qty]);
+            $stmt->execute([$inventory['id'], $sku, $delta]);
             $entryId = (int)$pdo->lastInsertId();
             $refId = sprintf('inv:%d:%d', $inventory['id'], $entryId);
             $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id) VALUES (NOW(), ?, ?, ?, ?, ?, ?)')
-                ->execute([$sku, $qty, $product['merna_jednotka'], 'inventura', null, $refId]);
+                ->execute([$sku, $delta, $product['merna_jednotka'], 'inventura', null, $refId]);
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
