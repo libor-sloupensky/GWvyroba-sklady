@@ -987,6 +987,7 @@ ORDER BY m.month_end, serie_label
             }));
         }
         
+        
         $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
         $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
         $params['has_znacka'] = !empty($params['znacka_id']) ? 1 : 0;
@@ -1008,14 +1009,43 @@ ORDER BY m.month_end, serie_label
             $params['allow_null_skupina'] = 1;
             $params['allow_null_typ'] = 1;
         }
-return $params;
+        return $params;
+
     }
 
     /**
      * @param array<int,array<string,mixed>> $paramsDef
      * @param array<int,string>|string $selected
      */
-    private function selectionLabel(array $paramsDef, string $name, $selected): string
+    
+    /**
+     * Pokud je vybr?na cel? dimenze, zahrneme i NULL hodnoty, aby sou?ty sed?ly na agreg?t.
+     * @param array<int,array<string,mixed>> $paramsDef
+     * @param array<int,string>|string $selected
+     */
+    private function allowNullForDimension(array $paramsDef, string $name, $selected, int $hasFlag): int
+    {
+        if ($hasFlag === 0) {
+            return 1;
+        }
+        $selected = is_array($selected) ? $selected : [$selected];
+        $selected = array_filter(array_map('strval', $selected));
+        $total = 0;
+        foreach ($paramsDef as $def) {
+            if (($def['name'] ?? '') !== $name) {
+                continue;
+            }
+            $vals = (array)($def['values'] ?? []);
+            $total = count($vals);
+            break;
+        }
+        if ($total === 0) {
+            return 0;
+        }
+        return (count($selected) >= $total) ? 1 : 0;
+    }
+
+private function selectionLabel(array $paramsDef, string $name, $selected): string
     {
         $selected = is_array($selected) ? $selected : [$selected];
         $selected = array_filter(array_map('strval', $selected));
