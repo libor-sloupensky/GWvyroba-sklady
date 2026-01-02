@@ -777,6 +777,9 @@ CROSS JOIN (
 WHERE (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
+  AND (:allow_null_znacka = 0 OR p.znacka_id IS NOT NULL)
+  AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
+  AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
   AND (:has_sku = 0 OR p.sku IN (%sku%))
 GROUP BY
   m.month_end,
@@ -983,21 +986,29 @@ ORDER BY m.month_end, serie_label
                 return trim((string)$v) !== '';
             }));
         }
+        
         $params['has_contacts'] = !empty($params['contact_ids']) ? 1 : 0;
         $params['has_eshops'] = !empty($params['eshop_source']) ? 1 : 0;
         $params['has_znacka'] = !empty($params['znacka_id']) ? 1 : 0;
         $params['has_skupina'] = !empty($params['skupina_id']) ? 1 : 0;
         $params['has_typ'] = !empty($params['typ']) ? 1 : 0;
         $params['has_sku'] = !empty($params['sku']) ? 1 : 0;
-        // pokud nejsou zvoleny žádné filtry, agregujeme vše do jednoho řádku
+        // pokud nejsou zvoleny ??dn? filtry, agregujeme v?e do jednoho ??dku
         $params['aggregate_all'] = ($params['has_znacka'] === 0 && $params['has_skupina'] === 0 && $params['has_typ'] === 0 && $params['has_sku'] === 0) ? 1 : 0;
-        // doplň labely pro stock template
+        // dopl? labely pro stock template a p??znaky pro zahrnut? NULL
         if (!empty($template['params'])) {
             $params['znacka_label'] = $this->selectionLabel($template['params'], 'znacka_id', $params['znacka_id'] ?? []);
             $params['skupina_label'] = $this->selectionLabel($template['params'], 'skupina_id', $params['skupina_id'] ?? []);
             $params['typ_label'] = $this->selectionLabel($template['params'], 'typ', $params['typ'] ?? []);
+            $params['allow_null_znacka'] = $this->allowNullForDimension($template['params'], 'znacka_id', $params['znacka_id'] ?? [], (int)$params['has_znacka']);
+            $params['allow_null_skupina'] = $this->allowNullForDimension($template['params'], 'skupina_id', $params['skupina_id'] ?? [], (int)$params['has_skupina']);
+            $params['allow_null_typ'] = $this->allowNullForDimension($template['params'], 'typ', $params['typ'] ?? [], (int)$params['has_typ']);
+        } else {
+            $params['allow_null_znacka'] = 1;
+            $params['allow_null_skupina'] = 1;
+            $params['allow_null_typ'] = 1;
         }
-        return $params;
+return $params;
     }
 
     /**
