@@ -685,22 +685,26 @@ ORDER BY mesic, serie_label
 SELECT
   m.month_end AS stav_ke_dni,
   CASE
-    WHEN :aggregate_all = 1 THEN 'Vše'
-    ELSE CONCAT(
-      COALESCE(zn.nazev, 'bez značky'),
-      ' | ',
-      COALESCE(sg.nazev, 'bez skupiny'),
-      ' | ',
-      COALESCE(typ, 'bez typu')
-    )
-  END AS serie_label,
+    WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'bez značky') ELSE 'vše'
+  END AS znacka,
   CASE
-    WHEN :aggregate_all = 1 THEN 'all'
-    ELSE CONCAT_WS('|', COALESCE(zn.nazev, 'bez znacky'), COALESCE(sg.nazev, 'bez skupiny'), COALESCE(typ, 'bez typu'))
-  END AS serie_key,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(zn.nazev, 'bez značky') END AS znacka,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(sg.nazev, 'bez skupiny') END AS skupina,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END AS typ,
+    WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'bez skupiny') ELSE 'vše'
+  END AS skupina,
+  CASE
+    WHEN :has_typ = 1 THEN COALESCE(typ, 'bez typu') ELSE 'vše'
+  END AS typ,
+  CONCAT_WS(
+    ' | ',
+    CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'bez značky') ELSE 'vše' END,
+    CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'bez skupiny') ELSE 'vše' END,
+    CASE WHEN :has_typ = 1 THEN COALESCE(typ, 'bez typu') ELSE 'vše' END
+  ) AS serie_label,
+  CONCAT_WS(
+    '|',
+    CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'bez znacky') ELSE 'vse' END,
+    CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'bez skupiny') ELSE 'vse' END,
+    CASE WHEN :has_typ = 1 THEN COALESCE(typ, 'bez typu') ELSE 'vse' END
+  ) AS serie_key,
   ROUND(SUM(p.skl_hodnota * (
     COALESCE(snap.stav, 0)
     + COALESCE((
@@ -776,23 +780,12 @@ WHERE (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_sku = 0 OR p.sku IN (%sku%))
 GROUP BY
   m.month_end,
-  CASE
-    WHEN :aggregate_all = 1 THEN 'all'
-    ELSE CONCAT_WS('|', COALESCE(zn.nazev, 'bez znacky'), COALESCE(sg.nazev, 'bez skupiny'), COALESCE(typ, 'bez typu'))
-  END,
-  CASE
-    WHEN :aggregate_all = 1 THEN 'Vše'
-    ELSE CONCAT(
-      COALESCE(zn.nazev, 'bez značky'),
-      ' | ',
-      COALESCE(sg.nazev, 'bez skupiny'),
-      ' | ',
-      COALESCE(typ, 'bez typu')
-    )
-  END,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(zn.nazev, 'bez značky') END,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE COALESCE(sg.nazev, 'bez skupiny') END,
-  CASE WHEN :aggregate_all = 1 THEN 'vse' ELSE typ END
+  CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'bez znacky') ELSE 'vse' END,
+  CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'bez skupiny') ELSE 'vse' END,
+  CASE WHEN :has_typ = 1 THEN COALESCE(typ, 'bez typu') ELSE 'vse' END,
+  CASE WHEN :has_znacka = 1 THEN COALESCE(zn.nazev, 'bez značky') ELSE 'vše' END,
+  CASE WHEN :has_skupina = 1 THEN COALESCE(sg.nazev, 'bez skupiny') ELSE 'vše' END,
+  CASE WHEN :has_typ = 1 THEN COALESCE(typ, 'bez typu') ELSE 'vše' END
 HAVING SUM((
     COALESCE(snap.stav, 0)
     + COALESCE((
