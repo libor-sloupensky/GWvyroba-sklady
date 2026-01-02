@@ -12,6 +12,10 @@ use App\Controller\ImportController;
 session_start();
 if (PHP_SAPI !== 'cli') {
     header('Content-Type: text/plain; charset=utf-8');
+    @ini_set('output_buffering', 'off');
+    @ini_set('zlib.output_compression', '0');
+    ob_implicit_flush(true);
+    echo "Spoustim Shoptet auto-import...\n";
 }
 
 $baseUrl   = 'https://www.wormup.com';
