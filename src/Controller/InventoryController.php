@@ -88,11 +88,21 @@ final class InventoryController
         try {
             $performedAtRaw = $this->normalizeDateTimeInput($_POST['performed_at'] ?? '') ?? date('Y-m-d H:i:s');
             $closedAt = $performedAtRaw;
-            $baselineId = (int)($inventory['baseline_inventory_id'] ?? 0);
-            $baselineMap = $this->loadSnapshotMap($baselineId);
-            $baselineClosedAt = $this->getInventoryClosedAt($baselineId);
-            $movements = $this->loadMovementSums($baselineClosedAt, null, null, $closedAt);
-            $finalMap = $this->mergeQuantities($baselineMap, $movements);
+            $entries = $this->loadInventoryEntries($inventory['id']);
+            $entryTotals = [];
+            foreach ($entries as $sku => $entryInfo) {
+                $entryTotals[$sku] = (float)($entryInfo['total'] ?? 0.0);
+            }
+            $skuList = $this->fetchInventorySkuList();
+            foreach ($entryTotals as $sku => $_total) {
+                if (!in_array($sku, $skuList, true)) {
+                    $skuList[] = $sku;
+                }
+            }
+            $finalMap = [];
+            foreach ($skuList as $sku) {
+                $finalMap[$sku] = (float)($entryTotals[$sku] ?? 0.0);
+            }
 
             $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventory['id']]);
             if (!empty($finalMap)) {
@@ -417,6 +427,20 @@ final class InventoryController
             $out[(string)$row['sku']] = (float)$row['qty'];
         }
         return $out;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function fetchInventorySkuList(): array
+    {
+        $stmt = DB::pdo()->query(
+            'SELECT p.sku FROM produkty p ' .
+            'LEFT JOIN product_types pt ON pt.code = p.typ ' .
+            'WHERE p.aktivni = 1 AND COALESCE(pt.is_nonstock,0) = 0 ' .
+            'ORDER BY p.sku'
+        );
+        return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     private function fetchFilteredProducts(array $filters): array
