@@ -90,6 +90,7 @@
 .inventory-table th,
 .inventory-table td { border:1px solid #ddd; padding:0.45rem 0.55rem; vertical-align:top; }
 .inventory-table th { background:#f3f6f9; }
+.inventory-row--active td { background:#f5f5f5; }
 .inventory-expression { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; }
 .inventory-expected { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; color:#37474f; }
 .inventory-diff { font-weight:600; }
@@ -398,6 +399,10 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
   if (!table) return;
   const inputs = Array.from(table.querySelectorAll('.inventory-qty'));
   inputs.forEach((input, index) => {
+    const row = input.closest('tr');
+    input.addEventListener('focus', () => {
+      if (row) row.classList.add('inventory-row--active');
+    });
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
@@ -410,6 +415,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
       }
     });
     input.addEventListener('blur', () => {
+      if (row) row.classList.remove('inventory-row--active');
       submitValue(input);
     });
   });
