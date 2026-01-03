@@ -396,20 +396,20 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
 (function(){
   const table = document.getElementById('inventory-table');
   if (!table) return;
-  const inputs = table.querySelectorAll('.inventory-qty');
-  inputs.forEach((input) => {
+  const inputs = Array.from(table.querySelectorAll('.inventory-qty'));
+  inputs.forEach((input, index) => {
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        input.dataset.skipBlur = '1';
-        submitValue(input);
+        const nextInput = inputs[index + 1];
+        if (nextInput) {
+          nextInput.focus();
+        } else {
+          input.blur();
+        }
       }
     });
     input.addEventListener('blur', () => {
-      if (input.dataset.skipBlur === '1') {
-        delete input.dataset.skipBlur;
-        return;
-      }
       submitValue(input);
     });
   });
@@ -446,7 +446,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
         input.value = '';
       })
       .catch((err) => alert('Nelze uložit inventuru: ' + (err.message || err)))
-      .finally(() => { input.disabled = false; delete input.dataset.skipBlur; });
+      .finally(() => { input.disabled = false; });
   }
 
   function updateRow(row) {
