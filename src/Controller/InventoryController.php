@@ -127,37 +127,36 @@ final class InventoryController
         }
         $payload = $this->collectRequestData();
         $sku = $this->toUtf8((string)($payload['sku'] ?? ''));
-        
         $qtyRaw = (string)($payload['quantity'] ?? '');
         $qtyRaw = str_replace(',', '.', $qtyRaw);
         if ($sku === '' || $qtyRaw === '' || !is_numeric($qtyRaw)) {
-            echo json_encode(['ok' => false, 'error' => 'Zadejte platn? SKU a mno?stv?.']);
+            echo json_encode(['ok' => false, 'error' => 'Zadejte platne SKU a mnozstvi.']);
             return;
         }
-        $desiredQty = (float)$qtyRaw; // zad?no jako aktu?ln? fyzick? stav
+        $entryQty = (float)$qtyRaw; // entered as current physical count
         $product = $this->loadProduct($sku);
         if (!$product) {
             echo json_encode(['ok' => false, 'error' => 'Produkt nebyl nalezen.']);
             return;
         }
-        // aktu?ln? o?ek?van? stav (baseline + pohyby) k tomuto okam?iku
-        $currentQty = $this->calculateExpectedStock($inventory, [$sku], true)[$sku] ?? 0.0;
-        $delta = $desiredQty - $currentQty;
-        if ($delta == 0.0) {
-            $rowData = $this->buildInventoryRow($product, $inventory);
-            echo json_encode(['ok' => true, 'row' => $rowData]);
-            return;
-        }
+        $entryInfo = $this->loadInventoryEntries($inventory['id'], [$sku])[$sku] ?? ['total' => 0.0, 'parts' => []];
+        $desiredTotal = $entryInfo['total'] + $entryQty;
+        $expectedQty = $this->calculateExpectedStock($inventory, [$sku], true)[$sku] ?? 0.0;
+        $existingMovement = $this->loadInventoryMovementSum($inventory['id'], $sku);
+        $deltaTotal = $desiredTotal - $expectedQty;
+        $deltaAdjust = $deltaTotal - $existingMovement;
 
         $pdo = DB::pdo();
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare('INSERT INTO inventura_polozky (inventura_id, sku, mnozstvi, created_at) VALUES (?,?,?,NOW())');
-            $stmt->execute([$inventory['id'], $sku, $delta]);
+            $stmt->execute([$inventory['id'], $sku, $entryQty]);
             $entryId = (int)$pdo->lastInsertId();
             $refId = sprintf('inv:%d:%d', $inventory['id'], $entryId);
-            $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id) VALUES (NOW(), ?, ?, ?, ?, ?, ?)')
-                ->execute([$sku, $delta, $product['merna_jednotka'], 'inventura', null, $refId]);
+            if ($deltaAdjust != 0.0) {
+                $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id) VALUES (NOW(), ?, ?, ?, ?, ?, ?)')
+                    ->execute([$sku, $deltaAdjust, $product['merna_jednotka'], 'inventura', null, $refId]);
+            }
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
@@ -320,6 +319,13 @@ final class InventoryController
             $list[$sku]['total'] += $qty;
         }
         return $list;
+    }
+
+    private function loadInventoryMovementSum(int $inventoryId, string $sku): float
+    {
+        $stmt = DB::pdo()->prepare('SELECT COALESCE(SUM(mnozstvi), 0) FROM polozky_pohyby WHERE sku = ? AND ref_id LIKE ?');
+        $stmt->execute([$sku, sprintf('inv:%d:%%', $inventoryId)]);
+        return (float)$stmt->fetchColumn();
     }
 
     private function calculateExpectedStock(array $inventory, array $skuFilter = [], bool $excludeActiveEntries = false): array
