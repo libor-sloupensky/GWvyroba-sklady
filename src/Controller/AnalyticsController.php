@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Support\DB;
 use App\Service\AnalyticsSchema;
+use App\Service\StockService;
 use PDO;
 
 final class AnalyticsController
@@ -465,6 +466,15 @@ PROMPT;
             return;
         }
         $validated = $this->hydrateFlagsForTemplate($validated, $template);
+        if ($templateId === 'stock_value_by_month') {
+            try {
+                $rows = $this->buildStockValueByMonthRows($validated);
+                echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
+            } catch (\Throwable $e) {
+                echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            }
+            return;
+        }
         $sql = $this->expandArrayParams($template['sql'], $validated);
 
         try {
@@ -928,6 +938,173 @@ ORDER BY m.month_end, serie_label
     }
 
     /**
+     * @param array<string,mixed> $params
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildStockValueByMonthRows(array $params): array
+    {
+        $startDate = (string)($params['start_date'] ?? '');
+        $endDate = (string)($params['end_date'] ?? '');
+        if ($startDate === '' || $endDate === '') {
+            return [];
+        }
+        $products = $this->fetchStockProducts($params);
+        if (empty($products)) {
+            return [];
+        }
+        $skuList = array_values(array_unique(array_map(static fn($p) => (string)$p['sku'], $products)));
+        $monthEnds = $this->buildMonthEnds($startDate, $endDate);
+        $rows = [];
+        foreach ($monthEnds as $monthEnd) {
+            $state = StockService::getStockState($skuList, $monthEnd);
+            $groups = [];
+            foreach ($products as $prod) {
+                $sku = (string)$prod['sku'];
+                $available = $state['available'][$sku] ?? 0.0;
+                if (!empty($params['has_znacka'])) {
+                    $labelBrand = $prod['znacka'] !== '' ? (string)$prod['znacka'] : 'bez znacky';
+                } else {
+                    $labelBrand = 'vse';
+                }
+                if (!empty($params['has_skupina'])) {
+                    $labelGroup = $prod['skupina'] !== '' ? (string)$prod['skupina'] : 'bez skupiny';
+                } else {
+                    $labelGroup = 'vse';
+                }
+                if (!empty($params['has_typ'])) {
+                    $labelType = $prod['typ'] !== '' ? (string)$prod['typ'] : 'bez typu';
+                } else {
+                    $labelType = 'vse';
+                }
+                $serieLabel = $labelBrand . ' | ' . $labelGroup . ' | ' . $labelType;
+                $serieKey = $labelBrand . '|' . $labelGroup . '|' . $labelType;
+                if (!isset($groups[$serieKey])) {
+                    $groups[$serieKey] = [
+                        'znacka' => $labelBrand,
+                        'skupina' => $labelGroup,
+                        'typ' => $labelType,
+                        'serie_label' => $serieLabel,
+                        'serie_key' => $serieKey,
+                        'stav_kusy' => 0.0,
+                        'hodnota_czk' => 0.0,
+                    ];
+                }
+                $groups[$serieKey]['stav_kusy'] += $available;
+                $groups[$serieKey]['hodnota_czk'] += $available * (float)($prod['skl_hodnota'] ?? 0.0);
+            }
+            foreach ($groups as $group) {
+                if (abs($group['stav_kusy']) < 0.000001) {
+                    continue;
+                }
+                $rows[] = [
+                    'stav_ke_dni' => $monthEnd,
+                    'znacka' => $group['znacka'],
+                    'skupina' => $group['skupina'],
+                    'typ' => $group['typ'],
+                    'serie_label' => $group['serie_label'],
+                    'serie_key' => $group['serie_key'],
+                    'hodnota_czk' => round($group['hodnota_czk'], 0),
+                    'stav_kusy' => $group['stav_kusy'],
+                ];
+            }
+        }
+        usort($rows, static function (array $a, array $b): int {
+            $cmp = strcmp((string)$a['stav_ke_dni'], (string)$b['stav_ke_dni']);
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return strcmp((string)$a['serie_label'], (string)$b['serie_label']);
+        });
+        return $rows;
+    }
+
+    /**
+     * @param array<string,mixed> $params
+     * @return array<int,array<string,mixed>>
+     */
+    private function fetchStockProducts(array $params): array
+    {
+        $sql = 'SELECT p.sku, p.typ, p.skl_hodnota, p.znacka_id, p.skupina_id,' .
+            ' COALESCE(z.nazev, "") AS znacka, COALESCE(g.nazev, "") AS skupina ' .
+            'FROM produkty p ' .
+            'LEFT JOIN produkty_znacky z ON z.id = p.znacka_id ' .
+            'LEFT JOIN produkty_skupiny g ON g.id = p.skupina_id ';
+        $conditions = ['p.aktivni = 1'];
+        $binds = [];
+        $hasZnacka = !empty($params['has_znacka']);
+        $hasSkupina = !empty($params['has_skupina']);
+        $hasTyp = !empty($params['has_typ']);
+        $hasSku = !empty($params['has_sku']);
+        $allowNullZnacka = !empty($params['allow_null_znacka']);
+        $allowNullSkupina = !empty($params['allow_null_skupina']);
+        $allowNullTyp = !empty($params['allow_null_typ']);
+
+        if ($hasZnacka && !$allowNullZnacka && !empty($params['znacka_id'])) {
+            $vals = array_values($params['znacka_id']);
+            $placeholders = implode(',', array_fill(0, count($vals), '?'));
+            $conditions[] = "p.znacka_id IN ({$placeholders})";
+            $binds = array_merge($binds, $vals);
+        }
+        if ($hasSkupina && !$allowNullSkupina && !empty($params['skupina_id'])) {
+            $vals = array_values($params['skupina_id']);
+            $placeholders = implode(',', array_fill(0, count($vals), '?'));
+            $conditions[] = "p.skupina_id IN ({$placeholders})";
+            $binds = array_merge($binds, $vals);
+        }
+        if ($hasTyp && !$allowNullTyp && !empty($params['typ'])) {
+            $vals = array_values($params['typ']);
+            $placeholders = implode(',', array_fill(0, count($vals), '?'));
+            $conditions[] = "p.typ IN ({$placeholders})";
+            $binds = array_merge($binds, $vals);
+        }
+        if ($hasSku && !empty($params['sku'])) {
+            $vals = array_values($params['sku']);
+            $placeholders = implode(',', array_fill(0, count($vals), '?'));
+            $conditions[] = "p.sku IN ({$placeholders})";
+            $binds = array_merge($binds, $vals);
+        }
+        if (!$allowNullZnacka) {
+            $conditions[] = 'p.znacka_id IS NOT NULL';
+        }
+        if (!$allowNullSkupina) {
+            $conditions[] = 'p.skupina_id IS NOT NULL';
+        }
+        if (!$allowNullTyp) {
+            $conditions[] = 'p.typ IS NOT NULL';
+        }
+        if ($conditions) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+        $sql .= ' ORDER BY p.sku';
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($binds);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function buildMonthEnds(string $startDate, string $endDate): array
+    {
+        $start = new \DateTimeImmutable($startDate);
+        $end = new \DateTimeImmutable($endDate);
+        if ($end < $start) {
+            return [];
+        }
+        $cursor = new \DateTimeImmutable($start->format('Y-m-01'));
+        $monthEnds = [];
+        while ($cursor <= $end) {
+            $monthEnd = $cursor->modify('last day of this month');
+            if ($monthEnd > $end) {
+                $monthEnd = $end;
+            }
+            $monthEnds[] = $monthEnd->format('Y-m-d');
+            $cursor = $cursor->modify('first day of next month');
+        }
+        return $monthEnds;
+    }
+
+    /**
      * Pokud jsou parametry pole, nahradí placeholdery %name% za jednotlivé bindy (params jsou by-ref).
      * @param array<string,mixed> $params
      */
@@ -1036,7 +1213,14 @@ ORDER BY m.month_end, serie_label
                 continue;
             }
             $vals = (array)($def['values'] ?? []);
-            $total = count($vals);
+            $total = 0;
+            foreach ($vals as $val) {
+                $value = is_array($val) ? (string)($val['value'] ?? '') : (string)$val;
+                if (strtolower($value) === 'vse') {
+                    continue;
+                }
+                $total++;
+            }
             break;
         }
         if ($total === 0) {

@@ -11,6 +11,7 @@ final class StockService
     private static array $demandCache = [];
     private static ?array $bomCache = null;
     private static bool $settingsColumnsVerified = false;
+    private static array $baselineCache = [];
 
     public static function getSettings(): array
     {
@@ -278,76 +279,44 @@ final class StockService
      * @param array<int,string>|null $skuFilter
      * @return array<string,float>
      */
-    public static function buildStockMap(?array $skuFilter = null): array
+    public static function buildStockMap(?array $skuFilter = null, ?string $asOf = null): array
     {
-        $pdo = DB::pdo();
-        $latest = $pdo->query('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
-        $snapshot = [];
-        $params = [];
-        if ($latest) {
-            $sql = 'SELECT sku, stav FROM inventura_stavy WHERE inventura_id = ?';
-            $params[] = (int)$latest['id'];
-            if ($skuFilter && count($skuFilter) > 0) {
-                $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
-                $sql .= " AND sku IN ({$placeholders})";
-                $params = array_merge($params, $skuFilter);
-            }
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            foreach ($stmt as $row) {
-                $snapshot[(string)$row['sku']] = (float)$row['stav'];
-            }
-        }
-        $stock = $snapshot;
-        $movSql = 'SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE 1=1';
-        $movParams = [];
-        if ($latest && !empty($latest['closed_at'])) {
-            $movSql .= ' AND datum > ?';
-            $movParams[] = $latest['closed_at'];
-        }
-        if ($skuFilter && count($skuFilter) > 0) {
-            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
-            $movSql .= " AND sku IN ({$placeholders})";
-            $movParams = array_merge($movParams, $skuFilter);
-        }
-        $movSql .= ' GROUP BY sku';
-        $stmt = $pdo->prepare($movSql);
-        $stmt->execute($movParams);
-        foreach ($stmt as $row) {
-            $sku = (string)$row['sku'];
-            if ($sku === '') {
-                continue;
-            }
-            $stock[$sku] = ($stock[$sku] ?? 0.0) + (float)$row['qty'];
-        }
-        return $stock;
+        $asOf = self::normalizeAsOf($asOf);
+        $baseline = self::findBaselineInventory($asOf);
+        $snapshot = self::loadSnapshotMap($baseline['id'] ?? null, $skuFilter);
+        $movements = self::loadMovementSums($baseline['closed_at'] ?? null, $asOf, $skuFilter);
+        return self::mergeQuantities($snapshot, $movements);
     }
 
     /**
      * @param array<int,string>|null $skuFilter
      * @return array<string,float>
      */
-    public static function buildReservationMap(?array $skuFilter = null): array
+    public static function buildReservationMap(?array $skuFilter = null, ?string $asOf = null): array
     {
-        $sql = 'SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE 1=1';
-        $params = [];
-        $today = (new DateTimeImmutable('today'))->format('Y-m-d');
-        $sql .= ' AND platna_do >= ?';
-        $params[] = $today;
-        if ($skuFilter && count($skuFilter) > 0) {
-            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
-            $sql .= " AND sku IN ({$placeholders})";
-            $params = array_merge($params, $skuFilter);
+        $asOf = self::normalizeAsOf($asOf);
+        return self::loadReservationMap($skuFilter, $asOf);
+    }
+
+    /**
+     * @param array<int,string>|null $skuFilter
+     * @return array{stock:array<string,float>,reservations:array<string,float>,available:array<string,float>}
+     */
+    public static function getStockState(?array $skuFilter = null, ?string $asOf = null): array
+    {
+        $asOf = self::normalizeAsOf($asOf);
+        $stock = self::buildStockMap($skuFilter, $asOf);
+        $reservations = self::loadReservationMap($skuFilter, $asOf);
+        $available = [];
+        $skuKeys = array_unique(array_merge(array_keys($stock), array_keys($reservations)));
+        foreach ($skuKeys as $sku) {
+            $available[$sku] = ($stock[$sku] ?? 0.0) - ($reservations[$sku] ?? 0.0);
         }
-        $sql .= ' GROUP BY sku';
-        $stmt = DB::pdo()->prepare($sql);
-        $stmt->execute($params);
-        $map = [];
-        foreach ($stmt as $row) {
-            $sku = (string)$row['sku'];
-            $map[$sku] = (float)$row['qty'];
-        }
-        return $map;
+        return [
+            'stock' => $stock,
+            'reservations' => $reservations,
+            'available' => $available,
+        ];
     }
 
     /**
@@ -365,8 +334,9 @@ final class StockService
         $consumptionDays = $settings['consumption_days'];
         $demandMap = self::buildDemandMap($consumptionDays);
         $directDemandMap = self::buildDirectDemandMap($consumptionDays);
-        $stockMap = self::buildStockMap($skus);
-        $reservationMap = self::buildReservationMap($skus);
+        $state = self::getStockState($skus);
+        $stockMap = $state['stock'];
+        $reservationMap = $state['reservations'];
         $meta = self::fetchProductsMeta($skus);
         $parentsMap = self::getBomGraph()['parents'] ?? [];
         $status = [];
@@ -426,5 +396,144 @@ final class StockService
             ];
         }
         return $map;
+    }
+
+    private static function normalizeAsOf(?string $asOf): ?string
+    {
+        if ($asOf === null) {
+            return null;
+        }
+        $asOf = trim($asOf);
+        if ($asOf === '') {
+            return null;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOf)) {
+            return $asOf . ' 23:59:59';
+        }
+        return $asOf;
+    }
+
+    /**
+     * @return array{id:int,closed_at:string}|null
+     */
+    private static function findBaselineInventory(?string $asOf = null): ?array
+    {
+        $cacheKey = $asOf ?? 'latest';
+        if (array_key_exists($cacheKey, self::$baselineCache)) {
+            return self::$baselineCache[$cacheKey];
+        }
+        $pdo = DB::pdo();
+        if ($asOf !== null) {
+            $stmt = $pdo->prepare('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL AND closed_at <= ? ORDER BY closed_at DESC LIMIT 1');
+            $stmt->execute([$asOf]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } else {
+            $row = $pdo->query('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC) ?: null;
+        }
+        $baseline = $row ? ['id' => (int)$row['id'], 'closed_at' => (string)$row['closed_at']] : null;
+        self::$baselineCache[$cacheKey] = $baseline;
+        return $baseline;
+    }
+
+    /**
+     * @param array<int,string>|null $skuFilter
+     * @return array<string,float>
+     */
+    private static function loadSnapshotMap(?int $inventoryId, ?array $skuFilter): array
+    {
+        if (!$inventoryId) {
+            return [];
+        }
+        $sql = 'SELECT sku, stav FROM inventura_stavy WHERE inventura_id = ?';
+        $params = [$inventoryId];
+        if ($skuFilter && count($skuFilter) > 0) {
+            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
+            $sql .= " AND sku IN ({$placeholders})";
+            $params = array_merge($params, $skuFilter);
+        }
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
+        $snapshot = [];
+        foreach ($stmt as $row) {
+            $snapshot[(string)$row['sku']] = (float)$row['stav'];
+        }
+        return $snapshot;
+    }
+
+    /**
+     * @param array<int,string>|null $skuFilter
+     * @return array<string,float>
+     */
+    private static function loadMovementSums(?string $since, ?string $until, ?array $skuFilter): array
+    {
+        $sql = 'SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE 1=1';
+        $params = [];
+        if ($since !== null) {
+            $sql .= ' AND datum > ?';
+            $params[] = $since;
+        }
+        if ($until !== null) {
+            $sql .= ' AND datum <= ?';
+            $params[] = $until;
+        }
+        if ($skuFilter && count($skuFilter) > 0) {
+            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
+            $sql .= " AND sku IN ({$placeholders})";
+            $params = array_merge($params, $skuFilter);
+        }
+        $sql .= ' GROUP BY sku';
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
+        $movements = [];
+        foreach ($stmt as $row) {
+            $sku = (string)$row['sku'];
+            if ($sku === '') {
+                continue;
+            }
+            $movements[$sku] = (float)$row['qty'];
+        }
+        return $movements;
+    }
+
+    /**
+     * @param array<int,string>|null $skuFilter
+     * @return array<string,float>
+     */
+    private static function loadReservationMap(?array $skuFilter, ?string $asOf): array
+    {
+        $asOfDate = $asOf ? substr($asOf, 0, 10) : (new DateTimeImmutable('today'))->format('Y-m-d');
+        $sql = 'SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE 1=1 AND platna_do >= ?';
+        $params = [$asOfDate];
+        if ($skuFilter && count($skuFilter) > 0) {
+            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
+            $sql .= " AND sku IN ({$placeholders})";
+            $params = array_merge($params, $skuFilter);
+        }
+        $sql .= ' GROUP BY sku';
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
+        $map = [];
+        foreach ($stmt as $row) {
+            $sku = (string)$row['sku'];
+            $map[$sku] = (float)$row['qty'];
+        }
+        return $map;
+    }
+
+    /**
+     * @param array<string,float> $base
+     * @param array<string,float> $delta
+     * @return array<string,float>
+     */
+    private static function mergeQuantities(array $base, array $delta): array
+    {
+        foreach ($delta as $sku => $value) {
+            if (isset($base[$sku])) {
+                $base[$sku] += $value;
+            } else {
+                $base[$sku] = $value;
+            }
+        }
+        return $base;
     }
 }

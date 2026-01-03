@@ -528,9 +528,7 @@ final class ProductionController
 
         $childSkus = array_column($components, 'sku');
 
-        $stock = StockService::buildStockMap($childSkus);
-
-        $reservations = StockService::buildReservationMap($childSkus);
+        $state = StockService::getStockState($childSkus);
 
         $names = $this->loadProductNames($childSkus);
 
@@ -540,7 +538,7 @@ final class ProductionController
 
             $required = $qty * $component['koeficient'];
 
-            $available = ($stock[$component['sku']] ?? 0.0) - ($reservations[$component['sku']] ?? 0.0);
+            $available = $state['available'][$component['sku']] ?? 0.0;
 
             $missing = $required - $available;
 
