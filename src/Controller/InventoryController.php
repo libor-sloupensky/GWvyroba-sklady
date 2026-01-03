@@ -2,7 +2,7 @@
 namespace App\Controller;
 
 use App\Support\DB;
-
+ 
 final class InventoryController
 {
     public function index(): void
