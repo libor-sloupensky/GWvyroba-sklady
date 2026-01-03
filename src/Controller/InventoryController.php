@@ -266,6 +266,7 @@ final class InventoryController
     private function formatInventoryRow(array $product, array $entryInfo, float $expected, float $difference): array
     {
         $expression = $this->formatInventoryExpression($entryInfo['total'], $entryInfo['parts']);
+        $expressionHtml = $this->formatInventoryExpressionHtml($entryInfo['total'], $entryInfo['parts']);
         return [
             'sku' => $product['sku'],
             'ean' => $product['ean'],
@@ -275,6 +276,7 @@ final class InventoryController
             'merna_jednotka' => $product['merna_jednotka'],
             'nazev' => $product['nazev'],
             'inventarizovano' => $expression,
+            'inventarizovano_html' => $expressionHtml,
             'inventarizovano_total' => $this->formatQty($entryInfo['total']),
             'rozdil' => $this->formatQty($difference),
             'parts' => $entryInfo['parts'],
@@ -292,6 +294,20 @@ final class InventoryController
             $pieces[] = ($value >= 0 ? '+' : '') . $this->formatQty($value);
         }
         $expression = $this->formatQty($sum) . '=';
+        $expression .= ltrim(implode('', $pieces), '+');
+        return $expression;
+    }
+
+    private function formatInventoryExpressionHtml(float $sum, array $parts): string
+    {
+        if (empty($parts)) {
+            return '<strong>0</strong>';
+        }
+        $pieces = [];
+        foreach ($parts as $value) {
+            $pieces[] = ($value >= 0 ? '+' : '') . $this->formatQty($value);
+        }
+        $expression = '<strong>' . $this->formatQty($sum) . '</strong>=';
         $expression .= ltrim(implode('', $pieces), '+');
         return $expression;
     }

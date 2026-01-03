@@ -340,7 +340,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
         <td class="col-unit"><?= htmlspecialchars((string)$row['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="col-name"><?= htmlspecialchars((string)$row['nazev'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="inventory-expected col-expected"><?= htmlspecialchars((string)$row['expected'],ENT_QUOTES,'UTF-8') ?></td>
-        <td class="inventory-expression col-inventarizovano"><?= htmlspecialchars((string)$row['inventarizovano'],ENT_QUOTES,'UTF-8') ?></td>
+        <td class="inventory-expression col-inventarizovano"><?= $row['inventarizovano_html'] ?? htmlspecialchars((string)$row['inventarizovano'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="inventory-diff col-rozdil"><?= htmlspecialchars((string)$row['rozdil'],ENT_QUOTES,'UTF-8') ?></td>
         <td class="col-input">
           <?php if ($allowEntries): ?>
@@ -455,7 +455,13 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
     if (!tr) return;
     const exprCell = tr.querySelector('.inventory-expression');
     const diffCell = tr.querySelector('.inventory-diff');
-    if (exprCell) exprCell.textContent = row.inventarizovano;
+    if (exprCell) {
+      if (row.inventarizovano_html) {
+        exprCell.innerHTML = row.inventarizovano_html;
+      } else {
+        exprCell.textContent = row.inventarizovano;
+      }
+    }
     if (diffCell) diffCell.textContent = row.rozdil;
   }
 })();
