@@ -61,6 +61,7 @@ final class InventoryController
     public function start(): void
     {
         $this->requireAdmin();
+        $this->ensureInventorySchema();
         if ($this->getActiveInventory()) {
             $_SESSION['inventory_error'] = 'Inventura už probíhá.';
             $this->redirect('/inventory');
@@ -68,8 +69,8 @@ final class InventoryController
         }
         $baseline = $this->getLastClosedInventory();
         $note = trim((string)($_POST['poznamka'] ?? ''));
-        DB::pdo()->prepare('INSERT INTO inventury (baseline_inventory_id, poznamka) VALUES (?, ?)')
-            ->execute([$baseline['id'] ?? null, $note === '' ? null : $note]);
+        DB::pdo()->prepare('INSERT INTO inventury (baseline_inventory_id, poznamka, entries_mode) VALUES (?, ?, ?)')
+            ->execute([$baseline['id'] ?? null, $note === '' ? null : $note, 'absolute']);
         $_SESSION['inventory_message'] = 'Inventura byla zahájena.';
         $this->redirect('/inventory');
     }
@@ -100,8 +101,24 @@ final class InventoryController
                 }
             }
             $finalMap = [];
-            foreach ($skuList as $sku) {
-                $finalMap[$sku] = (float)($entryTotals[$sku] ?? 0.0);
+            $entryMode = (string)($inventory['entries_mode'] ?? 'delta');
+            if ($entryMode === 'delta') {
+                $baselineId = (int)($inventory['baseline_inventory_id'] ?? 0);
+                $baselineMap = $this->loadSnapshotMap($baselineId, $skuList);
+                $baselineClosedAt = $this->getInventoryClosedAt($baselineId);
+                $movements = $this->loadMovementSums($baselineClosedAt, $skuList, (int)$inventory['id'], $closedAt);
+                $expectedMap = $this->mergeQuantities($baselineMap, $movements);
+                foreach ($skuList as $sku) {
+                    if (array_key_exists($sku, $entryTotals)) {
+                        $finalMap[$sku] = (float)($expectedMap[$sku] ?? 0.0) + (float)$entryTotals[$sku];
+                    } else {
+                        $finalMap[$sku] = 0.0;
+                    }
+                }
+            } else {
+                foreach ($skuList as $sku) {
+                    $finalMap[$sku] = (float)($entryTotals[$sku] ?? 0.0);
+                }
             }
 
             $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventory['id']]);
@@ -535,14 +552,16 @@ final class InventoryController
 
     private function getActiveInventory(): ?array
     {
-        $stmt = DB::pdo()->query('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka FROM inventury WHERE closed_at IS NULL ORDER BY opened_at DESC LIMIT 1');
+        $this->ensureInventorySchema();
+        $stmt = DB::pdo()->query('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka, entries_mode FROM inventury WHERE closed_at IS NULL ORDER BY opened_at DESC LIMIT 1');
         $row = $stmt->fetch();
         return $row ? $row : null;
     }
 
     private function getLastClosedInventory(): ?array
     {
-        $stmt = DB::pdo()->query('SELECT id, opened_at, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1');
+        $this->ensureInventorySchema();
+        $stmt = DB::pdo()->query('SELECT id, opened_at, closed_at, entries_mode FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1');
         $row = $stmt->fetch();
         return $row ? $row : null;
     }
@@ -699,14 +718,30 @@ final class InventoryController
         return true;
     }
 
+    private function ensureInventorySchema(): void
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+        $checked = true;
+        $pdo = DB::pdo();
+        $stmt = $pdo->query("SHOW COLUMNS FROM inventury LIKE 'entries_mode'");
+        if (!$stmt->fetch()) {
+            $pdo->exec("ALTER TABLE `inventury` ADD COLUMN `entries_mode` ENUM('delta','absolute') NOT NULL DEFAULT 'delta' AFTER `baseline_inventory_id`");
+        }
+    }
+
     private function listInventories(): array
     {
-        return DB::pdo()->query('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka FROM inventury ORDER BY opened_at DESC, id DESC')->fetchAll();
+        $this->ensureInventorySchema();
+        return DB::pdo()->query('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka, entries_mode FROM inventury ORDER BY opened_at DESC, id DESC')->fetchAll();
     }
 
     private function loadInventoryById(int $id): ?array
     {
-        $stmt = DB::pdo()->prepare('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka FROM inventury WHERE id=? LIMIT 1');
+        $this->ensureInventorySchema();
+        $stmt = DB::pdo()->prepare('SELECT id, opened_at, closed_at, baseline_inventory_id, poznamka, entries_mode FROM inventury WHERE id=? LIMIT 1');
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         return $row ?: null;
