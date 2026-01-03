@@ -404,6 +404,12 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
       if (row) row.classList.add('inventory-row--active');
     });
     input.addEventListener('keydown', (event) => {
+      if (event.key === '+' || event.code === 'NumpadAdd') {
+        event.preventDefault();
+        input.dataset.skipBlur = '1';
+        submitValue(input, { keepFocus: true });
+        return;
+      }
       if (event.key === 'Enter') {
         event.preventDefault();
         const nextInput = inputs[index + 1];
@@ -415,14 +421,23 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
       }
     });
     input.addEventListener('blur', () => {
+      if (input.dataset.skipBlur === '1') {
+        delete input.dataset.skipBlur;
+        if (row) row.classList.remove('inventory-row--active');
+        return;
+      }
       if (row) row.classList.remove('inventory-row--active');
       submitValue(input);
     });
   });
 
-  function submitValue(input) {
+  function submitValue(input, options = {}) {
+    const keepFocus = options.keepFocus === true;
     const value = input.value.trim();
-    if (value === '') return;
+    if (value === '') {
+      if (keepFocus) input.focus();
+      return;
+    }
     const sku = input.dataset.sku;
     input.disabled = true;
     fetch('/inventory/entry', {
@@ -452,7 +467,11 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
         input.value = '';
       })
       .catch((err) => alert('Nelze uložit inventuru: ' + (err.message || err)))
-      .finally(() => { input.disabled = false; });
+      .finally(() => {
+        input.disabled = false;
+        delete input.dataset.skipBlur;
+        if (keepFocus) input.focus();
+      });
   }
 
   function updateRow(row) {
