@@ -17,6 +17,20 @@ use App\Controller\AnalyticsController;
 use App\Controller\SettingsController;
 use App\Controller\AdminController;
 
+$sessionLifetime = 60 * 60 * 24 * 7; // 7 dni
+ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
+ini_set('session.cookie_lifetime', (string)$sessionLifetime);
+$secureCookie = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443');
+session_set_cookie_params([
+    'lifetime' => $sessionLifetime,
+    'path' => '/',
+    'domain' => '',
+    'secure' => $secureCookie,
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
+
 session_start();
 
 $router = new Router();
