@@ -65,29 +65,12 @@
 
 
   $formatQty = static function ($value, int $decimals = 3): string {
-
-
-
-
-
+      $decimals = max(0, $decimals);
       $formatted = number_format((float)$value, $decimals, ',', ' ');
-
-
-
-
-
-      $formatted = rtrim(rtrim($formatted, '0'), ',');
-
-
-
-
-
+      if ($decimals > 0) {
+          $formatted = rtrim(rtrim($formatted, '0'), ',');
+      }
       return $formatted === '' ? '0' : $formatted;
-
-
-
-
-
   };
 
 
@@ -2200,59 +2183,10 @@
 
 
         <td class="qty-cell deficit-cell">
-
-
-
-
-
-          <?php if ($deficit > 0.0005): ?>
-
-
-
-
-
-            <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
-
-
-
-
-
-              <span class="demand-toggle">▸</span>
-
-
-
-
-
-              <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
-
-
-
-
-
-            </span>
-
-
-
-
-
-          <?php else: ?>
-
-
-
-
-
-            <?= $formatQty($deficit, 0) ?>
-
-
-
-
-
-          <?php endif; ?>
-
-
-
-
-
+          <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
+            <span class="demand-toggle">▸</span>
+            <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
+          </span>
         </td>
 
 

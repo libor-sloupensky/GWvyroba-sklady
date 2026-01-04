@@ -159,7 +159,7 @@ final class ProductionController
 
                     $item['deficit'] = (float)($status['deficit'] ?? 0.0);
 
-                    $item['ratio'] = $status['ratio'] ?? 0.0;
+                    $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['target']);
 
                     $item['mode'] = $status['mode'] ?? 'manual';
 
@@ -1150,6 +1150,34 @@ final class ProductionController
     }
 
 
+
+    private function computePriorityRatio(float $deficit, float $target): float
+
+    {
+
+        if ($deficit <= 0.0) {
+
+            return 0.0;
+
+        }
+
+        if ($target <= 0.0) {
+
+            return 1.0;
+
+        }
+
+        $ratio = $deficit / $target;
+
+        if ($ratio < 0.0) {
+
+            return 0.0;
+
+        }
+
+        return $ratio > 1.0 ? 1.0 : $ratio;
+
+    }
 
     private function requireAuth(): void
 
