@@ -2227,10 +2227,6 @@
 
 
 
-        <td>
-
-
-
           <?php if (!empty($item['is_nonstock'])): ?>
 
             <div class="muted">Neskladov? sada ? v?roba/korekce vypnuta</div>
@@ -2274,12 +2270,6 @@
           </form>
 
           <?php endif; ?>
-
-
-
-        </td>
-
-
 
 
 
