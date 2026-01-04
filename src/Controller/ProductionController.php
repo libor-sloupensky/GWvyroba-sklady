@@ -159,7 +159,7 @@ final class ProductionController
 
                     $item['deficit'] = (float)($status['deficit'] ?? 0.0);
 
-                    $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['target']);
+                    $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['available']);
 
                     $item['mode'] = $status['mode'] ?? 'manual';
 
@@ -406,13 +406,6 @@ final class ProductionController
                 }
                 $statusMap[$dSku]['deficit'] = (float)$dVal;
             }
-            $dovy = $this->loadDovyrobitMap($relevant);
-            foreach ($dovy as $dSku => $dVal) {
-                if (!isset($statusMap[$dSku])) {
-                    $statusMap[$dSku] = [];
-                }
-                $statusMap[$dSku]['deficit'] = (float)$dVal;
-            }
 
             $basics = $this->fetchBasicsForSkus($relevant);
 
@@ -617,12 +610,7 @@ final class ProductionController
 
     private function recalcDovyrobit(): void
     {
-        $script = __DIR__ . '/../../scripts/recalc_dovyrobit.php';
-        if (is_file($script)) {
-            $GLOBALS['__RUN_RECALC_INLINE'] = true;
-            require $script;
-            unset($GLOBALS['__RUN_RECALC_INLINE']);
-        }
+        StockService::recalcDovyrobit();
     }
 
 
@@ -961,6 +949,10 @@ final class ProductionController
 
             $parentSku = (string)$parentEdge['sku'];
 
+            if (isset($meta[$parentSku]['aktivni']) && !$meta[$parentSku]['aktivni']) {
+                continue;
+            }
+
             // Skip nonstock parents in demand tree view
             if (!empty($meta[$parentSku]['is_nonstock'])) {
                 continue;
@@ -1048,7 +1040,7 @@ final class ProductionController
 
     /**
 
-     * @return array<string,array{sku:string,nazev:string,typ:string,merna_jednotka:string,is_nonstock:bool}>
+     * @return array<string,array{sku:string,nazev:string,typ:string,merna_jednotka:string,is_nonstock:bool,aktivni:bool}>
 
      */
 
@@ -1066,7 +1058,7 @@ final class ProductionController
 
         $placeholders = implode(',', array_fill(0, count($skus), '?'));
 
-        $stmt = DB::pdo()->prepare("SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code=p.typ WHERE p.sku IN ({$placeholders})");
+        $stmt = DB::pdo()->prepare("SELECT p.sku,p.nazev,p.typ,p.merna_jednotka,p.aktivni,COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code=p.typ WHERE p.sku IN ({$placeholders})");
 
         $stmt->execute($skus);
 
@@ -1083,6 +1075,7 @@ final class ProductionController
                 'typ' => (string)($row['typ'] ?? ''),
 
                 'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+                'aktivni' => ((int)($row['aktivni'] ?? 0) === 1),
                 'is_nonstock' => ((int)($row['is_nonstock'] ?? 0) === 1),
 
             ];
@@ -1151,7 +1144,7 @@ final class ProductionController
 
 
 
-    private function computePriorityRatio(float $deficit, float $target): float
+    private function computePriorityRatio(float $deficit, float $available): float
 
     {
 
@@ -1161,9 +1154,10 @@ final class ProductionController
 
         }
 
+        $target = $deficit + $available;
         if ($target <= 0.0) {
 
-            return 1.0;
+            return 0.0;
 
         }
 

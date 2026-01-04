@@ -376,6 +376,107 @@ final class StockService
     }
 
     /**
+     * @param array<int,string>|null $skuFilter
+     */
+    public static function recalcDovyrobit(?array $skuFilter = null): int
+    {
+        $pdo = DB::pdo();
+        $pdo->beginTransaction();
+        try {
+            if ($skuFilter && count($skuFilter) > 0) {
+                $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
+                $stmt = $pdo->prepare("UPDATE produkty SET dovyrobit = 0 WHERE sku IN ({$placeholders})");
+                $stmt->execute(array_values($skuFilter));
+            } else {
+                $pdo->exec('UPDATE produkty SET dovyrobit = 0');
+            }
+
+            $meta = self::loadDovyrobitMeta($skuFilter);
+            if (empty($meta)) {
+                $pdo->commit();
+                return 0;
+            }
+            $allProducts = array_keys($meta);
+            $status = self::getStatusForSkus($allProducts);
+
+            $graph = self::buildActiveBomGraph($meta);
+            $children = $graph['children'];
+            $parents = $graph['parents'];
+            $indegree = $graph['indegree'];
+            $roots = self::findDovyrobitRoots($allProducts, $parents, $meta);
+
+            $updateRows = [];
+            $incomingSum = [];
+            $queue = $roots;
+            $processed = [];
+
+            while ($queue) {
+                $sku = array_shift($queue);
+                if (isset($processed[$sku])) {
+                    continue;
+                }
+                $processed[$sku] = true;
+                $metaRow = $meta[$sku] ?? ['aktivni' => false, 'is_nonstock' => false];
+                if (empty($metaRow['aktivni'])) {
+                    continue;
+                }
+                $st = $status[$sku] ?? [];
+                $isNonstock = !empty($metaRow['is_nonstock']);
+                $available = (float)($st['available'] ?? 0.0);
+                $isRootNode = in_array($sku, $roots, true);
+                $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
+
+                $incoming = max(0.0, (float)($incomingSum[$sku] ?? 0.0));
+                $totalDemand = $incoming + $baseTarget;
+                $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
+                $updateRows[$sku] = $needHere;
+
+                foreach ($children[$sku] ?? [] as $edge) {
+                    $coef = (float)$edge['coef'];
+                    if ($coef <= 0) {
+                        continue;
+                    }
+                    $childSku = (string)$edge['sku'];
+                    $incomingSum[$childSku] = ($incomingSum[$childSku] ?? 0.0) + ($needHere * $coef);
+                    $indegree[$childSku] = ($indegree[$childSku] ?? 1) - 1;
+                    if ($indegree[$childSku] <= 0) {
+                        $queue[] = $childSku;
+                    }
+                }
+            }
+
+            foreach ($incomingSum as $sku => $inc) {
+                if (isset($processed[$sku])) {
+                    continue;
+                }
+                $metaRow = $meta[$sku] ?? ['aktivni' => false, 'is_nonstock' => false];
+                if (empty($metaRow['aktivni'])) {
+                    continue;
+                }
+                $st = $status[$sku] ?? [];
+                $isNonstock = !empty($metaRow['is_nonstock']);
+                $available = (float)($st['available'] ?? 0.0);
+                $isRootNode = in_array($sku, $roots, true);
+                $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
+                $incoming = max(0.0, (float)$inc);
+                $totalDemand = $incoming + $baseTarget;
+                $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
+                $updateRows[$sku] = $needHere;
+            }
+
+            $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=? WHERE sku=?');
+            foreach ($updateRows as $sku => $need) {
+                $upd->execute([round($need, 0), $sku]);
+            }
+            $pdo->commit();
+            return count($updateRows);
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * @param array<int,string> $skus
      * @return array<string,array{nast_zasob:string,min_zasoba:float,min_davka:float,vyrobni_doba_dni:int,is_nonstock:int}>
      */
@@ -396,6 +497,98 @@ final class StockService
             ];
         }
         return $map;
+    }
+
+    /**
+     * @param array<int,string>|null $skuFilter
+     * @return array<string,array{aktivni:bool,is_nonstock:bool,min_zasoba:float,min_davka:float}>
+     */
+    private static function loadDovyrobitMeta(?array $skuFilter = null): array
+    {
+        $sql = 'SELECT p.sku, p.aktivni, p.min_zasoba, p.min_davka, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ';
+        $params = [];
+        if ($skuFilter && count($skuFilter) > 0) {
+            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
+            $sql .= " WHERE p.sku IN ({$placeholders})";
+            $params = array_values($skuFilter);
+        }
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($params);
+        $meta = [];
+        foreach ($stmt as $row) {
+            $sku = (string)$row['sku'];
+            if ($sku === '') {
+                continue;
+            }
+            $meta[$sku] = [
+                'aktivni' => ((int)($row['aktivni'] ?? 0) === 1),
+                'is_nonstock' => ((int)($row['is_nonstock'] ?? 0) === 1),
+                'min_zasoba' => (float)($row['min_zasoba'] ?? 0.0),
+                'min_davka' => (float)($row['min_davka'] ?? 0.0),
+            ];
+        }
+        return $meta;
+    }
+
+    /**
+     * @param array<string,array{aktivni:bool,is_nonstock:bool}> $meta
+     * @return array{children:array<string,array<int,array{sku:string,coef:float}>>,parents:array<string,array<int,array{sku:string,coef:float}>>,indegree:array<string,int>}
+     */
+    private static function buildActiveBomGraph(array $meta): array
+    {
+        $children = [];
+        $parents = [];
+        $indegree = [];
+        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient FROM bom');
+        foreach ($stmt as $row) {
+            $parent = (string)$row['rodic_sku'];
+            $child = (string)$row['potomek_sku'];
+            $coef = (float)$row['koeficient'];
+            if ($parent === '' || $child === '' || $coef <= 0) {
+                continue;
+            }
+            if (empty($meta[$parent]['aktivni'])) {
+                continue;
+            }
+            if (!isset($meta[$parent]) || !isset($meta[$child])) {
+                continue;
+            }
+            $children[$parent][] = ['sku' => $child, 'coef' => $coef];
+            $parents[$child][] = ['sku' => $parent, 'coef' => $coef];
+            $indegree[$child] = ($indegree[$child] ?? 0) + 1;
+            $indegree[$parent] = $indegree[$parent] ?? 0;
+        }
+        return ['children' => $children, 'parents' => $parents, 'indegree' => $indegree];
+    }
+
+    /**
+     * @param array<int,string> $allProducts
+     * @param array<string,array<int,array{sku:string,coef:float}>> $parents
+     * @param array<string,array{aktivni:bool,is_nonstock:bool}> $meta
+     * @return array<int,string>
+     */
+    private static function findDovyrobitRoots(array $allProducts, array $parents, array $meta): array
+    {
+        $roots = [];
+        foreach ($allProducts as $sku) {
+            $metaRow = $meta[$sku] ?? [];
+            if (empty($metaRow['aktivni']) || !empty($metaRow['is_nonstock'])) {
+                continue;
+            }
+            $hasStockParent = false;
+            foreach ($parents[$sku] ?? [] as $edge) {
+                $parentMeta = $meta[$edge['sku']] ?? [];
+                if (!empty($parentMeta['is_nonstock'])) {
+                    continue;
+                }
+                $hasStockParent = true;
+                break;
+            }
+            if (!$hasStockParent) {
+                $roots[] = $sku;
+            }
+        }
+        return $roots;
     }
 
     private static function normalizeAsOf(?string $asOf): ?string

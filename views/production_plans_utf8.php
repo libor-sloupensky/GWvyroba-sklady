@@ -81,8 +81,9 @@
 
   padding:0.9rem;
 
-
   display:flex;
+
+
 
 
   flex-wrap:wrap;
@@ -150,8 +151,9 @@
 
   display:flex;
 
-
   align-items:center;
+
+
 
 
   gap:0.5rem;
@@ -298,13 +300,6 @@
   cursor:pointer;
 
 
-  display:flex;
-
-
-  align-items:center;
-
-
-  gap:0.35rem;
 
 
   font-weight:600;
@@ -318,6 +313,9 @@
 
 .sku-toggle {
 
+  display:inline-block;
+
+  margin-right:0.25rem;
 
   font-size:0.9rem;
 
@@ -331,7 +329,6 @@
   text-align:center;
 
 
-  flex-shrink:0;
 
 
 }
