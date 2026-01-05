@@ -2109,7 +2109,7 @@
 
 
 
-      <tr class="<?= implode(' ', $rowClasses) ?>" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
+      <tr class="<?= implode(' ', $rowClasses) ?>" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>" data-deficit="<?= htmlspecialchars((string)$deficit, ENT_QUOTES, 'UTF-8') ?>">
 
 
 
@@ -3413,7 +3413,8 @@ closeModal();
 
 
 
-    loadBomTree(cell.dataset.sku || row.dataset.sku, detailCell);
+    const required = parseFloat(row.dataset.deficit || '0');
+    loadBomTree(cell.dataset.sku || row.dataset.sku, detailCell, required);
 
 
 
@@ -3485,7 +3486,7 @@ closeModal();
 
 
 
-  async function loadBomTree(sku, container) {
+  async function loadBomTree(sku, container, requiredQty) {
 
 
 
@@ -3521,7 +3522,8 @@ closeModal();
 
 
 
-      const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}`);
+      const requiredParam = Number.isFinite(requiredQty) ? `&required=${encodeURIComponent(requiredQty)}` : '';
+      const response = await fetch(`${bomUrl}?sku=${encodeURIComponent(sku)}${requiredParam}`);
 
 
 

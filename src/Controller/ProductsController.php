@@ -950,7 +950,13 @@ final class ProductsController
 
             $tree = $this->buildBomTree($sku, [], true);
 
-            $this->attachStatusToTree($tree);
+            $required = null;
+            if (isset($_GET['required']) && $_GET['required'] !== '') {
+                $required = (float)str_replace(',', '.', (string)$_GET['required']);
+                $required = max(0.0, $required);
+            }
+
+            $this->attachStatusToTree($tree, $required);
 
             echo json_encode(['ok'=>true,'tree'=>$tree]);
 
@@ -2345,7 +2351,7 @@ final class ProductsController
 
 
 
-    private function attachStatusToTree(array &$tree): void
+    private function attachStatusToTree(array &$tree, ?float $rootRequired = null): void
 
     {
 
@@ -2360,6 +2366,11 @@ final class ProductsController
         }
 
         $status = StockService::getStatusForSkus($skus);
+
+        if ($rootRequired !== null) {
+            $this->applyRequiredStatusToTree($tree, $status, $rootRequired, true);
+            return;
+        }
 
         $this->applyStatusToTree($tree, $status);
 
@@ -2417,6 +2428,29 @@ final class ProductsController
 
     }
 
+    private function applyRequiredStatusToTree(array &$node, array $statusMap, float $required, bool $isRoot): void
+    {
+        $sku = $node['sku'] ?? null;
+        $available = $sku ? (float)($statusMap[$sku]['available'] ?? 0.0) : 0.0;
+        $missing = $isRoot ? max(0.0, $required) : max(0.0, $required - $available);
+        $ratio = $required > 0.0 ? min(1.0, $missing / $required) : 0.0;
+
+        $status = $sku && isset($statusMap[$sku]) ? $statusMap[$sku] : [];
+        $status['available'] = $available;
+        $status['target'] = $required;
+        $status['deficit'] = $missing;
+        $status['ratio'] = $ratio;
+        $node['status'] = $status;
+
+        if (!empty($node['children'])) {
+            foreach ($node['children'] as &$child) {
+                $coef = (float)($child['edge']['koeficient'] ?? 0.0);
+                $childRequired = $missing * $coef;
+                $this->applyRequiredStatusToTree($child, $statusMap, $childRequired, false);
+            }
+        }
+    }
+
 
 
     private function render(string $view, array $vars = []): void
@@ -2440,6 +2474,3 @@ final class ProductsController
     }
 
 }
-
-
-

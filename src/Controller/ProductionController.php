@@ -725,36 +725,82 @@ final class ProductionController
 
         }
 
-        $requirements = [];
+        $indegree = [$rootSku => 0];
+        $stack = [$rootSku];
+        $seen = [$rootSku => true];
+        while ($stack) {
+            $node = array_pop($stack);
+            foreach ($children[$node] ?? [] as $edge) {
+                $childSku = (string)($edge['sku'] ?? '');
+                if ($childSku === '') {
+                    continue;
+                }
+                $indegree[$childSku] = ($indegree[$childSku] ?? 0) + 1;
+                if (!isset($seen[$childSku])) {
+                    $seen[$childSku] = true;
+                    $stack[] = $childSku;
+                }
+            }
+        }
 
-        $path = [];
-
-        $this->accumulateRequirements($rootSku, $quantity, $children, $requirements, $path);
-
+        $incoming = [$rootSku => $quantity];
+        $queue = [$rootSku];
+        $processed = [];
         $blocking = [];
 
-        foreach ($requirements as $sku => $required) {
+        while ($queue) {
+            $sku = array_shift($queue);
+            if (isset($processed[$sku])) {
+                continue;
+            }
+            $processed[$sku] = true;
+            $demand = (float)($incoming[$sku] ?? 0.0);
+            $available = $sku === $rootSku ? 0.0 : (float)($statusMap[$sku]['available'] ?? 0.0);
+            $missing = $sku === $rootSku ? $demand : max(0.0, $demand - $available);
 
-            $available = $statusMap[$sku]['available'] ?? 0.0;
-
-            $missing = $required - $available;
-
-            if ($missing > 0.0005) {
-
+            if ($sku !== $rootSku && $missing > 0.0005) {
                 $blocking[] = [
-
                     'sku' => $sku,
-
-                    'required' => $required,
-
+                    'required' => $demand,
                     'available' => $available,
-
                     'missing' => $missing,
-
                 ];
-
             }
 
+            foreach ($children[$sku] ?? [] as $edge) {
+                $coef = (float)($edge['koeficient'] ?? 0.0);
+                if ($coef <= 0.0) {
+                    continue;
+                }
+                $childSku = (string)($edge['sku'] ?? '');
+                if ($childSku === '') {
+                    continue;
+                }
+                $childDemand = $missing * $coef;
+                if ($childDemand > 0.0) {
+                    $incoming[$childSku] = ($incoming[$childSku] ?? 0.0) + $childDemand;
+                }
+                $indegree[$childSku] = ($indegree[$childSku] ?? 1) - 1;
+                if ($indegree[$childSku] <= 0) {
+                    $queue[] = $childSku;
+                }
+            }
+        }
+
+        foreach ($incoming as $sku => $demand) {
+            if ($sku === $rootSku || isset($processed[$sku])) {
+                continue;
+            }
+            $available = (float)($statusMap[$sku]['available'] ?? 0.0);
+            $missing = max(0.0, (float)$demand - $available);
+            if ($missing > 0.0005) {
+                $blocking[] = [
+                    'sku' => $sku,
+                    'required' => (float)$demand,
+                    'available' => $available,
+                    'missing' => $missing,
+                ];
+            }
         }
 
         return $blocking;
