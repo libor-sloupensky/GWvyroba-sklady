@@ -101,24 +101,8 @@ final class InventoryController
                 }
             }
             $finalMap = [];
-            $entryMode = (string)($inventory['entries_mode'] ?? 'delta');
-            if ($entryMode === 'delta') {
-                $baselineId = (int)($inventory['baseline_inventory_id'] ?? 0);
-                $baselineMap = $this->loadSnapshotMap($baselineId, $skuList);
-                $baselineClosedAt = $this->getInventoryClosedAt($baselineId);
-                $movements = $this->loadMovementSums($baselineClosedAt, $skuList, (int)$inventory['id'], $closedAt);
-                $expectedMap = $this->mergeQuantities($baselineMap, $movements);
-                foreach ($skuList as $sku) {
-                    if (array_key_exists($sku, $entryTotals)) {
-                        $finalMap[$sku] = (float)($expectedMap[$sku] ?? 0.0) + (float)$entryTotals[$sku];
-                    } else {
-                        $finalMap[$sku] = 0.0;
-                    }
-                }
-            } else {
-                foreach ($skuList as $sku) {
-                    $finalMap[$sku] = (float)($entryTotals[$sku] ?? 0.0);
-                }
+            foreach ($skuList as $sku) {
+                $finalMap[$sku] = (float)($entryTotals[$sku] ?? 0.0);
             }
 
             $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventory['id']]);
@@ -128,7 +112,7 @@ final class InventoryController
                     $ins->execute([$inventory['id'], $sku, $qty]);
                 }
             }
-            $pdo->prepare('UPDATE inventury SET closed_at=? WHERE id=?')->execute([$closedAt, $inventory['id']]);
+            $pdo->prepare('UPDATE inventury SET closed_at=?, entries_mode=? WHERE id=?')->execute([$closedAt, 'absolute', $inventory['id']]);
             $pdo->prepare('UPDATE polozky_pohyby SET datum=? WHERE ref_id LIKE ?')->execute([$closedAt, $this->inventoryRefPattern((int)$inventory['id'])]);
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla uzavřena.';
@@ -251,7 +235,7 @@ final class InventoryController
         $pdo->beginTransaction();
         try {
             $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventoryId]);
-            $pdo->prepare('UPDATE inventury SET closed_at=NULL WHERE id=?')->execute([$inventoryId]);
+            $pdo->prepare('UPDATE inventury SET closed_at=NULL, entries_mode=? WHERE id=?')->execute(['absolute', $inventoryId]);
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla znovu otevřena.';
         } catch (\Throwable $e) {
