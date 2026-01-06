@@ -617,11 +617,11 @@ final class StockService
         }
         $pdo = DB::pdo();
         if ($asOf !== null) {
-            $stmt = $pdo->prepare('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL AND closed_at <= ? ORDER BY closed_at DESC LIMIT 1');
+            $stmt = $pdo->prepare('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL AND closed_at <= ? ORDER BY closed_at DESC, id DESC LIMIT 1');
             $stmt->execute([$asOf]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
         } else {
-            $row = $pdo->query('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC) ?: null;
+            $row = $pdo->query('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL ORDER BY id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC) ?: null;
         }
         $baseline = $row ? ['id' => (int)$row['id'], 'closed_at' => (string)$row['closed_at']] : null;
         self::$baselineCache[$cacheKey] = $baseline;

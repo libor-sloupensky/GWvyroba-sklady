@@ -129,6 +129,7 @@ final class InventoryController
                 }
             }
             $pdo->prepare('UPDATE inventury SET closed_at=? WHERE id=?')->execute([$closedAt, $inventory['id']]);
+            $pdo->prepare('UPDATE polozky_pohyby SET datum=? WHERE ref_id LIKE ?')->execute([$closedAt, $this->inventoryRefPattern((int)$inventory['id'])]);
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla uzavřena.';
         } catch (\Throwable $e) {
@@ -561,7 +562,7 @@ final class InventoryController
     private function getLastClosedInventory(): ?array
     {
         $this->ensureInventorySchema();
-        $stmt = DB::pdo()->query('SELECT id, opened_at, closed_at, entries_mode FROM inventury WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT 1');
+        $stmt = DB::pdo()->query('SELECT id, opened_at, closed_at, entries_mode FROM inventury WHERE closed_at IS NOT NULL ORDER BY id DESC LIMIT 1');
         $row = $stmt->fetch();
         return $row ? $row : null;
     }
