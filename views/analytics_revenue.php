@@ -181,6 +181,11 @@
           input.type = 'text';
           if (p.default !== undefined) input.value = p.default;
           break;
+        case 'bool':
+          input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = Boolean(p.default);
+          break;
         case 'enum_multi': {
           if (p.name === 'eshop_source') {
             hasEshop = true;
@@ -248,6 +253,11 @@
         params[p.name] = state.products.map(item => item.sku);
         return;
       }
+      if (p.type === 'bool') {
+        const input = paramBox.querySelector(`[name="${p.name}"]`);
+        params[p.name] = input && input.checked ? 1 : 0;
+        return;
+      }
       if (p.type === 'enum_multi') {
         if (p.name === 'eshop_source') {
           params[p.name] = Array.from(eshopSelect.selectedOptions || []).map(o => o.value);
@@ -307,7 +317,10 @@
       resultBox.innerHTML = '<p class="muted">Žádná data.</p>';
       return;
     }
-    const cols = Object.keys(rows[0]).filter((c) => !['serie_key','serie_label','qty'].includes(c));
+    const isProducts = tplId === 'products';
+    const cols = Object.keys(rows[0])
+      .filter((c) => !['serie_key','serie_label','qty'].includes(c))
+      .filter((c) => !(isProducts && c === 'mj'));
     const table = document.createElement('table');
     table.className = 'result-table';
     const thead = document.createElement('thead');
@@ -321,11 +334,19 @@
     table.appendChild(thead);
     const tbody = document.createElement('tbody');
     const totals = {};
+    const productUnits = isProducts ? new Set(rows.map(r => r.mj).filter(Boolean)) : null;
     rows.forEach((r) => {
       const tr = document.createElement('tr');
       cols.forEach((c) => {
         const td = document.createElement('td');
-        td.textContent = r[c] ?? '';
+        if (isProducts && c === 'mnozstvi') {
+          const valNum = Number(r[c]);
+          const rounded = Number.isNaN(valNum) ? r[c] : Math.round(valNum);
+          const unit = r.mj || '';
+          td.textContent = unit ? `${rounded} ${unit}` : String(rounded);
+        } else {
+          td.textContent = r[c] ?? '';
+        }
         tr.appendChild(td);
         const val = Number(r[c]);
         if (!Number.isNaN(val)) {
@@ -343,7 +364,13 @@
         if (idx === 0) {
           td.textContent = 'Celkem';
         } else if (totals[c] !== undefined) {
-          td.textContent = Math.round(totals[c]);
+          if (isProducts && c === 'mnozstvi') {
+            const rounded = Math.round(totals[c]);
+            const unit = (productUnits && productUnits.size === 1) ? Array.from(productUnits)[0] : '';
+            td.textContent = unit ? `${rounded} ${unit}` : String(rounded);
+          } else {
+            td.textContent = Math.round(totals[c]);
+          }
         }
         trf.appendChild(td);
       });
@@ -523,6 +550,11 @@
         (p[param.name] || []).forEach(id => contactIds.push(id));
       } else if (param.type === 'product_multi') {
         productSkus = Array.isArray(p[param.name]) ? p[param.name] : [];
+      } else if (param.type === 'bool') {
+        const input = paramBox.querySelector(`[name="${param.name}"]`);
+        if (input && Object.prototype.hasOwnProperty.call(p, param.name)) {
+          input.checked = Boolean(p[param.name]);
+        }
       } else if (param.type === 'enum_multi') {
         const select = paramBox.querySelector(`[name="${param.name}"]`) || eshopSelect;
         Array.from(select?.options || []).forEach(opt => {

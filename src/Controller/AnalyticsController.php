@@ -697,16 +697,16 @@ SELECT
   p.sku AS sku,
   p.nazev AS nazev,
   p.merna_jednotka AS mj,
-  ROUND(-SUM(pm.mnozstvi), 3) AS mnozstvi,
-  ROUND(-SUM(pm.mnozstvi * COALESCE(p.skl_hodnota, 0)), 0) AS hodnota_czk
-FROM polozky_pohyby pm
-JOIN produkty p ON p.sku = pm.sku
-LEFT JOIN product_types pt ON pt.code = p.typ
-WHERE pm.datum BETWEEN :start_date AND :end_date
-  AND p.aktivni = 1
-  AND COALESCE(pt.is_nonstock,0) = 0
+  ROUND(-COALESCE(SUM(pm.mnozstvi), 0), 0) AS mnozstvi,
+  ROUND(-COALESCE(SUM(pm.mnozstvi * COALESCE(p.skl_hodnota, 0)), 0), 0) AS hodnota_czk
+FROM produkty p
+LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
+  AND pm.datum BETWEEN :start_date AND :end_date
   AND pm.typ_pohybu IN ('odpis', 'vyroba')
   AND pm.mnozstvi < 0
+LEFT JOIN product_types pt ON pt.code = p.typ
+WHERE (:active_only = 0 OR p.aktivni = 1)
+  AND COALESCE(pt.is_nonstock,0) = 0
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
@@ -715,12 +715,12 @@ WHERE pm.datum BETWEEN :start_date AND :end_date
   AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
 GROUP BY p.sku, p.nazev, p.merna_jednotka
-HAVING SUM(pm.mnozstvi) <> 0
-ORDER BY -SUM(pm.mnozstvi) DESC, p.sku
+ORDER BY -COALESCE(SUM(pm.mnozstvi), 0) DESC, p.sku
 ",
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 1],
                     ['name' => 'znacka_id', 'label' => 'Znacka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
@@ -917,6 +917,12 @@ ORDER BY m.month_end, serie_label
                     $validated[$name] = (int)$raw;
                     if ($validated[$name] < 0) {
                         $validated[$name] = 0;
+                    }
+                    break;
+                case 'bool':
+                    $validated[$name] = 0;
+                    if ($raw === true || $raw === 1 || $raw === '1' || $raw === 'true') {
+                        $validated[$name] = 1;
                     }
                     break;
                 case 'enum_multi':
