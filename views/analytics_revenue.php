@@ -54,6 +54,14 @@
         <p class="muted">Vyberte 0–N kontaktů; prázdné = všechny.</p>
       </div>
 
+      <div class="field" id="product-field" style="display:none;">
+        <label>Produkty (SKU / název)</label>
+        <input type="text" id="product-search" placeholder="Hledat..." autocomplete="off" />
+        <div id="product-dropdown" class="dropdown" style="display:none;"></div>
+        <div class="chips" id="product-chips"></div>
+        <p class="muted">Vyberte 0–N produktů; prázdné = všechny.</p>
+      </div>
+
       <div class="field" id="eshop-field" style="display:none;">
         <label for="eshop-source">E-shop</label>
         <select id="eshop-source" name="eshop_source" multiple size="6"></select>
@@ -108,11 +116,16 @@
   const contactInput = document.getElementById('contact-search');
   const contactDropdown = document.getElementById('contact-dropdown');
   const contactChips = document.getElementById('contact-chips');
+  const productField = document.getElementById('product-field');
+  const productInput = document.getElementById('product-search');
+  const productDropdown = document.getElementById('product-dropdown');
+  const productChips = document.getElementById('product-chips');
   const eshopField = document.getElementById('eshop-field');
   const eshopSelect = document.getElementById('eshop-source');
   const errorBox = document.getElementById('v2-error');
   const resultBox = document.getElementById('v2-result');
   const chartCanvas = document.getElementById('v2-chart');
+  const chartBox = chartCanvas?.closest('.chart-box');
 
   const favMine = document.getElementById('favorite-mine');
   const favShared = document.getElementById('favorite-shared');
@@ -123,6 +136,7 @@
   let chart;
   const state = {
     contacts: [],
+    products: [],
     favorites: favoritesInit || { mine: [], shared: [] },
     lastRows: [],
   };
@@ -140,6 +154,7 @@
     const tpl = templates[selectTpl.value];
     descBox.textContent = tpl?.description || '';
     let hasContact = false;
+    let hasProduct = false;
     let hasEshop = false;
 
     (tpl?.params || []).forEach((p) => {
@@ -189,6 +204,9 @@
         case 'contact_multi':
           hasContact = true;
           return; // handled separately
+        case 'product_multi':
+          hasProduct = true;
+          return; // handled separately
         default:
           input = document.createElement('input');
           input.type = 'text';
@@ -199,6 +217,7 @@
     });
 
     contactField.style.display = hasContact ? 'block' : 'none';
+    productField.style.display = hasProduct ? 'block' : 'none';
     eshopField.style.display = hasEshop ? 'block' : 'none';
     if (!hasEshop) {
       eshopSelect.innerHTML = '';
@@ -223,6 +242,10 @@
     (tpl?.params || []).forEach((p) => {
       if (p.type === 'contact_multi') {
         params[p.name] = state.contacts.map(c => c.id);
+        return;
+      }
+      if (p.type === 'product_multi') {
+        params[p.name] = state.products.map(item => item.sku);
         return;
       }
       if (p.type === 'enum_multi') {
@@ -418,6 +441,19 @@
     });
   }
 
+  function updateChartVisibility() {
+    const tpl = templates[selectTpl.value];
+    const hideChart = Boolean(tpl?.hide_chart);
+    if (!chartBox) return;
+    if (hideChart) {
+      chartBox.style.display = 'none';
+      if (chart) chart.destroy();
+      chart = null;
+    } else {
+      chartBox.style.display = '';
+    }
+  }
+
   function palette(i) {
     const colors = ['#1565c0','#ef6c00','#2e7d32','#8e24aa','#c62828','#00838f','#6d4c41','#5d4037','#283593','#ad1457'];
     return colors[i % colors.length];
@@ -452,7 +488,10 @@
     const data = await toJsonSafe(res);
     if (!data.ok) throw new Error(data.error || 'Dotaz selhal.');
     state.lastRows = data.rows || [];
-    renderChart(state.lastRows);
+    updateChartVisibility();
+    if (!templates[tplId]?.hide_chart) {
+      renderChart(state.lastRows);
+    }
     renderTable(state.lastRows, tplId);
   }
 
@@ -478,9 +517,12 @@
     // set params
     const tplParams = templates[fav.template_id].params || [];
     const contactIds = [];
+    let productSkus = [];
     tplParams.forEach((param) => {
       if (param.type === 'contact_multi') {
         (p[param.name] || []).forEach(id => contactIds.push(id));
+      } else if (param.type === 'product_multi') {
+        productSkus = Array.isArray(p[param.name]) ? p[param.name] : [];
       } else if (param.type === 'enum_multi') {
         const select = paramBox.querySelector(`[name="${param.name}"]`) || eshopSelect;
         Array.from(select?.options || []).forEach(opt => {
@@ -491,6 +533,7 @@
         if (input) input.value = p[param.name] || '';
       }
     });
+    state.products = (productSkus || []).map(sku => ({ sku, nazev: '' }));
     if (contactIds.length) {
       try {
         const params = new URLSearchParams();
@@ -499,15 +542,14 @@
         const data = await toJsonSafe(res);
         if (data.ok) {
           state.contacts = data.items || [];
-          renderChips();
         }
       } catch (e) {
         // ignore, fallback to empty labels
       }
     } else {
       state.contacts = [];
-      renderChips();
     }
+    renderChips();
     if (run) {
       try { await runQuery(); } catch (err) { errorBox.style.display='block'; errorBox.textContent = err.message || 'Dotaz selhal.'; }
     }
@@ -576,6 +618,21 @@
       chip.appendChild(btn);
       contactChips.appendChild(chip);
     });
+    productChips.innerHTML = '';
+    state.products.forEach((p) => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = p.nazev ? `${p.sku} - ${p.nazev}` : p.sku;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'ž';
+      btn.onclick = () => {
+        state.products = state.products.filter(item => item.sku !== p.sku);
+        renderChips();
+      };
+      chip.appendChild(btn);
+      productChips.appendChild(chip);
+    });
   }
 
   let suggestTimeout;
@@ -612,15 +669,53 @@
     }, 250);
   });
 
+  let productSuggestTimeout;
+  productInput.addEventListener('input', () => {
+    const q = productInput.value.trim();
+    if (productSuggestTimeout) clearTimeout(productSuggestTimeout);
+    if (q.length < 2) {
+      productDropdown.style.display = 'none';
+      return;
+    }
+    productSuggestTimeout = setTimeout(async () => {
+      const res = await fetch('/products/search?q=' + encodeURIComponent(q));
+      const data = await toJsonSafe(res);
+      const items = data.items || [];
+      productDropdown.innerHTML = '';
+      if (!items.length) {
+        productDropdown.innerHTML = '<div class="muted">Nic nenalezeno</div>';
+      } else {
+        items.forEach((it) => {
+          const div = document.createElement('div');
+          div.textContent = it.nazev ? `${it.sku} - ${it.nazev}` : it.sku;
+          div.onclick = () => {
+            if (!state.products.some(p => p.sku === it.sku)) {
+              state.products.push({ sku: it.sku, nazev: it.nazev || '' });
+              renderChips();
+            }
+            productDropdown.style.display = 'none';
+            productInput.value = '';
+          };
+          productDropdown.appendChild(div);
+        });
+      }
+      productDropdown.style.display = 'block';
+    }, 250);
+  });
+
   document.addEventListener('click', (e) => {
     if (!contactDropdown.contains(e.target) && e.target !== contactInput) {
       contactDropdown.style.display = 'none';
+    }
+    if (!productDropdown.contains(e.target) && e.target !== productInput) {
+      productDropdown.style.display = 'none';
     }
   });
 
   function onTemplateChange() {
     renderParams();
     renderChips(); // reset display
+    updateChartVisibility();
   }
 
   selectTpl.addEventListener('change', onTemplateChange);

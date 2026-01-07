@@ -688,6 +688,46 @@ ORDER BY mesic, serie_label
                 ],
                 'suggested_render' => 'table',
             ],
+            'products' => [
+                'title' => 'Produkty',
+                'description' => 'Pohyby skladu podle produktu (odpisy a spotřeba z výroby). Jen záporné pohyby, bez inventury a korekcí.',
+                'hide_chart' => true,
+                'sql' => "
+SELECT
+  p.sku AS sku,
+  p.nazev AS nazev,
+  p.merna_jednotka AS mj,
+  ROUND(-SUM(pm.mnozstvi), 3) AS mnozstvi,
+  ROUND(-SUM(pm.mnozstvi * COALESCE(p.skl_hodnota, 0)), 0) AS hodnota_czk
+FROM polozky_pohyby pm
+JOIN produkty p ON p.sku = pm.sku
+LEFT JOIN product_types pt ON pt.code = p.typ
+WHERE pm.datum BETWEEN :start_date AND :end_date
+  AND p.aktivni = 1
+  AND COALESCE(pt.is_nonstock,0) = 0
+  AND pm.typ_pohybu IN ('odpis', 'vyroba')
+  AND pm.mnozstvi < 0
+  AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
+  AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
+  AND (:has_typ = 0 OR p.typ IN (%typ%))
+  AND (:has_sku = 0 OR p.sku IN (%sku%))
+  AND (:allow_null_znacka = 0 OR p.znacka_id IS NOT NULL)
+  AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
+  AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
+GROUP BY p.sku, p.nazev, p.merna_jednotka
+HAVING SUM(pm.mnozstvi) <> 0
+ORDER BY -SUM(pm.mnozstvi) DESC, p.sku
+",
+                'params' => [
+                    ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'znacka_id', 'label' => 'Znacka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
+                    ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
+                    ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
+                    ['name' => 'sku', 'label' => 'SKU', 'type' => 'product_multi', 'required' => false, 'default' => []],
+                ],
+                'suggested_render' => 'table',
+            ],
             'stock_value_by_month' => [
                 'title' => 'Sklady',
                 'description' => 'Aktuální skladová hodnota = Dostupné * skl_hodnota; filtr značky, skupiny a typu.',
@@ -900,6 +940,7 @@ ORDER BY m.month_end, serie_label
                     $validated[$name] = array_values($filtered);
                     break;
                 case 'string_multi':
+                case 'product_multi':
                     $vals = is_array($raw) ? $raw : explode(',', (string)$raw);
                     $vals = array_values(array_filter(array_map('trim', $vals), static fn($v) => $v !== ''));
                     $validated[$name] = $vals;
