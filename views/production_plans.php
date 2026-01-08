@@ -574,7 +574,8 @@
 
 .production-row.is-blocked { background:#fff3f0; }
 
-.production-row.row-inactive { background:#fdeaea; }
+.inactive-name { color:#c62828; }
+
 
 
 
@@ -2059,11 +2060,6 @@
 
         $rowClasses = ['production-row'];
 
-        if (empty($item['aktivni'])) {
-
-            $rowClasses[] = 'row-inactive';
-
-        }
 
 
 
@@ -2153,7 +2149,7 @@
 
 
 
-        <td><?= htmlspecialchars((string)$item['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
+        <td class="<?= empty($item['aktivni']) ? 'inactive-name' : '' ?>"><?= htmlspecialchars((string)$item['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
 
 
 
