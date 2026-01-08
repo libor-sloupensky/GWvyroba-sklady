@@ -410,7 +410,7 @@
       const tr = document.createElement('tr');
       cols.forEach((c) => {
         const td = document.createElement('td');
-        if (isProducts && c === 'mnozstvi') {
+        if (isProducts && (c === 'množství' || c === 'mnozstvi')) {
           const valNum = Number(r[c]);
           const rounded = Number.isNaN(valNum) ? r[c] : Math.round(valNum);
           const unit = r.mj || '';
@@ -435,7 +435,7 @@
         if (idx === 0) {
           td.textContent = 'Celkem';
         } else if (totals[c] !== undefined) {
-          if (isProducts && c === 'mnozstvi') {
+          if (isProducts && (c === 'množství' || c === 'mnozstvi')) {
             const rounded = Math.round(totals[c]);
             const unit = (productUnits && productUnits.size === 1) ? Array.from(productUnits)[0] : '';
             td.textContent = unit ? `${rounded} ${unit}` : String(rounded);

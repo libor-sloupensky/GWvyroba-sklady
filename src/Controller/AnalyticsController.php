@@ -1122,7 +1122,7 @@ SELECT
   p.merna_jednotka AS mj,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi)), 0), 0) AS mnozstvi,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
-  p.poznamka AS `pozn?mka`
+  p.poznamka AS poznamka
 FROM produkty p
 LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
   AND pm.datum BETWEEN :start_date AND :end_date
@@ -1158,11 +1158,11 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                 'sku' => $row['sku'] ?? '',
                 'nazev' => $row['nazev'] ?? '',
                 'mj' => $row['mj'] ?? '',
-                'mnozstvi' => $row['mnozstvi'] ?? 0,
+                'množství' => $row['mnozstvi'] ?? 0,
                 'hodnota skladu' => $row['hodnota skladu'] ?? 0,
-                'prodejn? hodnota' => round($sale, 0),
+                'prodejní hodnota' => round($sale, 0),
                 'zisk' => $sale != 0.0 ? round($sale - $cost, 0) : 0,
-                'pozn?mka' => $row['pozn?mka'] ?? '',
+                'poznámka' => $row['poznamka'] ?? '',
             ];
         }
         return $out;
