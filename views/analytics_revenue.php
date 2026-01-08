@@ -12,7 +12,9 @@
 .v2-form label { font-weight:600; display:block; margin-bottom:0.15rem; }
 .v2-row { display:flex; gap:0.6rem; flex-wrap:wrap; }
 .v2-row .field { flex:1 1 0; min-width:140px; }
-.v2-form input, .v2-form select { width:100%; padding:0.4rem 0.5rem; }
+.v2-form input:not([type="checkbox"]), .v2-form select { width:100%; padding:0.4rem 0.5rem; }
+.v2-form input[type="checkbox"] { width:auto; padding:0; }
+.checkbox-label { display:flex; align-items:center; gap:0.45rem; font-weight:600; }
 .notice { padding:0.6rem 0.8rem; border:1px solid #e0e0e0; border-radius:8px; background:#f7f9fc; }
 .muted { color:#607d8b; }
 .error { color:#c62828; font-weight:600; }
@@ -156,10 +158,24 @@
     let hasContact = false;
     let hasProduct = false;
     let hasEshop = false;
+    let dateRow = null;
 
     (tpl?.params || []).forEach((p) => {
       const wrap = document.createElement('div');
       wrap.className = 'field';
+      const useDateRow = p.type === 'date' && (p.name === 'start_date' || p.name === 'end_date');
+      const appendWrap = () => {
+        if (useDateRow) {
+          if (!dateRow) {
+            dateRow = document.createElement('div');
+            dateRow.className = 'v2-row';
+            paramBox.appendChild(dateRow);
+          }
+          dateRow.appendChild(wrap);
+        } else {
+          paramBox.appendChild(wrap);
+        }
+      };
       const label = document.createElement('label');
       label.textContent = p.label || p.name;
       wrap.appendChild(label);
@@ -185,7 +201,13 @@
           input = document.createElement('input');
           input.type = 'checkbox';
           input.checked = Boolean(p.default);
-          break;
+          input.name = p.name;
+          label.className = 'checkbox-label';
+          label.textContent = '';
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(p.label || p.name));
+          appendWrap();
+          return;
         case 'enum_multi': {
           if (p.name === 'eshop_source') {
             hasEshop = true;
@@ -218,7 +240,7 @@
       }
       input.name = p.name;
       wrap.appendChild(input);
-      paramBox.appendChild(wrap);
+      appendWrap();
     });
 
     contactField.style.display = hasContact ? 'block' : 'none';
@@ -642,7 +664,7 @@
       chip.textContent = c.label || (`Kontakt #${c.id}`);
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = '×';
+      btn.textContent = 'x';
       btn.onclick = () => {
         state.contacts = state.contacts.filter(item => item.id !== c.id);
         renderChips();
@@ -657,7 +679,7 @@
       chip.textContent = p.nazev ? `${p.sku} - ${p.nazev}` : p.sku;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = 'ž';
+      btn.textContent = 'x';
       btn.onclick = () => {
         state.products = state.products.filter(item => item.sku !== p.sku);
         renderChips();

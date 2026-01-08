@@ -721,7 +721,7 @@ ORDER BY -COALESCE(SUM(pm.mnozstvi), 0) DESC, p.sku
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
                     ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 1],
-                    ['name' => 'znacka_id', 'label' => 'Znacka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
+                    ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
                     ['name' => 'sku', 'label' => 'SKU', 'type' => 'product_multi', 'required' => false, 'default' => []],
