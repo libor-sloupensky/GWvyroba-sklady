@@ -45,7 +45,7 @@ final class ProductionController
 
 
 
-            $conditions = ['aktivni = 1'];
+            $conditions = ['1=1'];
 
             $params = [];
 
@@ -87,7 +87,7 @@ final class ProductionController
 
             $where = implode(' AND ', $conditions);
 
-            $sql = 'SELECT p.sku,p.typ,p.nazev,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code=p.typ WHERE ' .
+            $sql = 'SELECT p.sku,p.typ,p.nazev,p.aktivni,p.min_zasoba,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code=p.typ WHERE ' .
 
                 $where . ' ORDER BY p.nazev';
 

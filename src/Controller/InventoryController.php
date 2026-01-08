@@ -439,7 +439,7 @@ final class InventoryController
         $stmt = DB::pdo()->query(
             'SELECT p.sku FROM produkty p ' .
             'LEFT JOIN product_types pt ON pt.code = p.typ ' .
-            'WHERE p.aktivni = 1 AND COALESCE(pt.is_nonstock,0) = 0 ' .
+            'WHERE COALESCE(pt.is_nonstock,0) = 0 ' .
             'ORDER BY p.sku'
         );
         return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
@@ -453,7 +453,7 @@ final class InventoryController
             'LEFT JOIN produkty_znacky z ON z.id = p.znacka_id ' .
             'LEFT JOIN produkty_skupiny g ON g.id = p.skupina_id ' .
             'LEFT JOIN product_types pt ON pt.code = p.typ ';
-        $conditions = ['p.aktivni = 1', 'COALESCE(pt.is_nonstock,0) = 0'];
+        $conditions = ['COALESCE(pt.is_nonstock,0) = 0'];
         $params = [];
         $brand = (int)($filters['brand'] ?? 0);
         if ($brand > 0) {

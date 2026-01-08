@@ -111,6 +111,7 @@
 .products-table th,
 .products-table td { border:1px solid #ddd; padding:0.45rem 0.55rem; vertical-align:top; }
 .products-table th { background:#f3f6f9; }
+.products-table tr.row-inactive td { background:#fdeaea; }
 .sku-cell {
   cursor: pointer;
   font-weight: 600;
@@ -953,7 +954,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <th>Poznámka</th>
   </tr>
   <?php foreach (($items ?? []) as $it): ?>
-  <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
+  <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>" class="<?= (int)$it['aktivni'] ? '' : 'row-inactive' ?>">
     <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
       <span class="sku-toggle">▸</span>
       <span><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>

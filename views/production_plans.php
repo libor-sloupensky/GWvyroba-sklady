@@ -574,6 +574,8 @@
 
 .production-row.is-blocked { background:#fff3f0; }
 
+.production-row.row-inactive { background:#fdeaea; }
+
 
 
 
@@ -2056,6 +2058,12 @@
 
 
         $rowClasses = ['production-row'];
+
+        if (empty($item['aktivni'])) {
+
+            $rowClasses[] = 'row-inactive';
+
+        }
 
 
 
