@@ -2229,7 +2229,7 @@
 
           <?php if (!empty($item['is_nonstock'])): ?>
 
-            <div class="muted">Neskladov? sada ? v?roba/korekce vypnuta</div>
+            <div class="muted">Neskladová sada – výroba/korekce vypnuta</div>
 
           <?php else: ?>
 
