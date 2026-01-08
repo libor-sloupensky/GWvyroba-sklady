@@ -475,6 +475,15 @@ PROMPT;
             }
             return;
         }
+        if ($templateId === 'products') {
+            try {
+                $rows = $this->buildProductMovementRows($validated);
+                echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
+            } catch (\Throwable $e) {
+                echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            }
+            return;
+        }
         $sql = $this->expandArrayParams($template['sql'], $validated);
 
         try {
@@ -1098,6 +1107,212 @@ ORDER BY m.month_end, serie_label
             return strcmp((string)$a['serie_label'], (string)$b['serie_label']);
         });
         return $rows;
+    }
+
+    /**
+     * @param array<string,mixed> $params
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildProductMovementRows(array $params): array
+    {
+        $sql = "
+SELECT
+  p.sku AS sku,
+  p.nazev AS nazev,
+  p.merna_jednotka AS mj,
+  ROUND(COALESCE(SUM(ABS(pm.mnozstvi)), 0), 0) AS mnozstvi,
+  ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
+  p.poznamka AS `pozn?mka`
+FROM produkty p
+LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
+  AND pm.datum BETWEEN :start_date AND :end_date
+  AND pm.typ_pohybu IN ('odpis', 'vyroba')
+  AND (
+    (:movement_direction = 'vydej' AND pm.mnozstvi < 0)
+    OR (:movement_direction = 'prijem' AND pm.mnozstvi > 0)
+  )
+LEFT JOIN product_types pt ON pt.code = p.typ
+WHERE (:active_only = 0 OR p.aktivni = 1)
+  AND COALESCE(pt.is_nonstock,0) = 0
+  AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
+  AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
+  AND (:has_typ = 0 OR p.typ IN (%typ%))
+  AND (:has_sku = 0 OR p.sku IN (%sku%))
+  AND (:allow_null_znacka = 0 OR p.znacka_id IS NOT NULL)
+  AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
+  AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
+GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka
+ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
+";
+        $queryParams = $params;
+        $sql = $this->expandArrayParams($sql, $queryParams);
+        $rows = $this->runTemplateQuery($sql, $queryParams);
+
+        $salesBySku = $this->allocateSalesToStockItems($params);
+        $out = [];
+        foreach ($rows as $row) {
+            $sku = (string)($row['sku'] ?? '');
+            $sale = (float)($salesBySku[$sku] ?? 0.0);
+            $cost = (float)($row['hodnota skladu'] ?? 0.0);
+            $out[] = [
+                'sku' => $row['sku'] ?? '',
+                'nazev' => $row['nazev'] ?? '',
+                'mj' => $row['mj'] ?? '',
+                'mnozstvi' => $row['mnozstvi'] ?? 0,
+                'hodnota skladu' => $row['hodnota skladu'] ?? 0,
+                'prodejn? hodnota' => round($sale, 0),
+                'zisk' => $sale != 0.0 ? round($sale - $cost, 0) : 0,
+                'pozn?mka' => $row['pozn?mka'] ?? '',
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $params
+     * @return array<string,float>
+     */
+    private function allocateSalesToStockItems(array $params): array
+    {
+        if (($params['movement_direction'] ?? 'vydej') !== 'vydej') {
+            return [];
+        }
+        $startDate = (string)($params['start_date'] ?? '');
+        $endDate = (string)($params['end_date'] ?? '');
+        if ($startDate == '' || $endDate == '') {
+            return [];
+        }
+        $meta = $this->loadProductStockFlags();
+        if (empty($meta)) {
+            return [];
+        }
+        $children = $this->loadBomChildrenMap();
+        $cache = [];
+        $alloc = [];
+
+        $stmt = DB::pdo()->prepare(
+            "SELECT sku, SUM(cena_jedn_czk * mnozstvi) AS total_value
+             FROM polozky_eshop
+             WHERE duzp BETWEEN ? AND ?
+               AND sku IS NOT NULL AND sku <> ''
+             GROUP BY sku"
+        );
+        $stmt->execute([$startDate, $endDate]);
+        foreach ($stmt as $row) {
+            $sku = trim((string)($row['sku'] ?? ''));
+            if ($sku == '') {
+                continue;
+            }
+            $value = (float)($row['total_value'] ?? 0.0);
+            if ($value == 0.0) {
+                continue;
+            }
+            $metaRow = $meta[$sku] ?? null;
+            if ($metaRow === null) {
+                continue;
+            }
+            if (empty($metaRow['is_nonstock'])) {
+                $alloc[$sku] = ($alloc[$sku] ?? 0.0) + $value;
+                continue;
+            }
+            $weights = $this->computeNearestStockWeights($sku, $meta, $children, $cache);
+            if (empty($weights)) {
+                continue;
+            }
+            foreach ($weights as $leafSku => $weight) {
+                if ($weight == 0.0) {
+                    continue;
+                }
+                $alloc[$leafSku] = ($alloc[$leafSku] ?? 0.0) + ($value * $weight);
+            }
+        }
+        return $alloc;
+    }
+
+    /**
+     * @return array<string,array{is_nonstock:bool}>
+     */
+    private function loadProductStockFlags(): array
+    {
+        $map = [];
+        $stmt = DB::pdo()->query('SELECT p.sku, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ');
+        foreach ($stmt as $row) {
+            $sku = (string)($row['sku'] ?? '');
+            if ($sku == '') {
+                continue;
+            }
+            $map[$sku] = [
+                'is_nonstock' => ((int)($row['is_nonstock'] ?? 0) == 1),
+            ];
+        }
+        return $map;
+    }
+
+    /**
+     * @return array<string,array<int,string>>
+     */
+    private function loadBomChildrenMap(): array
+    {
+        $children = [];
+        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku FROM bom');
+        foreach ($stmt as $row) {
+            $parent = (string)($row['rodic_sku'] ?? '');
+            $child = (string)($row['potomek_sku'] ?? '');
+            if ($parent == '' || $child == '') {
+                continue;
+            }
+            if (!isset($children[$parent])) {
+                $children[$parent] = [];
+            }
+            $children[$parent][] = $child;
+        }
+        return $children;
+    }
+
+    /**
+     * @param array<string,array{is_nonstock:bool}> $meta
+     * @param array<string,array<int,string>> $children
+     * @param array<string,array<string,float>> $cache
+     * @param array<string,bool> $path
+     * @return array<string,float>
+     */
+    private function computeNearestStockWeights(
+        string $sku,
+        array $meta,
+        array $children,
+        array &$cache,
+        array $path = []
+    ): array {
+        if (isset($cache[$sku])) {
+            return $cache[$sku];
+        }
+        if (isset($path[$sku])) {
+            return [];
+        }
+        $path[$sku] = true;
+        $edges = $children[$sku] ?? [];
+        $count = count($edges);
+        if ($count == 0) {
+            $cache[$sku] = [];
+            return $cache[$sku];
+        }
+        $weights = [];
+        $share = 1.0 / $count;
+        foreach ($edges as $childSku) {
+            if (!isset($meta[$childSku])) {
+                continue;
+            }
+            if (empty($meta[$childSku]['is_nonstock'])) {
+                $weights[$childSku] = ($weights[$childSku] ?? 0.0) + $share;
+                continue;
+            }
+            $childWeights = $this->computeNearestStockWeights($childSku, $meta, $children, $cache, $path);
+            foreach ($childWeights as $leafSku => $weight) {
+                $weights[$leafSku] = ($weights[$leafSku] ?? 0.0) + ($weight * $share);
+            }
+        }
+        $cache[$sku] = $weights;
+        return $weights;
     }
 
     /**
