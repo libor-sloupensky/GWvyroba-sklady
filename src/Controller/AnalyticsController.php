@@ -706,7 +706,8 @@ SELECT
   END), 0), 0) AS `prodejní hodnota`,
   ROUND(COALESCE(SUM(CASE
     WHEN :movement_direction = 'vydej' AND pm.typ_pohybu = 'odpis' AND pm.ref_id LIKE 'doc:%'
-      THEN COALESCE(sale.prodejni_hodnota, 0) - (ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0))
+      AND sale.prodejni_hodnota IS NOT NULL
+      THEN sale.prodejni_hodnota - (ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0))
     ELSE 0
   END), 0), 0) AS zisk,
   p.poznamka AS `poznámka`
