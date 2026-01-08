@@ -21,6 +21,19 @@
 .chips { display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.3rem; }
 .chip { background:#eceff1; border-radius:999px; padding:0.25rem 0.55rem; display:inline-flex; align-items:center; gap:0.35rem; }
 .chip button { border:0; background:none; cursor:pointer; font-weight:700; color:#c62828; }
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #eceff1;
+  color: #37474f;
+  font-size: 0.75rem;
+  margin-left: 0.35rem;
+  cursor: help;
+}
 .dropdown { border:1px solid #d0d7de; border-radius:6px; padding:0.35rem 0.45rem; background:#fff; max-height:180px; overflow:auto; margin-top:0.2rem; }
 .dropdown div { padding:0.2rem 0.1rem; cursor:pointer; }
 .dropdown div:hover { background:#f1f5f9; }
@@ -159,11 +172,22 @@
     let hasProduct = false;
     let hasEshop = false;
     let dateRow = null;
+    let toggleRow = null;
+
+    const addHelp = (labelEl, helpText) => {
+      if (!helpText) return;
+      const help = document.createElement('span');
+      help.className = 'help-icon';
+      help.title = helpText;
+      help.textContent = '?';
+      labelEl.appendChild(help);
+    };
 
     (tpl?.params || []).forEach((p) => {
       const wrap = document.createElement('div');
       wrap.className = 'field';
       const useDateRow = p.type === 'date' && (p.name === 'start_date' || p.name === 'end_date');
+      const useToggleRow = p.name === 'active_only' || p.name === 'movement_direction';
       const appendWrap = () => {
         if (useDateRow) {
           if (!dateRow) {
@@ -172,12 +196,20 @@
             paramBox.appendChild(dateRow);
           }
           dateRow.appendChild(wrap);
+        } else if (useToggleRow) {
+          if (!toggleRow) {
+            toggleRow = document.createElement('div');
+            toggleRow.className = 'v2-row';
+            paramBox.appendChild(toggleRow);
+          }
+          toggleRow.appendChild(wrap);
         } else {
           paramBox.appendChild(wrap);
         }
       };
       const label = document.createElement('label');
       label.textContent = p.label || p.name;
+      addHelp(label, p.help);
       wrap.appendChild(label);
       let input;
       switch (p.type) {
@@ -206,8 +238,25 @@
           label.textContent = '';
           label.appendChild(input);
           label.appendChild(document.createTextNode(p.label || p.name));
+          addHelp(label, p.help);
           appendWrap();
           return;
+        case 'enum': {
+          input = document.createElement('select');
+          (p.values || []).forEach((val) => {
+            const opt = document.createElement('option');
+            if (typeof val === 'object') {
+              opt.value = val.value ?? '';
+              opt.textContent = val.label ?? val.value ?? '';
+            } else {
+              opt.value = val;
+              opt.textContent = val;
+            }
+            input.appendChild(opt);
+          });
+          if (p.default !== undefined) input.value = p.default;
+          break;
+        }
         case 'enum_multi': {
           if (p.name === 'eshop_source') {
             hasEshop = true;

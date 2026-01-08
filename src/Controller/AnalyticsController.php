@@ -697,13 +697,40 @@ SELECT
   p.sku AS sku,
   p.nazev AS nazev,
   p.merna_jednotka AS mj,
-  ROUND(-COALESCE(SUM(pm.mnozstvi), 0), 0) AS mnozstvi,
-  ROUND(-COALESCE(SUM(pm.mnozstvi * COALESCE(p.skl_hodnota, 0)), 0), 0) AS hodnota_czk
+  ROUND(COALESCE(SUM(ABS(pm.mnozstvi)), 0), 0) AS mnozstvi,
+  ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
+  ROUND(COALESCE(SUM(CASE
+    WHEN :movement_direction = 'vydej' AND pm.typ_pohybu = 'odpis' AND pm.ref_id LIKE 'doc:%'
+      THEN COALESCE(sale.prodejni_hodnota, 0)
+    ELSE 0
+  END), 0), 0) AS `prodejní hodnota`,
+  ROUND(COALESCE(SUM(CASE
+    WHEN :movement_direction = 'vydej' AND pm.typ_pohybu = 'odpis' AND pm.ref_id LIKE 'doc:%'
+      THEN COALESCE(sale.prodejni_hodnota, 0) - (ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0))
+    ELSE 0
+  END), 0), 0) AS zisk,
+  p.poznamka AS `poznámka`
 FROM produkty p
 LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
   AND pm.datum BETWEEN :start_date AND :end_date
   AND pm.typ_pohybu IN ('odpis', 'vyroba')
-  AND pm.mnozstvi < 0
+  AND (
+    (:movement_direction = 'vydej' AND pm.mnozstvi < 0)
+    OR (:movement_direction = 'prijem' AND pm.mnozstvi > 0)
+  )
+LEFT JOIN (
+  SELECT
+    pe.eshop_source,
+    pe.cislo_dokladu,
+    pe.sku,
+    SUM(pe.cena_jedn_czk * pe.mnozstvi) AS prodejni_hodnota
+  FROM polozky_eshop pe
+  WHERE pe.duzp BETWEEN :start_date AND :end_date
+  GROUP BY pe.eshop_source, pe.cislo_dokladu, pe.sku
+) sale ON sale.sku = pm.sku
+  AND pm.ref_id LIKE 'doc:%'
+  AND sale.eshop_source = SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 2), ':', -1)
+  AND sale.cislo_dokladu = SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 3), ':', -1)
 LEFT JOIN product_types pt ON pt.code = p.typ
 WHERE (:active_only = 0 OR p.aktivni = 1)
   AND COALESCE(pt.is_nonstock,0) = 0
@@ -714,13 +741,17 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
   AND (:allow_null_znacka = 0 OR p.znacka_id IS NOT NULL)
   AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
-GROUP BY p.sku, p.nazev, p.merna_jednotka
-ORDER BY -COALESCE(SUM(pm.mnozstvi), 0) DESC, p.sku
+GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka
+ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 ",
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 1],
+                    ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 1, 'help' => 'Zapnuto = jen aktivní produkty. Vypnuto = včetně neaktivních.'],
+                    ['name' => 'movement_direction', 'label' => 'Výdej/příjem', 'type' => 'enum', 'required' => false, 'default' => 'vydej', 'values' => [
+                        ['value' => 'vydej', 'label' => 'Výdej'],
+                        ['value' => 'prijem', 'label' => 'Příjem'],
+                    ], 'help' => 'Výdej = odpis/spotřeba bez inventury. Příjem = naskladnění bez inventury.'],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
@@ -908,7 +939,10 @@ ORDER BY m.month_end, serie_label
                 case 'enum':
                     $val = trim((string)$raw);
                     $allowed = (array)($param['values'] ?? []);
-                    if ($val !== '' && !in_array($val, $allowed, true)) {
+                    $allowedValues = array_map(function ($item) {
+                        return is_array($item) ? (string)($item['value'] ?? '') : (string)$item;
+                    }, $allowed);
+                    if ($val !== '' && !in_array($val, $allowedValues, true)) {
                         $errors[] = "Neplatná hodnota pro {$name}.";
                     }
                     $validated[$name] = $val;
