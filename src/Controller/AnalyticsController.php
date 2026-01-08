@@ -6,7 +6,7 @@ use App\Support\DB;
 use App\Service\AnalyticsSchema;
 use App\Service\StockService;
 use PDO;
- 
+
 final class AnalyticsController
 {
     // No-op change to trigger deployment; logic unchanged.
