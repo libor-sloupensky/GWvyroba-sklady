@@ -751,6 +751,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                         ['value' => 'vydej', 'label' => 'Výdej'],
                         ['value' => 'prijem', 'label' => 'Příjem'],
                     ], 'help' => 'Výdej = odpis/spotřeba bez inventury. Příjem = naskladnění bez inventury.'],
+                    ['name' => 'nonzero_only', 'label' => 'Jen nenulové', 'type' => 'bool', 'required' => false, 'default' => 1, 'help' => 'Zobrazí pouze položky s nenulovým množstvím.'],
                     ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshopFilterOptions],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
@@ -1134,6 +1135,7 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
   AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
 GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka, p.aktivni
+HAVING (:nonzero_only = 0 OR COALESCE(SUM(ABS(pm.mnozstvi)), 0) <> 0)
 ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 ";
         $filters = $params['eshop_source'] ?? [];

@@ -188,7 +188,7 @@
       const wrap = document.createElement('div');
       wrap.className = 'field';
       const useDateRow = p.type === 'date' && (p.name === 'start_date' || p.name === 'end_date');
-      const useToggleRow = p.name === 'active_only' || p.name === 'movement_direction';
+      const useToggleRow = p.name === 'active_only' || p.name === 'movement_direction' || p.name === 'nonzero_only';
       const appendWrap = () => {
         if (useDateRow) {
           if (!dateRow) {
