@@ -34,6 +34,30 @@
   margin-left: 0.35rem;
   cursor: help;
 }
+.toggle-switch {
+  display: inline-flex;
+  border: 1px solid #cfd8dc;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+.toggle-switch button {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0.65rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #455a64;
+  cursor: pointer;
+}
+.toggle-switch button.active {
+  background: #1e88e5;
+  color: #fff;
+}
+.toggle-switch button:focus {
+  outline: 1px solid #1e88e5;
+  outline-offset: -1px;
+}
 .dropdown { border:1px solid #d0d7de; border-radius:6px; padding:0.35rem 0.45rem; background:#fff; max-height:180px; overflow:auto; margin-top:0.2rem; }
 .dropdown div { padding:0.2rem 0.1rem; cursor:pointer; }
 .dropdown div:hover { background:#f1f5f9; }
@@ -243,6 +267,52 @@
           appendWrap();
           return;
         case 'enum': {
+          if (p.name === 'movement_direction') {
+            const toggle = document.createElement('div');
+            toggle.className = 'toggle-switch';
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = p.name;
+            const values = (p.values || []).map((val) => {
+              if (typeof val === 'object') {
+                return { value: String(val.value ?? ''), label: String(val.label ?? val.value ?? '') };
+              }
+              return { value: String(val), label: String(val) };
+            });
+            const labelFor = (value, fallback) => {
+              const found = values.find(v => v.value === value);
+              return found?.label || fallback;
+            };
+            const normalize = (value) => (value === 'prijem' ? 'prijem' : 'vydej');
+            const leftBtn = document.createElement('button');
+            leftBtn.type = 'button';
+            leftBtn.dataset.value = 'vydej';
+            leftBtn.textContent = labelFor('vydej', 'Výdej');
+            const rightBtn = document.createElement('button');
+            rightBtn.type = 'button';
+            rightBtn.dataset.value = 'prijem';
+            rightBtn.textContent = labelFor('prijem', 'Příjem');
+            const setToggle = (value, notify = true) => {
+              const normalized = normalize(value);
+              hidden.value = normalized;
+              leftBtn.classList.toggle('active', normalized === 'vydej');
+              rightBtn.classList.toggle('active', normalized === 'prijem');
+              if (notify) {
+                hidden.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            };
+            leftBtn.addEventListener('click', () => setToggle('vydej'));
+            rightBtn.addEventListener('click', () => setToggle('prijem'));
+            hidden.addEventListener('change', () => setToggle(hidden.value, false));
+            toggle.appendChild(leftBtn);
+            toggle.appendChild(rightBtn);
+            const initial = normalize(p.default ?? 'vydej');
+            setToggle(initial, false);
+            wrap.appendChild(hidden);
+            wrap.appendChild(toggle);
+            appendWrap();
+            return;
+          }
           input = document.createElement('select');
           (p.values || []).forEach((val) => {
             const opt = document.createElement('option');
@@ -313,7 +383,7 @@
   }
 
     const movementSelect = paramBox.querySelector('[name="movement_direction"]');
-    const eshopFilterSelect = paramBox.querySelector('select[name="eshop_source"]');
+    const eshopFilterSelect = hasEshop ? eshopSelect : null;
     if (eshopFilterSelect) {
       const selectAllValue = eshopFilterSelect.querySelector('option[value="vse"]')
         ? 'vse'
@@ -673,7 +743,12 @@
         });
       } else {
         const input = paramBox.querySelector(`[name="${param.name}"]`);
-        if (input) input.value = p[param.name] || '';
+        if (input) {
+          input.value = p[param.name] || '';
+          if (param.name === 'movement_direction') {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
       }
     });
     state.products = (productSkus || []).map(sku => ({ sku, nazev: '' }));
