@@ -746,7 +746,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 1, 'help' => 'Zapnuto = jen aktivní produkty. Vypnuto = včetně neaktivních.'],
+                    ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 0, 'help' => 'Zapnuto = jen aktivní produkty. Vypnuto = včetně neaktivních.'],
                     ['name' => 'movement_direction', 'label' => 'Výdej/příjem', 'type' => 'enum', 'required' => false, 'default' => 'vydej', 'values' => [
                         ['value' => 'vydej', 'label' => 'Výdej'],
                         ['value' => 'prijem', 'label' => 'Příjem'],

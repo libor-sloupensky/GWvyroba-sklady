@@ -524,6 +524,13 @@
     cols.forEach((c) => {
       const th = document.createElement('th');
       th.textContent = c;
+      if (isProducts && c === 'hodnota skladu') {
+        const help = document.createElement('span');
+        help.className = 'help-icon';
+        help.title = 'Skladová hodnota položky × počet kusů.';
+        help.textContent = '?';
+        th.appendChild(help);
+      }
       trh.appendChild(th);
     });
     thead.appendChild(trh);
