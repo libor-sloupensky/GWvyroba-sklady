@@ -654,6 +654,18 @@ PROMPT;
             'wormup.com',
             'grigsupply.cz',
         ];
+        $eshopSources = array_values(array_filter($eshops, static function ($v) {
+            return $v !== 'vsechny';
+        }));
+        $eshopFilterOptions = array_merge(
+            [
+                ['value' => 'vse', 'label' => 'Vše'],
+                ['value' => 'bez', 'label' => 'Bez e-shopu'],
+            ],
+            array_map(static function ($v) {
+                return ['value' => $v, 'label' => $v];
+            }, $eshopSources)
+        );
         $brands = $this->loadOptions('produkty_znacky', 'id', 'nazev');
         $groups = $this->loadOptions('produkty_skupiny', 'id', 'nazev');
         $types = $this->loadProductTypes();
@@ -762,6 +774,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                         ['value' => 'vydej', 'label' => 'Výdej'],
                         ['value' => 'prijem', 'label' => 'Příjem'],
                     ], 'help' => 'Výdej = odpis/spotřeba bez inventury. Příjem = naskladnění bez inventury.'],
+                    ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum', 'required' => false, 'default' => 'vse', 'values' => $eshopFilterOptions],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
@@ -1132,6 +1145,17 @@ LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
     (:movement_direction = 'vydej' AND pm.mnozstvi < 0)
     OR (:movement_direction = 'prijem' AND pm.mnozstvi > 0)
   )
+  AND (
+    :eshop_filter = 'vse'
+    OR (
+      :eshop_filter = 'bez' AND (pm.ref_id IS NULL OR pm.ref_id NOT LIKE 'doc:%')
+    )
+    OR (
+      :eshop_filter NOT IN ('vse','bez')
+      AND pm.ref_id LIKE 'doc:%'
+      AND SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 2), ':', -1) = :eshop_filter
+    )
+  )
 LEFT JOIN product_types pt ON pt.code = p.typ
 WHERE (:active_only = 0 OR p.aktivni = 1)
   AND COALESCE(pt.is_nonstock,0) = 0
@@ -1145,10 +1169,23 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
 GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka, p.aktivni
 ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 ";
+        $eshopFilter = $params['eshop_source'] ?? 'vse';
+        if (is_array($eshopFilter)) {
+            $eshopFilter = $eshopFilter[0] ?? 'vse';
+        }
+        $eshopFilter = trim((string)$eshopFilter);
+        if ($eshopFilter === '') {
+            $eshopFilter = 'vse';
+        }
+        if (($params['movement_direction'] ?? 'vydej') !== 'vydej') {
+            $eshopFilter = 'vse';
+        }
         $queryParams = $params;
+        $queryParams['eshop_filter'] = $eshopFilter;
         $sql = $this->expandArrayParams($sql, $queryParams);
         $rows = $this->runTemplateQuery($sql, $queryParams);
 
+        $params['eshop_source'] = $eshopFilter;
         $salesBySku = $this->allocateSalesToStockItems($params);
         $out = [];
         foreach ($rows as $row) {
@@ -1179,6 +1216,17 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
         if (($params['movement_direction'] ?? 'vydej') !== 'vydej') {
             return [];
         }
+        $eshopFilter = $params['eshop_source'] ?? 'vse';
+        if (is_array($eshopFilter)) {
+            $eshopFilter = $eshopFilter[0] ?? 'vse';
+        }
+        $eshopFilter = trim((string)$eshopFilter);
+        if ($eshopFilter === '') {
+            $eshopFilter = 'vse';
+        }
+        if ($eshopFilter === 'bez') {
+            return [];
+        }
         $startDate = (string)($params['start_date'] ?? '');
         $endDate = (string)($params['end_date'] ?? '');
         if ($startDate == '' || $endDate == '') {
@@ -1192,14 +1240,18 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
         $cache = [];
         $alloc = [];
 
-        $stmt = DB::pdo()->prepare(
-            "SELECT sku, SUM(cena_jedn_czk * mnozstvi) AS total_value
+        $sql = "SELECT sku, SUM(cena_jedn_czk * mnozstvi) AS total_value
              FROM polozky_eshop
              WHERE duzp BETWEEN ? AND ?
-               AND sku IS NOT NULL AND sku <> ''
-             GROUP BY sku"
-        );
-        $stmt->execute([$startDate, $endDate]);
+               AND sku IS NOT NULL AND sku <> ''";
+        $binds = [$startDate, $endDate];
+        if ($eshopFilter !== 'vse') {
+            $sql .= " AND eshop_source = ?";
+            $binds[] = $eshopFilter;
+        }
+        $sql .= " GROUP BY sku";
+        $stmt = DB::pdo()->prepare($sql);
+        $stmt->execute($binds);
         foreach ($stmt as $row) {
             $sku = trim((string)($row['sku'] ?? ''));
             if ($sku == '') {

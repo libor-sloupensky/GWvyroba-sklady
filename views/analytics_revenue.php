@@ -311,6 +311,22 @@
       eshopSelect.appendChild(opt);
     });
   }
+
+    const movementSelect = paramBox.querySelector('[name="movement_direction"]');
+    const eshopFilterSelect = paramBox.querySelector('select[name="eshop_source"]');
+    if (eshopFilterSelect) {
+      const updateEshopFilterState = () => {
+        const isVydej = !movementSelect || movementSelect.value === 'vydej';
+        eshopFilterSelect.disabled = !isVydej;
+        if (!isVydej) {
+          eshopFilterSelect.value = 'vse';
+        }
+      };
+      if (movementSelect) {
+        movementSelect.addEventListener('change', updateEshopFilterState);
+      }
+      updateEshopFilterState();
+    }
   }
 
   function toParams() {
