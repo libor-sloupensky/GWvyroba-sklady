@@ -58,6 +58,12 @@
   outline: 1px solid #1e88e5;
   outline-offset: -1px;
 }
+.toggle-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+}
 .dropdown { border:1px solid #d0d7de; border-radius:6px; padding:0.35rem 0.45rem; background:#fff; max-height:180px; overflow:auto; margin-top:0.2rem; }
 .dropdown div { padding:0.2rem 0.1rem; cursor:pointer; }
 .dropdown div:hover { background:#f1f5f9; }
@@ -235,7 +241,10 @@
       const label = document.createElement('label');
       label.textContent = p.label || p.name;
       addHelp(label, p.help);
-      wrap.appendChild(label);
+      const isMovementToggle = p.name === 'movement_direction';
+      if (!isMovementToggle) {
+        wrap.appendChild(label);
+      }
       let input;
       switch (p.type) {
         case 'date':
@@ -308,8 +317,18 @@
             toggle.appendChild(rightBtn);
             const initial = normalize(p.default ?? 'vydej');
             setToggle(initial, false);
+            const toggleRow = document.createElement('div');
+            toggleRow.className = 'toggle-switch-row';
+            toggleRow.appendChild(toggle);
+            if (p.help) {
+              const help = document.createElement('span');
+              help.className = 'help-icon';
+              help.title = p.help;
+              help.textContent = '?';
+              toggleRow.appendChild(help);
+            }
             wrap.appendChild(hidden);
-            wrap.appendChild(toggle);
+            wrap.appendChild(toggleRow);
             appendWrap();
             return;
           }
@@ -525,7 +544,7 @@
         } else {
           td.textContent = r[c] ?? '';
         }
-        if (inactiveRow && c === 'nazev') {
+        if (inactiveRow && (c === 'název' || c === 'nazev')) {
           td.classList.add('inactive-name');
         }
         tr.appendChild(td);
@@ -569,10 +588,10 @@
       return;
     }
     const sample = rows[0] || {};
-    const xKey = 'mesic' in sample ? 'mesic' : ('stav_ke_dni' in sample ? 'stav_ke_dni' : Object.keys(sample)[0]);
+    const xKey = 'měsíc' in sample ? 'měsíc' : ('mesic' in sample ? 'mesic' : ('stav_ke_dni' in sample ? 'stav_ke_dni' : Object.keys(sample)[0]));
     const exclude = new Set([xKey, 'serie_key', 'serie_label']);
     const keys = Object.keys(sample);
-    let yKey = keys.find(k => k.toLowerCase() === 'trzby') || keys.find(k => k.toLowerCase() === 'hodnota_czk') || null;
+    let yKey = keys.find(k => k.toLowerCase() === 'tržby') || keys.find(k => k.toLowerCase() === 'trzby') || keys.find(k => k.toLowerCase() === 'hodnota_czk') || null;
     if (!yKey) {
       for (const k of keys) {
         if (exclude.has(k)) continue;

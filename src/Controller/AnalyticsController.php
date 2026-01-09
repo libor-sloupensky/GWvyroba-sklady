@@ -290,7 +290,7 @@ Vystup vracej jako platny JSON objekt (response_format json_object) s klici:
 Instrukce:
 - Pouzivej jen SELECT nad tabulkami/sloupci uvedenymi nize, nic jineho (zadne DML/DDL).
 - Pridej LIMIT (napr. 200) pro prehlednost.
-- Pokud chybi upresneni (produkt, obdobi, e-shop), zvol rozumne vychozi omezeni (napr. poslednich 12 mesicu) a ve vysvetleni napis, co by se hodilo zpresnit.
+- Pokud chybi upresneni (produkt, obdobi, e-shop), zvol rozumne vychozi omezeni (napr. posledn?ch 12 m?s?c?) a ve vysvetleni napis, co by se hodilo zpresnit.
 - Graf pouzij, jen kdyz dava smysl (casova rada, porovnani), jinak tabulku.
 - Dodrz strukturu JSON, aby sel vystup strojove zpracovat.
 - Pro vice linii v jednom grafu pouzij "series_column" (napr. kanal/eshop_source nebo produkt), y_column zustava hodnota.
@@ -302,7 +302,7 @@ Dostupne tabulky a sloupce:
 
 Tipy a aliasy:
 - Datum objednavky: polozky_eshop.duzp (datum/DUZP).
-- Obrat/trzby: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, pouzivej ceny v CZK.
+- Obrat/tr?by: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, pouzivej ceny v CZK.
 - Vyroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a casu.
 - Kanaly (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stranky=grigsupply.cz.
 - Aktualni skladova hodnota: pocitej stejne jako ve Vyrobe = snapshot posledni uzavrene inventury + pohyby po inventure - platne rezervace, pak vynasob skl_hodnota. Postup:
@@ -313,7 +313,7 @@ Tipy a aliasy:
   - stav_sku = COALESCE(snapshot,0) + COALESCE(pohyby,0) - COALESCE(rezervace,0).
   - hodnota = SUM(p.skl_hodnota * COALESCE(stav_sku,0)) pres aktivni produkty; pro rozpad podle typu pridej GROUP BY p.typ.
 - Kontaktni udaje klienta jsou v tabulce kontakty (ic, dic, email, telefon, adresa). polozky_eshop nema kontakt_id; pro prodeje pouzij JOIN doklady_eshop ON (eshop_source, cislo_dokladu) a doklady_eshop.kontakt_id -> kontakty.id (filtruj podle kontakty.ic).
-- Pokud uzivatel neupresni obdobi, pouzij poslednich 12 mesicu; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
+- Pokud uzivatel neupresni obdobi, pouzij posledn?ch 12 m?s?c?; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
 - Skladove dostupne polozky nejsou primo v analyticke tabulce; lze je odvodit z pohybu (polozky_pohyby) nebo uvest, ze hodnota je aproximace.
 PROMPT;
     }
@@ -660,7 +660,7 @@ PROMPT;
         $eshopFilterOptions = array_merge(
             [
                 ['value' => 'vse', 'label' => 'Vše'],
-                ['value' => 'bez', 'label' => 'Bez e-shopu'],
+                ['value' => 'bez', 'label' => 'Bez e-shopu (vnitroskladový pohyb)'],
             ],
             array_map(static function ($v) {
                 return ['value' => $v, 'label' => $v];
@@ -675,7 +675,7 @@ PROMPT;
                 'title' => 'Měsíční tržby',
                 'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál.',
                 'sql' => "
-SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS mesic,
+SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS `měsíc`,
        CASE
          WHEN :has_contacts = 1 THEN CAST(COALESCE(c.id, -1) AS CHAR)
          WHEN :has_eshops = 1 THEN de.eshop_source
@@ -690,7 +690,7 @@ SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS mesic,
     WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
     ELSE NULL
   END AS kontakt,
-  ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS trzby,
+  ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS `tržby`,
   ROUND(SUM(pe.mnozstvi), 0) AS qty
 FROM polozky_eshop pe
 JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
@@ -699,7 +699,7 @@ WHERE pe.duzp BETWEEN :start_date AND :end_date
   AND (:has_contacts = 0 OR de.kontakt_id IN (%contact_ids%))
   AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
 GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m'), serie_key, serie_label
-ORDER BY mesic, serie_label
+ORDER BY `měsíc`, serie_label
 ",
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
@@ -711,7 +711,7 @@ ORDER BY mesic, serie_label
             ],
             'products' => [
                 'title' => 'Produkty',
-                'description' => 'Pohyby skladu podle produktu (odpisy a spotřeba z výroby). Jen záporné pohyby, bez inventury a korekcí.',
+                'description' => 'Pohyby skladu podle produktu (odpisy a spotřeba z výroby), bez inventury a korekcí.',
                 'hide_chart' => true,
                 'sql' => "
 SELECT
@@ -750,7 +750,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                     ['name' => 'movement_direction', 'label' => 'Výdej/příjem', 'type' => 'enum', 'required' => false, 'default' => 'vydej', 'values' => [
                         ['value' => 'vydej', 'label' => 'Výdej'],
                         ['value' => 'prijem', 'label' => 'Příjem'],
-                    ], 'help' => 'Výdej = odpis/spotřeba bez inventury. Příjem = naskladnění bez inventury.'],
+                    ], 'help' => 'Výdej = odpis/spotřeba. Příjem = naskladnění.'],
                     ['name' => 'nonzero_only', 'label' => 'Jen nenulové', 'type' => 'bool', 'required' => false, 'default' => 1, 'help' => 'Zobrazí pouze položky s nenulovým množstvím.'],
                     ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshopFilterOptions],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
@@ -1179,7 +1179,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
         foreach ($rows as $row) {
             $out[] = [
                 'sku' => $row['sku'] ?? '',
-                'nazev' => $row['nazev'] ?? '',
+                'název' => $row['nazev'] ?? '',
                 'mj' => $row['mj'] ?? '',
                 'aktivni' => (int)($row['aktivni'] ?? 0),
                 'množství' => $row['mnozstvi'] ?? 0,
