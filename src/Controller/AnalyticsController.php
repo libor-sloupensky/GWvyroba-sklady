@@ -720,18 +720,7 @@ SELECT
   p.merna_jednotka AS mj,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi)), 0), 0) AS mnozstvi,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
-  ROUND(COALESCE(SUM(CASE
-    WHEN :movement_direction = 'vydej' AND pm.typ_pohybu = 'odpis' AND pm.ref_id LIKE 'doc:%'
-      THEN COALESCE(sale.prodejni_hodnota, 0)
-    ELSE 0
-  END), 0), 0) AS `prodejní hodnota`,
-  ROUND(COALESCE(SUM(CASE
-    WHEN :movement_direction = 'vydej' AND pm.typ_pohybu = 'odpis' AND pm.ref_id LIKE 'doc:%'
-      AND sale.prodejni_hodnota IS NOT NULL
-      THEN sale.prodejni_hodnota - (ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0))
-    ELSE 0
-  END), 0), 0) AS zisk,
-  p.poznamka AS `poznámka`
+  p.poznamka AS poznamka
 FROM produkty p
 LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
   AND pm.datum BETWEEN :start_date AND :end_date
@@ -740,19 +729,6 @@ LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
     (:movement_direction = 'vydej' AND pm.mnozstvi < 0)
     OR (:movement_direction = 'prijem' AND pm.mnozstvi > 0)
   )
-LEFT JOIN (
-  SELECT
-    pe.eshop_source,
-    pe.cislo_dokladu,
-    pe.sku,
-    SUM(pe.cena_jedn_czk * pe.mnozstvi) AS prodejni_hodnota
-  FROM polozky_eshop pe
-  WHERE pe.duzp BETWEEN :start_date AND :end_date
-  GROUP BY pe.eshop_source, pe.cislo_dokladu, pe.sku
-) sale ON sale.sku = pm.sku
-  AND pm.ref_id LIKE 'doc:%'
-  AND sale.eshop_source = SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 2), ':', -1)
-  AND sale.cislo_dokladu = SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 3), ':', -1)
 LEFT JOIN product_types pt ON pt.code = p.typ
 WHERE (:active_only = 0 OR p.aktivni = 1)
   AND COALESCE(pt.is_nonstock,0) = 0
@@ -765,6 +741,7 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
 GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka
 ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
+
 ",
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
@@ -774,7 +751,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                         ['value' => 'vydej', 'label' => 'Výdej'],
                         ['value' => 'prijem', 'label' => 'Příjem'],
                     ], 'help' => 'Výdej = odpis/spotřeba bez inventury. Příjem = naskladnění bez inventury.'],
-                    ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum', 'required' => false, 'default' => 'vse', 'values' => $eshopFilterOptions],
+                    ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshopFilterOptions],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
@@ -1145,17 +1122,7 @@ LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
     (:movement_direction = 'vydej' AND pm.mnozstvi < 0)
     OR (:movement_direction = 'prijem' AND pm.mnozstvi > 0)
   )
-  AND (
-    :eshop_filter = 'vse'
-    OR (
-      :eshop_filter = 'bez' AND (pm.ref_id IS NULL OR pm.ref_id NOT LIKE 'doc:%')
-    )
-    OR (
-      :eshop_filter NOT IN ('vse','bez')
-      AND pm.ref_id LIKE 'doc:%'
-      AND SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 2), ':', -1) = :eshop_filter
-    )
-  )
+__ESHOP_FILTER__
 LEFT JOIN product_types pt ON pt.code = p.typ
 WHERE (:active_only = 0 OR p.aktivni = 1)
   AND COALESCE(pt.is_nonstock,0) = 0
@@ -1169,29 +1136,45 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
 GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka, p.aktivni
 ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 ";
-        $eshopFilter = $params['eshop_source'] ?? 'vse';
-        if (is_array($eshopFilter)) {
-            $eshopFilter = $eshopFilter[0] ?? 'vse';
+        $filters = $params['eshop_source'] ?? [];
+        if (!is_array($filters)) {
+            $filters = $filters !== '' ? [$filters] : [];
         }
-        $eshopFilter = trim((string)$eshopFilter);
-        if ($eshopFilter === '') {
-            $eshopFilter = 'vse';
-        }
+        $filters = array_values(array_filter(array_map('strval', $filters), static function ($v) {
+            return trim($v) !== '';
+        }));
         if (($params['movement_direction'] ?? 'vydej') !== 'vydej') {
-            $eshopFilter = 'vse';
+            $filters = [];
         }
+        $includeAll = empty($filters);
+        $includeBez = in_array('bez', $filters, true);
+        $eshopList = array_values(array_filter($filters, static function ($v) {
+            return $v !== 'bez';
+        }));
+
+        $eshopCondition = '';
         $queryParams = $params;
-        $queryParams['eshop_filter'] = $eshopFilter;
+        if (!$includeAll) {
+            $parts = [];
+            if ($includeBez) {
+                $parts[] = "(pm.ref_id IS NULL OR pm.ref_id NOT LIKE 'doc:%')";
+            }
+            if (!empty($eshopList)) {
+                $parts[] = "(pm.ref_id LIKE 'doc:%' AND SUBSTRING_INDEX(SUBSTRING_INDEX(pm.ref_id, ':', 2), ':', -1) IN (%eshop_filter%))";
+                $queryParams['eshop_filter'] = $eshopList;
+            }
+            if (!empty($parts)) {
+                $eshopCondition = "\n  AND (" . implode(' OR ', $parts) . ")";
+            } else {
+                $eshopCondition = "\n  AND 1=0";
+            }
+        }
+        $sql = str_replace('__ESHOP_FILTER__', $eshopCondition, $sql);
         $sql = $this->expandArrayParams($sql, $queryParams);
         $rows = $this->runTemplateQuery($sql, $queryParams);
 
-        $params['eshop_source'] = $eshopFilter;
-        $salesBySku = $this->allocateSalesToStockItems($params);
         $out = [];
         foreach ($rows as $row) {
-            $sku = (string)($row['sku'] ?? '');
-            $sale = (float)($salesBySku[$sku] ?? 0.0);
-            $cost = (float)($row['hodnota skladu'] ?? 0.0);
             $out[] = [
                 'sku' => $row['sku'] ?? '',
                 'nazev' => $row['nazev'] ?? '',
@@ -1199,174 +1182,10 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                 'aktivni' => (int)($row['aktivni'] ?? 0),
                 'množství' => $row['mnozstvi'] ?? 0,
                 'hodnota skladu' => $row['hodnota skladu'] ?? 0,
-                'prodejní hodnota' => round($sale, 0),
-                'zisk' => $sale != 0.0 ? round($sale - $cost, 0) : 0,
                 'poznámka' => $row['poznamka'] ?? '',
             ];
         }
         return $out;
-    }
-
-    /**
-     * @param array<string,mixed> $params
-     * @return array<string,float>
-     */
-    private function allocateSalesToStockItems(array $params): array
-    {
-        if (($params['movement_direction'] ?? 'vydej') !== 'vydej') {
-            return [];
-        }
-        $eshopFilter = $params['eshop_source'] ?? 'vse';
-        if (is_array($eshopFilter)) {
-            $eshopFilter = $eshopFilter[0] ?? 'vse';
-        }
-        $eshopFilter = trim((string)$eshopFilter);
-        if ($eshopFilter === '') {
-            $eshopFilter = 'vse';
-        }
-        if ($eshopFilter === 'bez') {
-            return [];
-        }
-        $startDate = (string)($params['start_date'] ?? '');
-        $endDate = (string)($params['end_date'] ?? '');
-        if ($startDate == '' || $endDate == '') {
-            return [];
-        }
-        $meta = $this->loadProductStockFlags();
-        if (empty($meta)) {
-            return [];
-        }
-        $children = $this->loadBomChildrenMap();
-        $cache = [];
-        $alloc = [];
-
-        $sql = "SELECT sku, SUM(cena_jedn_czk * mnozstvi) AS total_value
-             FROM polozky_eshop
-             WHERE duzp BETWEEN ? AND ?
-               AND sku IS NOT NULL AND sku <> ''";
-        $binds = [$startDate, $endDate];
-        if ($eshopFilter !== 'vse') {
-            $sql .= " AND eshop_source = ?";
-            $binds[] = $eshopFilter;
-        }
-        $sql .= " GROUP BY sku";
-        $stmt = DB::pdo()->prepare($sql);
-        $stmt->execute($binds);
-        foreach ($stmt as $row) {
-            $sku = trim((string)($row['sku'] ?? ''));
-            if ($sku == '') {
-                continue;
-            }
-            $value = (float)($row['total_value'] ?? 0.0);
-            if ($value == 0.0) {
-                continue;
-            }
-            $metaRow = $meta[$sku] ?? null;
-            if ($metaRow === null) {
-                continue;
-            }
-            if (empty($metaRow['is_nonstock'])) {
-                $alloc[$sku] = ($alloc[$sku] ?? 0.0) + $value;
-                continue;
-            }
-            $weights = $this->computeNearestStockWeights($sku, $meta, $children, $cache);
-            if (empty($weights)) {
-                continue;
-            }
-            foreach ($weights as $leafSku => $weight) {
-                if ($weight == 0.0) {
-                    continue;
-                }
-                $alloc[$leafSku] = ($alloc[$leafSku] ?? 0.0) + ($value * $weight);
-            }
-        }
-        return $alloc;
-    }
-
-    /**
-     * @return array<string,array{is_nonstock:bool}>
-     */
-    private function loadProductStockFlags(): array
-    {
-        $map = [];
-        $stmt = DB::pdo()->query('SELECT p.sku, COALESCE(pt.is_nonstock,0) AS is_nonstock FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ');
-        foreach ($stmt as $row) {
-            $sku = (string)($row['sku'] ?? '');
-            if ($sku == '') {
-                continue;
-            }
-            $map[$sku] = [
-                'is_nonstock' => ((int)($row['is_nonstock'] ?? 0) == 1),
-            ];
-        }
-        return $map;
-    }
-
-    /**
-     * @return array<string,array<int,string>>
-     */
-    private function loadBomChildrenMap(): array
-    {
-        $children = [];
-        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku FROM bom');
-        foreach ($stmt as $row) {
-            $parent = (string)($row['rodic_sku'] ?? '');
-            $child = (string)($row['potomek_sku'] ?? '');
-            if ($parent == '' || $child == '') {
-                continue;
-            }
-            if (!isset($children[$parent])) {
-                $children[$parent] = [];
-            }
-            $children[$parent][] = $child;
-        }
-        return $children;
-    }
-
-    /**
-     * @param array<string,array{is_nonstock:bool}> $meta
-     * @param array<string,array<int,string>> $children
-     * @param array<string,array<string,float>> $cache
-     * @param array<string,bool> $path
-     * @return array<string,float>
-     */
-    private function computeNearestStockWeights(
-        string $sku,
-        array $meta,
-        array $children,
-        array &$cache,
-        array $path = []
-    ): array {
-        if (isset($cache[$sku])) {
-            return $cache[$sku];
-        }
-        if (isset($path[$sku])) {
-            return [];
-        }
-        $path[$sku] = true;
-        $edges = $children[$sku] ?? [];
-        $count = count($edges);
-        if ($count == 0) {
-            $cache[$sku] = [];
-            return $cache[$sku];
-        }
-        $weights = [];
-        $share = 1.0 / $count;
-        foreach ($edges as $childSku) {
-            if (!isset($meta[$childSku])) {
-                continue;
-            }
-            if (empty($meta[$childSku]['is_nonstock'])) {
-                $weights[$childSku] = ($weights[$childSku] ?? 0.0) + $share;
-                continue;
-            }
-            $childWeights = $this->computeNearestStockWeights($childSku, $meta, $children, $cache, $path);
-            foreach ($childWeights as $leafSku => $weight) {
-                $weights[$leafSku] = ($weights[$leafSku] ?? 0.0) + ($weight * $share);
-            }
-        }
-        $cache[$sku] = $weights;
-        return $weights;
     }
 
     /**
@@ -1494,12 +1313,17 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
      */
     private function hydrateFlagsForTemplate(array $params, array $template = []): array
     {
-        // "vsechny" znamená neomezovat kanál -> chovej se jako prázdný výběr
+        // "vsechny"/"vse" znamená neomezovat kanál -> chovej se jako prázdný výběr
         if (isset($params['eshop_source']) && is_array($params['eshop_source'])) {
-            $params['eshop_source'] = array_values(array_filter($params['eshop_source'], static function ($v) {
-                $v = strtolower((string)$v);
-                return $v !== 'vsechny' && $v !== 'všechny';
+            $selected = array_values(array_filter(array_map('strval', $params['eshop_source']), static function ($v) {
+                return trim($v) !== '';
             }));
+            $lower = array_map('strtolower', $selected);
+            if (in_array('vse', $lower, true) || in_array('vsechny', $lower, true)) {
+                $params['eshop_source'] = [];
+            } else {
+                $params['eshop_source'] = $selected;
+            }
         }
         foreach (['znacka_id', 'skupina_id', 'typ'] as $key) {
             if (isset($params[$key]) && is_array($params[$key])) {

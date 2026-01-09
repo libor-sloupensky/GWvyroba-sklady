@@ -315,16 +315,34 @@
     const movementSelect = paramBox.querySelector('[name="movement_direction"]');
     const eshopFilterSelect = paramBox.querySelector('select[name="eshop_source"]');
     if (eshopFilterSelect) {
+      const selectAllValue = eshopFilterSelect.querySelector('option[value="vse"]')
+        ? 'vse'
+        : (eshopFilterSelect.querySelector('option[value="vsechny"]') ? 'vsechny' : null);
+      const setOnlyAllSelected = () => {
+        if (!selectAllValue) return;
+        Array.from(eshopFilterSelect.options || []).forEach(opt => {
+          opt.selected = opt.value === selectAllValue;
+        });
+      };
+      const normalizeEshopSelection = () => {
+        if (!selectAllValue) return;
+        const selected = Array.from(eshopFilterSelect.selectedOptions || []).map(opt => opt.value);
+        if (selected.includes(selectAllValue) && selected.length > 1) {
+          setOnlyAllSelected();
+        }
+      };
       const updateEshopFilterState = () => {
         const isVydej = !movementSelect || movementSelect.value === 'vydej';
         eshopFilterSelect.disabled = !isVydej;
         if (!isVydej) {
-          eshopFilterSelect.value = 'vse';
+          setOnlyAllSelected();
         }
       };
+      eshopFilterSelect.addEventListener('change', normalizeEshopSelection);
       if (movementSelect) {
         movementSelect.addEventListener('change', updateEshopFilterState);
       }
+      normalizeEshopSelection();
       updateEshopFilterState();
     }
   }
