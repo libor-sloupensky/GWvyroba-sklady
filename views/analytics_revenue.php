@@ -4,7 +4,7 @@
 /** @var array $favoritesV2 */
 ?>
 <h1>Analýza</h1>
-
+ 
 <style>
 .v2-controls { display:grid; grid-template-columns: 1fr 320px; gap:1.2rem; align-items:start; }
 .v2-output { margin-top:1rem; }
