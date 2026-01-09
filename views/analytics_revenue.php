@@ -40,6 +40,7 @@
 .result-table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
 .result-table th, .result-table td { border:1px solid #e0e0e0; padding:0.35rem 0.4rem; text-align:left; }
 .result-table tfoot td { font-weight:700; background:#f5f7fa; }
+.inactive-name { color:#c62828; }
 .favorite-list { list-style:none; padding:0; margin:0; }
 .favorite-list li { border:1px solid #eceff1; border-radius:8px; padding:0.55rem 0.7rem; margin-bottom:0.5rem; display:flex; justify-content:space-between; gap:0.6rem; }
 .favorite-title { font-weight:600; }
@@ -389,8 +390,9 @@
       return;
     }
     const isProducts = tplId === 'products';
+    const isInactiveProduct = (row) => isProducts && Number(row?.aktivni ?? 0) === 0;
     const cols = Object.keys(rows[0])
-      .filter((c) => !['serie_key','serie_label','qty'].includes(c))
+      .filter((c) => !['serie_key','serie_label','qty','aktivni'].includes(c))
       .filter((c) => !(isProducts && c === 'mj'));
     const table = document.createElement('table');
     table.className = 'result-table';
@@ -408,6 +410,7 @@
     const productUnits = isProducts ? new Set(rows.map(r => r.mj).filter(Boolean)) : null;
     rows.forEach((r) => {
       const tr = document.createElement('tr');
+      const inactiveRow = isInactiveProduct(r);
       cols.forEach((c) => {
         const td = document.createElement('td');
         if (isProducts && (c === 'množství' || c === 'mnozstvi')) {
@@ -417,6 +420,9 @@
           td.textContent = unit ? `${rounded} ${unit}` : String(rounded);
         } else {
           td.textContent = r[c] ?? '';
+        }
+        if (inactiveRow && c === 'nazev') {
+          td.classList.add('inactive-name');
         }
         tr.appendChild(td);
         const val = Number(r[c]);

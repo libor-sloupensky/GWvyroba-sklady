@@ -1120,6 +1120,7 @@ SELECT
   p.sku AS sku,
   p.nazev AS nazev,
   p.merna_jednotka AS mj,
+  p.aktivni AS aktivni,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi)), 0), 0) AS mnozstvi,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
   p.poznamka AS poznamka
@@ -1141,7 +1142,7 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
   AND (:allow_null_znacka = 0 OR p.znacka_id IS NOT NULL)
   AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
-GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka
+GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka, p.aktivni
 ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 ";
         $queryParams = $params;
@@ -1158,6 +1159,7 @@ ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                 'sku' => $row['sku'] ?? '',
                 'nazev' => $row['nazev'] ?? '',
                 'mj' => $row['mj'] ?? '',
+                'aktivni' => (int)($row['aktivni'] ?? 0),
                 'množství' => $row['mnozstvi'] ?? 0,
                 'hodnota skladu' => $row['hodnota skladu'] ?? 0,
                 'prodejní hodnota' => round($sale, 0),
