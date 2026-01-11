@@ -314,7 +314,7 @@ final class ProductionController
 
                     'vyroba',
 
-                    'odeÄŤĂ­st komponenty',
+                    'ode??st komponenty',
 
                     $ref
 
@@ -324,7 +324,7 @@ final class ProductionController
 
         } else {
 
-            $ins->execute([$sku . '*', 0, null, 'korekce', 'Komponenty k odeÄŤtu â€“ Ĺ™eĹˇit ruÄŤnÄ›', $ref]);
+            $ins->execute([$sku . '*', 0, null, 'korekce', 'Komponenty k ode?tu ? ?e?it ru?n?', $ref]);
 
         }
 
@@ -378,7 +378,7 @@ final class ProductionController
 
         if ($sku === '') {
 
-            echo json_encode(['ok' => false, 'error' => 'ChybĂ­ SKU.']);
+            echo json_encode(['ok' => false, 'error' => 'Chyb? SKU.']);
 
             return;
 
@@ -478,7 +478,7 @@ final class ProductionController
 
         } catch (\Throwable $e) {
 
-            echo json_encode(['ok' => false, 'error' => 'NepodaĹ™ilo se naÄŤĂ­st zdroje poptĂˇvky.']);
+            echo json_encode(['ok' => false, 'error' => 'Nepoda?ilo se na??st zdroje popt?vky.']);
 
         }
 
@@ -883,11 +883,11 @@ final class ProductionController
         header('Content-Type: application/json');
         $sku = $this->toUtf8((string)($_GET['sku'] ?? ''));
         if ($sku === '') {
-            echo json_encode(['ok' => false, 'error' => 'ChybÃ­ SKU.']);
+            echo json_encode(['ok' => false, 'error' => 'Chyb? SKU.']);
             return;
         }
 
-        $stmt = DB::pdo()->prepare('SELECT id, datum, sku, mnozstvi, merna_jednotka, typ_pohybu, ref_id FROM polozky_pohyby WHERE sku=? ORDER BY datum DESC, id DESC');
+        $stmt = DB::pdo()->prepare('SELECT id, datum, sku, mnozstvi, merna_jednotka, typ_pohybu, ref_id, poznamka FROM polozky_pohyby WHERE sku=? AND datum >= DATE_SUB(NOW(), INTERVAL 1 MONTH) ORDER BY datum DESC, id DESC');
         $stmt->execute([$sku]);
         $rows = $stmt->fetchAll();
         if (!$rows) {
@@ -923,6 +923,8 @@ final class ProductionController
         $meta = $this->fetchBasicsForSkus(array_keys($itemSkus));
         $bomChildren = StockService::getBomGraph()['children'] ?? [];
         $targetKey = mb_strtolower($sku, 'UTF-8');
+        $state = StockService::getStockState([$sku], (new \DateTimeImmutable())->format('Y-m-d H:i:s'));
+        $running = (float)($state['stock'][$sku] ?? 0.0);
         $out = [];
 
         foreach ($rows as $row) {
@@ -932,6 +934,7 @@ final class ProductionController
             $docKey = $doc['key'] ?? '';
             $names = [];
             $nonstockSources = [];
+            $typ = (string)($row['typ_pohybu'] ?? '');
 
             if ($docKey !== '' && isset($docItems[$docKey])) {
                 foreach ($docItems[$docKey] as $item) {
@@ -981,7 +984,7 @@ final class ProductionController
                 foreach ($nonstockSources as $source) {
                     $qtyPart = $this->formatQtyDisplay((float)$source['qty']);
                     $label = $source['label'] !== '' ? $source['label'] : $source['sku'];
-                    $parts[] = trim($qtyPart . '× ' . $label);
+                    $parts[] = trim($qtyPart . 'x ' . $label);
                 }
                 if (!empty($parts)) {
                     $qtyLabel .= ' (' . implode(', ', $parts) . ')';
@@ -993,14 +996,38 @@ final class ProductionController
                 $nameLabel = implode('; ', array_keys($names));
             }
 
+            if ($eshop !== '') {
+                $sourceLabel = $eshop;
+            } else {
+                switch ($typ) {
+                    case 'vyroba':
+                        $sourceLabel = 'výroba';
+                        break;
+                    case 'korekce':
+                        $sourceLabel = 'korekce';
+                        break;
+                    case 'inventura':
+                        $sourceLabel = 'inventura';
+                        break;
+                    case 'odpis':
+                        $sourceLabel = 'odpis';
+                        break;
+                    default:
+                        $sourceLabel = $typ !== '' ? $typ : 'pohyb';
+                        break;
+                }
+            }
+
             $out[] = [
                 'datum' => (string)($row['datum'] ?? ''),
-                'eshop' => $eshop !== '' ? $eshop : 'bez e-shopu',
+                'eshop' => $sourceLabel,
                 'faktura' => $doklad,
                 'sku' => (string)($row['sku'] ?? ''),
                 'pocet' => $qtyLabel,
+                'sklad' => $this->formatQtyDisplay($running),
                 'nazev' => $nameLabel,
             ];
+            $running -= (float)($row['mnozstvi'] ?? 0);
         }
 
         echo json_encode(['ok' => true, 'movements' => $out]);

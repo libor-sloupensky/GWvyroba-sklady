@@ -982,6 +982,14 @@
 
 }
 
+.movement-table .stock-cell {
+
+  text-align:right;
+
+  font-variant-numeric:tabular-nums;
+
+}
+
 
 
 
@@ -1156,7 +1164,13 @@
 
   text-align:center;
 
+  display:inline-block;
+
+  transition:transform 0.15s ease;
+
 }
+
+.available-cell.is-open .available-toggle { transform:rotate(90deg); }
 
 
 
@@ -2325,11 +2339,11 @@
 
 
 
-              <button type="submit" name="modus" value="odecti_subpotomky" data-mode="odecti_subpotomky" title="Vyrobit: zapÃ­Å¡e hotovÃ½ produkt a odeÄte navÃ¡zanÃ© komponenty podle BOM.">Vyrobit</button>
+              <button type="submit" name="modus" value="odecti_subpotomky" data-mode="odecti_subpotomky" title="Vyrobit: zap&iacute;&scaron;e hotov&yacute; produkt a ode&#269;te nav&aacute;zan&eacute; komponenty podle BOM.">Vyrobit</button>
 
 
 
-              <button type="submit" name="modus" value="korekce_skladu" data-mode="korekce_skladu" title="Korekce: ruÄnÄ pÅiÄte nebo odeÄte zÃ¡sobu pouze tohoto produktu, bez dopadu na komponenty.">Korekce</button>
+              <button type="submit" name="modus" value="korekce_skladu" data-mode="korekce_skladu" title="Korekce: ru&#269;n&#283; p&#345;i&#269;te nebo ode&#269;te z&aacute;sobu pouze tohoto produktu, bez dopadu na komponenty.">Korekce</button>
 
 
 
@@ -2713,7 +2727,7 @@
 
   let demandState = { row: null, detail: null, toggle: null };
 
-  let movementState = { row: null, detail: null, toggle: null };
+  let movementState = { row: null, detail: null, cell: null };
 
 
 
@@ -2887,7 +2901,7 @@
 
 
 
-        alert('Zadejte mnoÅ¾stvÃ­.');
+        alert('Zadejte mno\u017Estv\u00ed.');
 
 
 
@@ -2971,7 +2985,7 @@
 
 
 
-        alert('Zadejte nenulovÃ© mnoÅ¾stvÃ­ vÃ½yroby.');
+        alert('Zadejte nenulov\u00e9 mno\u017Estv\u00ed v\u00fdyroby.');
 
 
 
@@ -3055,7 +3069,7 @@
 
 
 
-        .catch((err) => alert('Nelze ovÄÅit komponenty: ' + (err.message || err)));
+        .catch((err) => alert('Nelze ov\u011b\u0159it komponenty: ' + (err.message || err)));
 
 
 
@@ -3584,7 +3598,7 @@ closeModal();
 
 
 
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'Chyb\u00ed SKU.';
 
 
 
@@ -4175,10 +4189,7 @@ closeModal();
 
     closeMovementRow();
 
-    const toggle = cell.querySelector('.available-toggle');
-
-    if (toggle) toggle.textContent = '▾';
-
+    cell.classList.add('is-open');
     row.classList.add('movement-open');
 
     const detailRow = document.createElement('tr');
@@ -4189,13 +4200,13 @@ closeModal();
 
     detailCell.colSpan = row.children.length;
 
-    detailCell.textContent = 'NaÄÃ­tÃ¡m pohyby...';
+    detailCell.textContent = 'Na\u010d\u00edt\u00e1m pohyby...';
 
     detailRow.appendChild(detailCell);
 
     row.parentNode.insertBefore(detailRow, row.nextSibling);
 
-    movementState = { row, detail: detailRow, toggle };
+    movementState = { row, detail: detailRow, cell };
 
     const sku = cell.dataset.sku || row.dataset.sku;
 
@@ -4207,13 +4218,12 @@ closeModal();
 
     if (!movementState.row) return;
 
-    if (movementState.toggle) movementState.toggle.textContent = '▸';
-
+    if (movementState.cell) movementState.cell.classList.remove('is-open');
     movementState.row.classList.remove('movement-open');
 
     if (movementState.detail) movementState.detail.remove();
 
-    movementState = { row: null, detail: null, toggle: null };
+    movementState = { row: null, detail: null, cell: null };
 
   }
 
@@ -4221,7 +4231,7 @@ closeModal();
 
     if (!sku) {
 
-      container.textContent = 'ChybÃ­ SKU.';
+      container.textContent = 'Chyb\u00ed SKU.';
 
       return;
 
@@ -4235,7 +4245,7 @@ closeModal();
 
       if (!data.ok) {
 
-        throw new Error(data.error || 'Chyba naÄtenÃ­ pohybÅ¯.');
+        throw new Error(data.error || 'Chyba na\u010dten\u00ed pohyb\u016f.');
 
       }
 
@@ -4243,7 +4253,7 @@ closeModal();
 
       if (!rows.length) {
 
-        container.textContent = 'Å½Ã¡dnÃ© pohyby.';
+        container.textContent = '\u017d\u00e1dn\u00e9 pohyby.';
 
         return;
 
@@ -4255,7 +4265,7 @@ closeModal();
 
     } catch (error) {
 
-      container.textContent = error && error.message ? error.message : 'Chyba naÄtenÃ­ pohybÅ¯.';
+      container.textContent = error && error.message ? error.message : 'Chyba na\u010dten\u00ed pohyb\u016f.';
 
     }
 
@@ -4271,7 +4281,7 @@ closeModal();
 
     const headRow = document.createElement('tr');
 
-    ['Datum','E-shop','Faktura','SKU','PoÄet','NÃ¡zev poloÅ¾ky'].forEach((label) => {
+    ['Datum','E-shop','Faktura','SKU','Po\u010det','Aktu\u00e1ln\u00ed sklad','N\u00e1zev polo\u017eky'].forEach((label) => {
 
       const th = document.createElement('th');
 
@@ -4301,6 +4311,11 @@ closeModal();
       qtyCell.textContent = row.pocet ?? '';
       tr.appendChild(qtyCell);
 
+      const stockCell = document.createElement('td');
+      stockCell.className = 'stock-cell';
+      stockCell.textContent = row.sklad ?? '';
+      tr.appendChild(stockCell);
+
       tr.appendChild(createCell(row.nazev ?? ''));
 
       body.appendChild(tr);
@@ -4325,7 +4340,7 @@ closeModal();
 
 
 
-      container.textContent = 'Chybí SKU.';
+      container.textContent = 'Chyb\u00ed SKU.';
 
 
 
