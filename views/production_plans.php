@@ -4281,7 +4281,7 @@ closeModal();
 
     const headRow = document.createElement('tr');
 
-    ['Datum','E-shop','Faktura','SKU','Po\u010det','Aktu\u00e1ln\u00ed sklad','N\u00e1zev polo\u017eky'].forEach((label) => {
+    ['Datum','E-shop','Faktura','SKU','po\u010det','Aktu\u00e1ln\u00ed sklad','n\u00e1zev polo\u017eky'].forEach((label) => {
 
       const th = document.createElement('th');
 
