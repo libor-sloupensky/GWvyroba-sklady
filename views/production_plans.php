@@ -951,6 +951,37 @@
 
 .bom-tree-table th { background:#f5f8fb; }
 
+.movement-table {
+
+  width:100%;
+
+  border-collapse:collapse;
+
+  font-size:0.9rem;
+
+}
+
+.movement-table th,
+.movement-table td {
+
+  border:1px solid #e0e7ef;
+
+  padding:0.35rem 0.45rem;
+
+  vertical-align:top;
+
+}
+
+.movement-table th { background:#f5f8fb; }
+
+.movement-table .qty-cell {
+
+  text-align:right;
+
+  font-variant-numeric:tabular-nums;
+
+}
+
 
 
 
@@ -1067,6 +1098,18 @@
 
 }
 
+.available-cell {
+
+  display:inline-flex;
+
+  align-items:center;
+
+  gap:0.35rem;
+
+  cursor:pointer;
+
+}
+
 
 
 
@@ -1103,6 +1146,18 @@
 
 }
 
+.available-cell .available-toggle {
+
+  font-size:0.9rem;
+
+  color:#455a64;
+
+  width:1rem;
+
+  text-align:center;
+
+}
+
 
 
 
@@ -1118,6 +1173,12 @@
 
 
 
+
+}
+
+.available-cell .available-value {
+
+  font-variant-numeric:tabular-nums;
 
 }
 
@@ -2155,7 +2216,12 @@
 
 
 
-        <td class="qty-cell"><?= $formatQty($item['available'] ?? 0) ?></td>
+        <td class="qty-cell">
+          <span class="available-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
+            <span class="available-toggle">▸</span>
+            <span class="available-value"><?= $formatQty($item['available'] ?? 0) ?></span>
+          </span>
+        </td>
 
 
 
@@ -2627,6 +2693,8 @@
 
   const demandUrl = '/production/demand-tree';
 
+  const movementUrl = '/production/movements';
+
 
 
 
@@ -2644,6 +2712,8 @@
 
 
   let demandState = { row: null, detail: null, toggle: null };
+
+  let movementState = { row: null, detail: null, toggle: null };
 
 
 
@@ -2666,6 +2736,18 @@
 
 
 
+
+      const movementCell = event.target.closest('.available-cell');
+
+      if (movementCell && table.contains(movementCell)) {
+
+        event.preventDefault();
+
+        toggleMovementRow(movementCell);
+
+        return;
+
+      }
 
       const demandCell = event.target.closest('.demand-cell');
 
@@ -4076,6 +4158,160 @@ closeModal();
 
 
 
+
+  function toggleMovementRow(cell) {
+
+    const row = cell.closest('tr');
+
+    if (!row) return;
+
+    if (movementState.row === row) {
+
+      closeMovementRow();
+
+      return;
+
+    }
+
+    closeMovementRow();
+
+    const toggle = cell.querySelector('.available-toggle');
+
+    if (toggle) toggle.textContent = '?';
+
+    row.classList.add('movement-open');
+
+    const detailRow = document.createElement('tr');
+
+    detailRow.className = 'production-tree-row movement-row';
+
+    const detailCell = document.createElement('td');
+
+    detailCell.colSpan = row.children.length;
+
+    detailCell.textContent = 'Na??t?m pohyby...';
+
+    detailRow.appendChild(detailCell);
+
+    row.parentNode.insertBefore(detailRow, row.nextSibling);
+
+    movementState = { row, detail: detailRow, toggle };
+
+    const sku = cell.dataset.sku || row.dataset.sku;
+
+    loadMovementList(sku, detailCell);
+
+  }
+
+  function closeMovementRow() {
+
+    if (!movementState.row) return;
+
+    if (movementState.toggle) movementState.toggle.textContent = '?';
+
+    movementState.row.classList.remove('movement-open');
+
+    if (movementState.detail) movementState.detail.remove();
+
+    movementState = { row: null, detail: null, toggle: null };
+
+  }
+
+  async function loadMovementList(sku, container) {
+
+    if (!sku) {
+
+      container.textContent = 'Chyb? SKU.';
+
+      return;
+
+    }
+
+    try {
+
+      const response = await fetch(`${movementUrl}?sku=${encodeURIComponent(sku)}`);
+
+      const data = await response.json();
+
+      if (!data.ok) {
+
+        throw new Error(data.error || 'Chyba na?ten? pohyb?.');
+
+      }
+
+      const rows = data.movements || [];
+
+      if (!rows.length) {
+
+        container.textContent = '??dn? pohyby.';
+
+        return;
+
+      }
+
+      container.textContent = '';
+
+      container.appendChild(buildMovementTable(rows));
+
+    } catch (error) {
+
+      container.textContent = error && error.message ? error.message : 'Chyba na?ten? pohyb?.';
+
+    }
+
+  }
+
+  function buildMovementTable(rows) {
+
+    const table = document.createElement('table');
+
+    table.className = 'movement-table';
+
+    const thead = document.createElement('thead');
+
+    const headRow = document.createElement('tr');
+
+    ['Datum','E-shop','Faktura','SKU','Po?et','N?zev polo?ky'].forEach((label) => {
+
+      const th = document.createElement('th');
+
+      th.textContent = label;
+
+      headRow.appendChild(th);
+
+    });
+
+    thead.appendChild(headRow);
+
+    table.appendChild(thead);
+
+    const body = document.createElement('tbody');
+
+    rows.forEach((row) => {
+
+      const tr = document.createElement('tr');
+
+      tr.appendChild(createCell(row.datum ?? ''));
+      tr.appendChild(createCell(row.eshop ?? ''));
+      tr.appendChild(createCell(row.faktura ?? ''));
+      tr.appendChild(createCell(row.sku ?? ''));
+
+      const qtyCell = document.createElement('td');
+      qtyCell.className = 'qty-cell';
+      qtyCell.textContent = row.pocet ?? '';
+      tr.appendChild(qtyCell);
+
+      tr.appendChild(createCell(row.nazev ?? ''));
+
+      body.appendChild(tr);
+
+    });
+
+    table.appendChild(body);
+
+    return table;
+
+  }
 
   async function loadDemandTree(sku, container) {
 

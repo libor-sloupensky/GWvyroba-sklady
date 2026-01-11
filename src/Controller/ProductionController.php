@@ -877,6 +877,135 @@ final class ProductionController
 
      */
 
+    public function movements(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json');
+        $sku = $this->toUtf8((string)($_GET['sku'] ?? ''));
+        if ($sku === '') {
+            echo json_encode(['ok' => false, 'error' => 'Chyb? SKU.']);
+            return;
+        }
+
+        $stmt = DB::pdo()->prepare('SELECT id, datum, sku, mnozstvi, merna_jednotka, typ_pohybu, ref_id FROM polozky_pohyby WHERE sku=? ORDER BY datum DESC, id DESC');
+        $stmt->execute([$sku]);
+        $rows = $stmt->fetchAll();
+        if (!$rows) {
+            echo json_encode(['ok' => true, 'movements' => []]);
+            return;
+        }
+
+        $docRefs = [];
+        foreach ($rows as $row) {
+            $doc = $this->parseDocRef((string)($row['ref_id'] ?? ''));
+            if ($doc) {
+                $docRefs[$doc['key']] = $doc;
+            }
+        }
+
+        $docItems = [];
+        $itemSkus = [];
+        if (!empty($docRefs)) {
+            $itemStmt = DB::pdo()->prepare('SELECT sku, nazev, mnozstvi FROM polozky_eshop WHERE eshop_source=? AND cislo_dokladu=?');
+            foreach ($docRefs as $doc) {
+                $itemStmt->execute([$doc['eshop'], $doc['doklad']]);
+                $items = $itemStmt->fetchAll() ?: [];
+                $docItems[$doc['key']] = $items;
+                foreach ($items as $item) {
+                    $itemSku = trim((string)($item['sku'] ?? ''));
+                    if ($itemSku !== '') {
+                        $itemSkus[$itemSku] = true;
+                    }
+                }
+            }
+        }
+
+        $meta = $this->fetchBasicsForSkus(array_keys($itemSkus));
+        $bomChildren = StockService::getBomGraph()['children'] ?? [];
+        $targetKey = mb_strtolower($sku, 'UTF-8');
+        $out = [];
+
+        foreach ($rows as $row) {
+            $doc = $this->parseDocRef((string)($row['ref_id'] ?? ''));
+            $eshop = $doc['eshop'] ?? '';
+            $doklad = $doc['doklad'] ?? '';
+            $docKey = $doc['key'] ?? '';
+            $names = [];
+            $nonstockSources = [];
+
+            if ($docKey !== '' && isset($docItems[$docKey])) {
+                foreach ($docItems[$docKey] as $item) {
+                    $itemSku = trim((string)($item['sku'] ?? ''));
+                    if ($itemSku === '') {
+                        continue;
+                    }
+                    $itemQty = (float)($item['mnozstvi'] ?? 0);
+                    if ($itemQty == 0.0) {
+                        continue;
+                    }
+                    $itemName = trim((string)($item['nazev'] ?? ''));
+                    $itemKey = mb_strtolower($itemSku, 'UTF-8');
+                    $metaInfo = $meta[$itemSku] ?? null;
+                    $isNonstock = !empty($metaInfo['is_nonstock']);
+                    $directMatch = ($itemKey === $targetKey);
+                    $childMatch = false;
+                    if (!$directMatch && $isNonstock && !empty($bomChildren[$itemSku])) {
+                        foreach ($bomChildren[$itemSku] as $edge) {
+                            $edgeKey = mb_strtolower((string)($edge['sku'] ?? ''), 'UTF-8');
+                            if ($edgeKey === $targetKey) {
+                                $childMatch = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!$directMatch && !$childMatch) {
+                        continue;
+                    }
+                    $nameLabel = $itemName !== '' ? $itemName : $itemSku;
+                    if ($nameLabel !== '') {
+                        $names[$nameLabel] = true;
+                    }
+                    if ($isNonstock) {
+                        $srcKey = mb_strtolower($itemSku . '|' . $nameLabel, 'UTF-8');
+                        if (!isset($nonstockSources[$srcKey])) {
+                            $nonstockSources[$srcKey] = ['qty' => 0.0, 'label' => $nameLabel, 'sku' => $itemSku];
+                        }
+                        $nonstockSources[$srcKey]['qty'] += $itemQty;
+                    }
+                }
+            }
+
+            $qtyLabel = $this->formatQtyDisplay((float)($row['mnozstvi'] ?? 0));
+            if (!empty($nonstockSources)) {
+                $parts = [];
+                foreach ($nonstockSources as $source) {
+                    $qtyPart = $this->formatQtyDisplay((float)$source['qty']);
+                    $label = $source['label'] !== '' ? $source['label'] : $source['sku'];
+                    $parts[] = trim($qtyPart . '? ' . $label);
+                }
+                if (!empty($parts)) {
+                    $qtyLabel .= ' (' . implode(', ', $parts) . ')';
+                }
+            }
+
+            $nameLabel = '';
+            if (!empty($names)) {
+                $nameLabel = implode('; ', array_keys($names));
+            }
+
+            $out[] = [
+                'datum' => (string)($row['datum'] ?? ''),
+                'eshop' => $eshop !== '' ? $eshop : 'bez e-shopu',
+                'faktura' => $doklad,
+                'sku' => (string)($row['sku'] ?? ''),
+                'pocet' => $qtyLabel,
+                'nazev' => $nameLabel,
+            ];
+        }
+
+        echo json_encode(['ok' => true, 'movements' => $out]);
+    }
+
     private function collectDemandAncestors(string $sku, array $parents): array
 
     {
@@ -1133,6 +1262,37 @@ final class ProductionController
     }
 
 
+
+    private function parseDocRef(string $ref): ?array
+    {
+        if (strpos($ref, 'doc:') !== 0) {
+            return null;
+        }
+        $parts = explode(':', $ref, 4);
+        if (count($parts) < 3) {
+            return null;
+        }
+        $eshop = (string)($parts[1] ?? '');
+        $doklad = (string)($parts[2] ?? '');
+        if ($eshop === '' || $doklad === '') {
+            return null;
+        }
+        return [
+            'eshop' => $eshop,
+            'doklad' => $doklad,
+            'key' => $eshop . '|' . $doklad,
+        ];
+    }
+
+    private function formatQtyDisplay(float $value, int $decimals = 3): string
+    {
+        $decimals = max(0, $decimals);
+        $formatted = number_format($value, $decimals, ',', ' ');
+        if ($decimals > 0) {
+            $formatted = rtrim(rtrim($formatted, '0'), ',');
+        }
+        return $formatted === '' ? '0' : $formatted;
+    }
 
     private function collectJsonRequest(): array
 
