@@ -883,7 +883,7 @@ final class ProductionController
         header('Content-Type: application/json');
         $sku = $this->toUtf8((string)($_GET['sku'] ?? ''));
         if ($sku === '') {
-            echo json_encode(['ok' => false, 'error' => 'Chyb? SKU.']);
+            echo json_encode(['ok' => false, 'error' => 'ChybÃ­ SKU.']);
             return;
         }
 
@@ -981,7 +981,7 @@ final class ProductionController
                 foreach ($nonstockSources as $source) {
                     $qtyPart = $this->formatQtyDisplay((float)$source['qty']);
                     $label = $source['label'] !== '' ? $source['label'] : $source['sku'];
-                    $parts[] = trim($qtyPart . '? ' . $label);
+                    $parts[] = trim($qtyPart . '× ' . $label);
                 }
                 if (!empty($parts)) {
                     $qtyLabel .= ' (' . implode(', ', $parts) . ')';
