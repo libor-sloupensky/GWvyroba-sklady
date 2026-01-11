@@ -70,7 +70,7 @@
 .result-table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
 .result-table th, .result-table td { border:1px solid #e0e0e0; padding:0.35rem 0.4rem; text-align:left; }
 .result-table tfoot td { font-weight:700; background:#f5f7fa; }
-.inactive-name { color:#c62828; }
+.inactive-sku { text-decoration: line-through; }
 .favorite-list { list-style:none; padding:0; margin:0; }
 .favorite-list li { border:1px solid #eceff1; border-radius:8px; padding:0.55rem 0.7rem; margin-bottom:0.5rem; display:flex; justify-content:space-between; gap:0.6rem; }
 .favorite-title { font-weight:600; }
@@ -551,8 +551,8 @@
         } else {
           td.textContent = r[c] ?? '';
         }
-        if (inactiveRow && (c === 'název' || c === 'nazev')) {
-          td.classList.add('inactive-name');
+        if (inactiveRow && String(c).toLowerCase() === 'sku') {
+          td.classList.add('inactive-sku');
         }
         tr.appendChild(td);
         const val = Number(r[c]);

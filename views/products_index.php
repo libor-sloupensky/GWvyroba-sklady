@@ -111,7 +111,7 @@
 .products-table th,
 .products-table td { border:1px solid #ddd; padding:0.45rem 0.55rem; vertical-align:top; }
 .products-table th { background:#f3f6f9; }
-.inactive-name { color:#c62828; }
+.inactive-sku { text-decoration: line-through; }
 .sku-cell {
   cursor: pointer;
   font-weight: 600;
@@ -421,17 +421,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function createValueCell(value) {
       const td = document.createElement('td');
-      td.textContent = value === undefined || value === null || value === '' ? '–' : value;
+      td.textContent = value === undefined || value === null || value === '' ? '' : value;
       return td;
     }
 
     function displayValue(value) {
-      if (value === undefined || value === null || value === '') return '–';
+      if (value === undefined || value === null || value === '') return '';
       return String(value);
     }
 
     function formatNumber(value) {
-      if (value === undefined || value === null || value === '') return '–';
+      if (value === undefined || value === null || value === '') return '';
       const num = Number(value);
       if (Number.isNaN(num)) return String(value);
       return Number.isInteger(num) ? String(num) : num.toString().replace('.', ',');
@@ -655,13 +655,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function appendOptions(select, options) {
       select.innerHTML = '';
-      select.appendChild(new Option('–', ''));
+      select.appendChild(new Option('', ''));
       options.forEach((opt) => select.appendChild(new Option(opt.label, opt.value)));
     }
 
     function formatDisplay(field, value) {
-      if (!value) return '–';
-      if (field === 'aktivni') return value === '1' ? '✓' : (value === '0' ? '✕' : '–');
+      if (value === undefined || value === null || value === '') return '';
+      if (field === 'aktivni') return value === '1' ? '✓' : (value === '0' ? '✕' : '');
       if (field === 'znacka_id') return lookupLabel(meta.brands, value);
       if (field === 'skupina_id') return lookupLabel(meta.groups, value);
       return value;
@@ -669,7 +669,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function lookupLabel(list, value) {
       const found = list.find((item) => item.value === String(value));
-      return found ? found.label : '–';
+      return found ? found.label : '';
     }
 
     async function saveChange(sku, field, value) {
@@ -957,19 +957,19 @@ document.addEventListener('DOMContentLoaded', function () {
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
     <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
       <span class="sku-toggle">▸</span>
-      <span><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
+      <span class="<?= (int)$it['aktivni'] ? '' : 'inactive-sku' ?>"><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
     </td>
     <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '–' ?>
+      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '' ?>
     </td>
     <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '–' ?>
+      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '' ?>
     </td>
-    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? '–'),ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? '–'),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="merna_jednotka" data-type="select" data-options="units" data-value="<?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable <?= (int)$it['aktivni'] ? '' : 'inactive-name' ?>" data-field="nazev" data-type="text" data-value="<?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
+    <td class="editable" data-field="nazev" data-type="text" data-value="<?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_zasoba'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_zasoba'] ?></td>
     <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_davka'] ?></td>
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>

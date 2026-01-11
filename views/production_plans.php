@@ -574,7 +574,7 @@
 
 .production-row.is-blocked { background:#fff3f0; }
 
-.inactive-name { color:#c62828; }
+.inactive-sku { text-decoration: line-through; }
 
 
 
@@ -2131,7 +2131,7 @@
 
 
 
-          <span class="sku-value"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
+        <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
 
 
 
@@ -2149,7 +2149,7 @@
 
 
 
-        <td class="<?= empty($item['aktivni']) ? 'inactive-name' : '' ?>"><?= htmlspecialchars((string)$item['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)$item['nazev'], ENT_QUOTES, 'UTF-8') ?></td>
 
 
 
