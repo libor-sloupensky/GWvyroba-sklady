@@ -50,7 +50,8 @@ final class ImportController
             $eshops = $this->loadEshops();
             $outstanding = $this->collectOutstandingMissingSku();
             $viewMode = $this->currentViewMode();
-            $invoiceRows = $viewMode === "invoices" ? $this->loadImportedInvoices() : [];
+            $invoiceLimit = $this->currentInvoiceLimit();
+            $invoiceRows = $viewMode === 'invoices' ? $this->loadImportedInvoices($invoiceLimit) : [];
             $displayRows = $this->filterOutstandingRows($outstanding['rows'], $viewMode);
             $this->render('import_result.php', [
                 'title'=>'Import dokončen',
@@ -65,6 +66,7 @@ final class ImportController
                 'viewMode'=>$viewMode,
                 'viewModes'=>$this->viewModes(),
                 'invoiceRows'=>$invoiceRows,
+                'invoiceLimit'=>$invoiceLimit,
                 'skipped'=>$skipped,
             ]);
         } catch (\Throwable $e) {
@@ -668,6 +670,7 @@ final class ImportController
     private function renderImportForm(array $vars = []): void
     {
         $viewMode = isset($vars['viewMode']) ? $this->normalizeViewMode((string)$vars['viewMode']) : $this->currentViewMode();
+        $invoiceLimit = $this->currentInvoiceLimit();
         $eshops = $this->loadEshops();
         $outstanding = $this->collectOutstandingMissingSku();
         $displayRows = $this->filterOutstandingRows($outstanding['rows'], $viewMode);
@@ -679,7 +682,8 @@ final class ImportController
         $vars['outstandingDays'] = $outstanding['days'];
         $vars['viewMode'] = $viewMode;
         $vars['viewModes'] = $this->viewModes();
-        $vars['invoiceRows'] = $viewMode === 'invoices' ? $this->loadImportedInvoices() : [];
+        $vars['invoiceRows'] = $viewMode === 'invoices' ? $this->loadImportedInvoices($invoiceLimit) : [];
+        $vars['invoiceLimit'] = $invoiceLimit;
         $this->render('import_form.php', $vars);
     }
 
@@ -727,10 +731,10 @@ final class ImportController
     private function viewModes(): array
     {
         return [
-            'unmatched' => 'Nesp?rovan?',
-            'all'       => 'V?echny vazby',
-            'unique'    => 'V?echny unik?tn? vazby',
-            'invoices'  => 'Naimportovan? faktury',
+            'unmatched' => 'Nespárované',
+            'all'       => 'Všechny vazby',
+            'unique'    => 'Všechny unikátní vazby',
+            'invoices'  => 'Naimportované faktury',
         ];
     }
 
@@ -738,6 +742,16 @@ final class ImportController
     {
         $mode = $_GET['view'] ?? 'unmatched';
         return $this->normalizeViewMode((string)$mode);
+    }
+
+    private function currentInvoiceLimit(): int
+    {
+        $limit = (int)($_POST['limit'] ?? $_GET['limit'] ?? 50);
+        $allowed = [50, 100, 200, 500];
+        if (!in_array($limit, $allowed, true)) {
+            $limit = 50;
+        }
+        return $limit;
     }
 
     private function normalizeViewMode(string $mode): string
@@ -982,8 +996,12 @@ final class ImportController
     /**
      * @return array<int,array<string,mixed>>
      */
-    private function loadImportedInvoices(): array
+    private function loadImportedInvoices(int $limit = 50): array
     {
+        $limit = (int)$limit;
+        if ($limit <= 0) {
+            $limit = 50;
+        }
         $sql = "
 SELECT
   de.eshop_source,
@@ -996,6 +1014,7 @@ LEFT JOIN polozky_eshop pe
  AND pe.cislo_dokladu = de.cislo_dokladu
 GROUP BY de.eshop_source, de.duzp, de.cislo_dokladu
 ORDER BY de.duzp DESC, de.cislo_dokladu DESC
+LIMIT {$limit}
 ";
         return DB::pdo()->query($sql)->fetchAll();
     }

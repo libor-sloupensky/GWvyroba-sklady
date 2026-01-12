@@ -62,6 +62,18 @@ $formatCzk = static function ($value): string {
 <?php endif; ?>
 
 <?php if (($viewMode ?? '') === 'invoices'): ?>
+  <form method="get" class="view-mode-form" style="margin-top:0.5rem;">
+    <input type="hidden" name="view" value="invoices">
+    <label>Posledn&iacute;ch faktur</label>
+    <select name="limit" onchange="this.form.submit()">
+      <?php foreach ([50, 100, 200, 500] as $limit): ?>
+        <option value="<?= $limit ?>"<?= (int)($invoiceLimit ?? 50) === $limit ? ' selected' : '' ?>><?= $limit ?></option>
+      <?php endforeach; ?>
+    </select>
+  </form>
+<?php endif; ?>
+
+<?php if (($viewMode ?? '') === 'invoices'): ?>
   <hr>
   <h2>Naimportovan&eacute; faktury</h2>
   <?php if (empty($invoiceRows ?? [])): ?>
@@ -85,6 +97,7 @@ $formatCzk = static function ($value): string {
             <form method="post" action="/import/delete-invoice" onsubmit="return confirm('Opravdu smazat fakturu?');">
               <input type="hidden" name="eshop" value="<?= htmlspecialchars((string)($row['eshop_source'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
               <input type="hidden" name="cislo_dokladu" value="<?= htmlspecialchars((string)($row['cislo_dokladu'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
+              <input type="hidden" name="limit" value="<?= (int)($invoiceLimit ?? 50) ?>">
               <button type="submit" class="invoice-delete" title="Smazat fakturu">&times;</button>
             </form>
           </td>

@@ -93,6 +93,18 @@ $currentView = $viewMode ?? 'unmatched';
 <?php endif; ?>
 
 <?php if ($currentView === 'invoices'): ?>
+  <div style="margin:0.4rem 0;">
+    <label class="muted">Posledn&iacute;ch faktur:
+      <select onchange="window.location.href='/import?view=invoices&limit='+encodeURIComponent(this.value);">
+        <?php foreach ([50, 100, 200, 500] as $limit): ?>
+          <option value="<?= $limit ?>"<?= (int)($invoiceLimit ?? 50) === $limit ? ' selected' : '' ?>><?= $limit ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+  </div>
+<?php endif; ?>
+
+<?php if ($currentView === 'invoices'): ?>
   <h3>Naimportovan&eacute; faktury</h3>
   <?php if (empty($invoiceRows ?? [])): ?>
     <p class="muted">&Zcaron;&aacute;dn&eacute; faktury.</p>
@@ -115,6 +127,7 @@ $currentView = $viewMode ?? 'unmatched';
             <form method="post" action="/import/delete-invoice" onsubmit="return confirm('Opravdu smazat fakturu?');">
               <input type="hidden" name="eshop" value="<?= htmlspecialchars((string)($row['eshop_source'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
               <input type="hidden" name="cislo_dokladu" value="<?= htmlspecialchars((string)($row['cislo_dokladu'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
+              <input type="hidden" name="limit" value="<?= (int)($invoiceLimit ?? 50) ?>">
               <button type="submit" class="invoice-delete" title="Smazat fakturu">&times;</button>
             </form>
           </td>
