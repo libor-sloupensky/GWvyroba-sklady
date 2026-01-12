@@ -50,6 +50,7 @@ final class ImportController
             $eshops = $this->loadEshops();
             $outstanding = $this->collectOutstandingMissingSku();
             $viewMode = $this->currentViewMode();
+            $invoiceRows = $viewMode === "invoices" ? $this->loadImportedInvoices() : [];
             $displayRows = $this->filterOutstandingRows($outstanding['rows'], $viewMode);
             $this->render('import_result.php', [
                 'title'=>'Import dokončen',
@@ -63,6 +64,7 @@ final class ImportController
                 'outstandingDays'=>$outstanding['days'],
                 'viewMode'=>$viewMode,
                 'viewModes'=>$this->viewModes(),
+                'invoiceRows'=>$invoiceRows,
                 'skipped'=>$skipped,
             ]);
         } catch (\Throwable $e) {
@@ -90,6 +92,38 @@ final class ImportController
         $pdo->prepare("DELETE FROM polozky_eshop WHERE import_batch_id=? AND eshop_source=?")->execute([$batch,$eshop]);
         $pdo->prepare("DELETE FROM doklady_eshop WHERE import_batch_id=? AND eshop_source=?")->execute([$batch,$eshop]);
         $this->renderImportForm(['message'=>"Smazán poslední import batch={$batch}"]);
+    }
+
+
+    public function deleteInvoice(): void
+    {
+        $this->requireAdmin();
+        $eshop = trim((string)($_POST['eshop'] ?? ''));
+        $docNumber = trim((string)($_POST['cislo_dokladu'] ?? ''));
+        if ($eshop === '' || $docNumber === '') {
+            $this->renderImportForm(['error' => 'Chyb? e-shop nebo ??slo faktury.', 'viewMode' => 'invoices']);
+            return;
+        }
+        $pdo = DB::pdo();
+        $st = $pdo->prepare('SELECT 1 FROM doklady_eshop WHERE eshop_source=? AND cislo_dokladu=? LIMIT 1');
+        $st->execute([$eshop, $docNumber]);
+        if (!$st->fetchColumn()) {
+            $this->renderImportForm(['error' => 'Faktura nebyla nalezena.', 'viewMode' => 'invoices']);
+            return;
+        }
+        $refPrefix = sprintf('doc:%s:%s', mb_strtolower($eshop, 'UTF-8'), $docNumber);
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare('DELETE FROM polozky_pohyby WHERE ref_id LIKE ?')->execute([$refPrefix . ':%']);
+            $pdo->prepare('DELETE FROM polozky_eshop WHERE eshop_source=? AND cislo_dokladu=?')->execute([$eshop, $docNumber]);
+            $pdo->prepare('DELETE FROM doklady_eshop WHERE eshop_source=? AND cislo_dokladu=?')->execute([$eshop, $docNumber]);
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $this->renderImportForm(['error' => 'Smaz?n? faktury selhalo: ' . $e->getMessage(), 'viewMode' => 'invoices']);
+            return;
+        }
+        $this->renderImportForm(['message' => 'Faktura byla smaz?na.', 'viewMode' => 'invoices']);
     }
 
     public function reportMissingSku(): void
@@ -633,7 +667,7 @@ final class ImportController
 
     private function renderImportForm(array $vars = []): void
     {
-        $viewMode = $this->currentViewMode();
+        $viewMode = isset($vars['viewMode']) ? $this->normalizeViewMode((string)$vars['viewMode']) : $this->currentViewMode();
         $eshops = $this->loadEshops();
         $outstanding = $this->collectOutstandingMissingSku();
         $displayRows = $this->filterOutstandingRows($outstanding['rows'], $viewMode);
@@ -645,6 +679,7 @@ final class ImportController
         $vars['outstandingDays'] = $outstanding['days'];
         $vars['viewMode'] = $viewMode;
         $vars['viewModes'] = $this->viewModes();
+        $vars['invoiceRows'] = $viewMode === 'invoices' ? $this->loadImportedInvoices() : [];
         $this->render('import_form.php', $vars);
     }
 
@@ -692,25 +727,28 @@ final class ImportController
     private function viewModes(): array
     {
         return [
-            'unmatched' => 'Nespárované',
-            'all'       => 'Všechny vazby',
-            'unique'    => 'Všechny unikátní vazby',
+            'unmatched' => 'Nesp?rovan?',
+            'all'       => 'V?echny vazby',
+            'unique'    => 'V?echny unik?tn? vazby',
+            'invoices'  => 'Naimportovan? faktury',
         ];
     }
 
     private function currentViewMode(): string
     {
         $mode = $_GET['view'] ?? 'unmatched';
+        return $this->normalizeViewMode((string)$mode);
+    }
+
+    private function normalizeViewMode(string $mode): string
+    {
         $allowed = array_keys($this->viewModes());
         if (!in_array($mode, $allowed, true)) {
-            $mode = 'unmatched';
+            return 'unmatched';
         }
         return $mode;
     }
 
-    /**
-     * @param array<int,array<string,mixed>> $rows
-     */
     private function groupRowsByEshop(array $rows): array
     {
         $groups = [];
@@ -734,6 +772,9 @@ final class ImportController
      */
     private function filterOutstandingRows(array $rows, string $mode): array
     {
+        if ($mode === 'invoices') {
+            return [];
+        }
         if ($mode === 'unmatched') {
             $rows = array_values(array_filter($rows, fn($r) => ($r['status'] ?? '') === 'unmatched'));
             $rows = $this->uniqueBySkuOrName($rows);
@@ -935,6 +976,28 @@ final class ImportController
             $s = mb_convert_encoding($s, 'UTF-8');
         }
         return $s;
+    }
+
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    private function loadImportedInvoices(): array
+    {
+        $sql = "
+SELECT
+  de.eshop_source,
+  de.duzp,
+  de.cislo_dokladu,
+  ROUND(COALESCE(SUM(COALESCE(pe.cena_jedn_czk,0) * COALESCE(pe.mnozstvi,0)),0), 2) AS castka_czk
+FROM doklady_eshop de
+LEFT JOIN polozky_eshop pe
+  ON pe.eshop_source = de.eshop_source
+ AND pe.cislo_dokladu = de.cislo_dokladu
+GROUP BY de.eshop_source, de.duzp, de.cislo_dokladu
+ORDER BY de.duzp DESC, de.cislo_dokladu DESC
+";
+        return DB::pdo()->query($sql)->fetchAll();
     }
 
     private function requireAdmin(): void
