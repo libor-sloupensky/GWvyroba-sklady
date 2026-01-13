@@ -194,6 +194,14 @@ final class ImportController
                 $dateIssue = $this->normalizeDate($doc['datum_vystaveni'] ?? null);
                 $dueDate = $this->normalizeDate($doc['splatnost'] ?? null);
                 $contactId = $this->syncContact($doc['contact'] ?? []);
+                $docCurrency = strtoupper(trim((string)($doc['mena'] ?? '')));
+                if ($docCurrency === '') {
+                    $docCurrency = 'CZK';
+                }
+                $docRate = $this->normalizeDecimal($doc['kurz'] ?? null);
+                if ($docCurrency === 'CZK') {
+                    $docRate = '1';
+                }
                 $deleteItems->execute([$eshop, $docNumber]);
                 $deleteDoc->execute([$eshop, $docNumber]);
                 $docInsert->execute([
@@ -207,8 +215,8 @@ final class ImportController
                     $dateIssue,
                     $duzp,
                     $dueDate,
-                    $this->emptyToNull($doc['mena'] ?? null),
-                    $this->normalizeDecimal($doc['kurz'] ?? null),
+                    $this->emptyToNull($docCurrency),
+                    $docRate,
                     $contactId,
                     $batch,
                     $importTs,
@@ -223,6 +231,13 @@ final class ImportController
                     if ($quantity === null) {
                         $quantity = '0';
                     }
+                    $unitForeign = $this->normalizeDecimal($item['unit_price_foreign'] ?? null);
+                    $unitHome = $this->normalizeDecimal($item['unit_price_home'] ?? null);
+                    if ($unitHome === null && $unitForeign !== null && $docRate !== null) {
+                        $computed = $this->toFloat($unitForeign) * $this->toFloat($docRate);
+                        $formatted = rtrim(rtrim(number_format($computed, 6, '.', ''), '0'), '.');
+                        $unitHome = $this->normalizeDecimal($formatted);
+                    }
                     $itemInsert->execute([
                         $eshop,
                         $docNumber,
@@ -233,9 +248,9 @@ final class ImportController
                         $this->emptyToNull($item['text'] ?? null),
                         $quantity,
                         $this->emptyToNull($item['unit'] ?? null),
-                        $this->normalizeDecimal($item['unit_price_foreign'] ?? null),
-                        $this->normalizeDecimal($item['unit_price_home'] ?? null),
-                        $this->emptyToNull($doc['mena'] ?? null),
+                        $unitForeign,
+                        $unitHome,
+                        $this->emptyToNull($docCurrency),
                         $this->emptyToNull($item['rate_vat'] ?? null),
                         $item['pay_vat'] ?? null,
                         $this->normalizeDecimal($item['discount'] ?? null),
@@ -412,8 +427,8 @@ final class ImportController
                 'datum_vystaveni' => $this->xpathValue($xpath, './inv:date', $header),
                 'duzp' => $this->xpathValue($xpath, './inv:dateTax', $header),
                 'splatnost' => $this->xpathValue($xpath, './inv:dateDue', $header),
-                'mena' => $this->xpathValue($xpath, './inv:homeCurrency/typ:currency', $header),
-                'kurz' => $this->xpathValue($xpath, './inv:homeCurrency/typ:rate', $header),
+                'mena' => '',
+                'kurz' => '',
                 'contact' => $partner ? [
                     'firma' => $this->xpathValue($xpath, './typ:address/typ:company', $partner),
                     'jmeno' => $this->xpathValue($xpath, './typ:address/typ:name', $partner),
@@ -428,9 +443,10 @@ final class ImportController
                 ] : [],
                 'items' => [],
             ];
-            if ($doc['mena'] === '') {
-                $doc['mena'] = $this->xpathValue($xpath, './inv:foreignCurrency/typ:currency', $header);
-            }
+            $summary = $this->firstNode($xpath, './inv:invoiceSummary', $invoiceNode);
+            $currencyInfo = $this->resolveCurrencyInfo($xpath, $header, $summary);
+            $doc['mena'] = $currencyInfo['currency'];
+            $doc['kurz'] = $currencyInfo['rate'];
             foreach ($xpath->query('./inv:invoiceDetail/inv:invoiceItem', $invoiceNode) as $itemNode) {
                 $payVatRaw = $this->xpathValue($xpath, './inv:payVAT', $itemNode);
                 $doc['items'][] = [
@@ -452,6 +468,51 @@ final class ImportController
         }
         libxml_clear_errors();
         return $docs;
+    }
+
+    /**
+     * @return array{currency:string,rate:string}
+     */
+    private function resolveCurrencyInfo(\DOMXPath $xpath, ?\DOMNode $header, ?\DOMNode $summary): array
+    {
+        $currency = '';
+        $rate = '';
+        $amount = '';
+        $pick = function (?\DOMNode $context, string $path) use ($xpath, &$currency, &$rate, &$amount): void {
+            if (!$context || $currency !== '') {
+                return;
+            }
+            $currency = $this->xpathValue($xpath, $path . '/typ:currency/typ:ids', $context);
+            $rate = $this->xpathValue($xpath, $path . '/typ:rate', $context);
+            $amount = $this->xpathValue($xpath, $path . '/typ:amount', $context);
+        };
+        $pick($summary, './inv:foreignCurrency');
+        $pick($summary, './inv:homeCurrency');
+        $pick($header, './inv:foreignCurrency');
+        $pick($header, './inv:homeCurrency');
+        return [
+            'currency' => $currency,
+            'rate' => $this->computeCurrencyRate($rate, $amount),
+        ];
+    }
+
+    private function computeCurrencyRate(?string $rate, ?string $amount): string
+    {
+        $rateNorm = $this->normalizeDecimal($rate);
+        if ($rateNorm === null) {
+            return '';
+        }
+        $amountNorm = $this->normalizeDecimal($amount);
+        if ($amountNorm === null) {
+            return $rateNorm;
+        }
+        $amountValue = (float)$amountNorm;
+        if ($amountValue == 0.0) {
+            return $rateNorm;
+        }
+        $value = (float)$rateNorm / $amountValue;
+        $formatted = number_format($value, 6, '.', '');
+        return rtrim(rtrim($formatted, '0'), '.');
     }
 
     private function firstNode(\DOMXPath $xpath, string $expression, \DOMNode $context): ?\DOMNode
