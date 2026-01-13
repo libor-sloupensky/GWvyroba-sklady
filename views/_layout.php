@@ -25,6 +25,13 @@ function app_footer_info(): array {
 
 $fi = app_footer_info();
 $currentUser = $_SESSION['user'] ?? null;
+$currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$navIsActive = static function (string $href) use ($currentPath): bool {
+    if ($href === '/') {
+        return $currentPath === '' || $currentPath === '/';
+    }
+    return strncmp($currentPath, $href, strlen($href)) === 0;
+};
 ?>
 <!doctype html>
 <html lang="cs">
@@ -36,7 +43,8 @@ $currentUser = $_SESSION['user'] ?? null;
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7f9; }
     header { background:#263238; color:#fff; padding:10px 16px; }
     nav { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
-    nav a { color:#fff; text-decoration:none; }
+    nav a { color:#fff; text-decoration:none; padding:2px 8px; border-radius:999px; }
+    nav a.active { background:#fff; color:#263238; font-weight:600; }
     .container { max-width: 1200px; margin: 1rem auto; background:#fff; border:1px solid #e5e5e5; border-radius: 12px; padding: 14px 16px; }
     .footer { position: fixed; right: 1rem; bottom: 1rem; background:#fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color:#333; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .notice { padding:8px 10px; border:1px solid #ddd; background:#f9f9f9; border-radius:8px; }
@@ -56,14 +64,14 @@ $currentUser = $_SESSION['user'] ?? null;
 <body>
   <header class="print-hide">
     <nav>
-      <a href="/">Domů</a>
-      <a href="/import" title="Nahrát XML a spustit import">Import</a>
-      <a href="/products" title="Kmenová karta produktů, CSV import/export">Produkty</a>
-      <a href="/inventory" title="Záznam inventury a korekcí">Inventura</a>
-      <a href="/reservations" title="Rezervace hotových produktů">Rezervace</a>
-      <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného">Výroba</a>
-      <a href="/analytics/revenue" title="Analýza">Analýza</a>
-      <a href="/settings" title="Řady, ignorované vzory, globální nastavení">Nastavení</a>
+      <a href="/"<?= $navIsActive('/') ? ' class="active" aria-current="page"' : '' ?>>Domů</a>
+      <a href="/import" title="Nahrát XML a spustit import"<?= $navIsActive('/import') ? ' class="active" aria-current="page"' : '' ?>>Import</a>
+      <a href="/products" title="Kmenová karta produktů, CSV import/export"<?= $navIsActive('/products') ? ' class="active" aria-current="page"' : '' ?>>Produkty</a>
+      <a href="/inventory" title="Záznam inventury a korekcí"<?= $navIsActive('/inventory') ? ' class="active" aria-current="page"' : '' ?>>Inventura</a>
+      <a href="/reservations" title="Rezervace hotových produktů"<?= $navIsActive('/reservations') ? ' class="active" aria-current="page"' : '' ?>>Rezervace</a>
+      <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného"<?= $navIsActive('/production') ? ' class="active" aria-current="page"' : '' ?>>Výroba</a>
+      <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
+      <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
       <span class="nav-user">
         <?php if ($currentUser): ?>
           <?= htmlspecialchars((string)$currentUser['email'], ENT_QUOTES, 'UTF-8') ?>
