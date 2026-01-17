@@ -9,7 +9,7 @@ return [
     'charset' => 'utf8mb4',
   ],
   'app' => [
-    'version' => '0.1.0',
+    'version' => '1.1.0',
   ],
   'google' => [
     // Vyplňte přes prostředí (nastavení hostingu) nebo lokálně mimo git.
