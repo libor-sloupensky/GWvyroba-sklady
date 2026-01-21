@@ -2282,14 +2282,14 @@
 
 
 
-        <td class="qty-cell"><?= $formatQty($item['reservations'] ?? 0) ?></td>
-
-
-
-
 
         <?php $adjustedTarget = ($item['target'] ?? 0) + ($item['reservations'] ?? 0); ?>
-        <td class="qty-cell"><?= $formatQty($adjustedTarget, 0) ?></td>
+        <td class="qty-cell">
+          <?= $formatQty($adjustedTarget, 0) ?>
+          <?php if (($item['reservations'] ?? 0) > 0): ?>
+            <br><span style="font-size: 0.85em; color: #607d8b;">(<?= $formatQty($item['reservations']) ?>)</span>
+          <?php endif; ?>
+        </td>
 
 
 
