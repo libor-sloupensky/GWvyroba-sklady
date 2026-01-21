@@ -2237,8 +2237,8 @@
 
 
             <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
-            <div class="sku-availability-bar" title="Dostupnost materiálů 1. úrovně: <?= $materialPct ?>%">
-              <span data-state="<?= $materialState ?>" style="width: <?= $materialPct %>%"></span>
+            <div class="sku-availability-bar" title="Dostupnost materialu 1. urovne: <?= $materialPct ?>%">
+              <span data-state="<?= $materialState ?>" style="width: <?= $materialPct . '%' ?>"></span>
             </div>
           </div>
 
