@@ -2247,9 +2247,11 @@
               <span class="sku-toggle">▸</span>
               <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
             </div>
-            <div class="sku-availability-bar" title="Dostupnost materialu 1. urovne: <?= $materialPct ?>%">
-              <span data-state="<?= $materialState ?>" style="width: <?= $materialPct . '%' ?>"></span>
-            </div>
+            <?php if ($deficit > 0): ?>
+              <div class="sku-availability-bar" title="Dostupnost materialu 1. urovne: <?= $materialPct ?>%">
+                <span data-state="<?= $materialState ?>" style="width: <?= $materialPct . '%' ?>"></span>
+              </div>
+            <?php endif; ?>
           </div>
 
 

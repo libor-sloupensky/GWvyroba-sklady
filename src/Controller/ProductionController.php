@@ -184,6 +184,11 @@ final class ProductionController
 
                 unset($item);
 
+                // Filtrovat položky s deficitem < 1
+                $items = array_filter($items, function($item) {
+                    return ($item['deficit'] ?? 0.0) >= 1.0;
+                });
+
                 usort($items, function ($a, $b) {
 
                     $ratioA = $a['ratio'] ?? 0.0;
