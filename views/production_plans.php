@@ -659,6 +659,30 @@
 
 .qty-cell { white-space:nowrap; font-variant-numeric:tabular-nums; }
 
+.sku-availability {
+  display:flex;
+  align-items:center;
+  gap:0.35rem;
+}
+
+.sku-availability-bar {
+  width:60px;
+  height:6px;
+  border-radius:999px;
+  background:#e0e7ef;
+  overflow:hidden;
+}
+
+.sku-availability-bar span {
+  display:block;
+  height:100%;
+  background:#66bb6a;
+}
+
+.sku-availability-bar span[data-state="warn"] { background:#ffa726; }
+
+.sku-availability-bar span[data-state="critical"] { background:#ff7043; }
+
 
 
 
@@ -2178,6 +2202,11 @@
 
         $ratioState = $ratio >= 0.85 ? 'critical' : ($ratio >= 0.5 ? 'warn' : 'ok');
 
+        // Výpočet stavu dostupnosti materiálů (opačná logika - zelená = plná, červená = prázdná)
+        $materialRatio = max(0.0, min(1.0, (float)($item['material_availability_ratio'] ?? 1.0)));
+        $materialPct = (int)round($materialRatio * 100);
+        $materialState = $materialRatio >= 0.8 ? 'ok' : ($materialRatio >= 0.4 ? 'warn' : 'critical');
+
 
 
 
@@ -2200,13 +2229,18 @@
 
 
 
-          <span class="sku-toggle">▸</span>
+          <div class="sku-availability">
+            <span class="sku-toggle">▸</span>
 
 
 
 
 
-        <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
+            <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
+            <div class="sku-availability-bar" title="Dostupnost materiálů 1. úrovně: <?= $materialPct ?>%">
+              <span data-state="<?= $materialState ?>" style="width: <?= $materialPct %>%"></span>
+            </div>
+          </div>
 
 
 

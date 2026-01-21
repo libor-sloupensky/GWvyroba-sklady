@@ -177,6 +177,9 @@ final class ProductionController
 
                     $item['blocked'] = !empty($blockers);
 
+                    // Výpočet dostupnosti materiálů 1. úrovně
+                    $item['material_availability_ratio'] = $this->computeMaterialAvailabilityRatio($sku, (float)$item['deficit'], $children, $statusMap);
+
                 }
 
                 unset($item);
@@ -1404,6 +1407,64 @@ final class ProductionController
 
         return $ratio > 1.0 ? 1.0 : $ratio;
 
+    }
+
+    /**
+     * Vypočítá poměr, jaký díl z požadavku (dovyrobit) lze vyrobit z dostupných přímých komponent.
+     * Vrací hodnotu 0.0 až 1.0, kde 1.0 = lze vyrobit vše, 0.0 = nelze vyrobit nic.
+     *
+     * @param string $sku
+     * @param float $required Množství, které je třeba vyrobit (dovyrobit)
+     * @param array $children BOM graf children
+     * @param array $statusMap Status map všech produktů
+     * @return float Poměr 0.0-1.0 (1.0 = plně dostupné, 0.0 = nedostupné)
+     */
+    private function computeMaterialAvailabilityRatio(string $sku, float $required, array $children, array $statusMap): float
+    {
+        // Pokud není potřeba nic vyrábět, považujeme za plně dostupné
+        if ($required <= 0.0) {
+            return 1.0;
+        }
+
+        // Získáme přímé komponenty (1. úroveň)
+        $directComponents = $children[$sku] ?? [];
+
+        // Pokud produkt nemá komponenty, nemůžeme určit dostupnost - vrátíme neutrální hodnotu
+        if (empty($directComponents)) {
+            return 1.0;
+        }
+
+        // Zjistíme, kolik kusů můžeme maximálně vyrobit z dostupných komponent
+        $maxProducible = PHP_FLOAT_MAX;
+
+        foreach ($directComponents as $edge) {
+            $componentSku = (string)($edge['sku'] ?? '');
+            $coefficient = (float)($edge['koeficient'] ?? 0.0);
+
+            if ($componentSku === '' || $coefficient <= 0.0) {
+                continue;
+            }
+
+            $componentStatus = $statusMap[$componentSku] ?? [];
+            $available = (float)($componentStatus['available'] ?? 0.0);
+
+            // Kolik kusů hlavního produktu můžeme vyrobit z tohoto komponentu
+            $producibleFromThis = $available / $coefficient;
+
+            // Minimum určuje, co nás limituje
+            $maxProducible = min($maxProducible, $producibleFromThis);
+        }
+
+        // Pokud žádná komponenta neomezuje (např. všechny mají nulový koeficient)
+        if ($maxProducible === PHP_FLOAT_MAX) {
+            return 1.0;
+        }
+
+        // Vypočítáme poměr: kolik z požadovaného množství lze vyrobit
+        $ratio = $maxProducible / $required;
+
+        // Omezíme na rozsah 0.0 - 1.0
+        return max(0.0, min(1.0, $ratio));
     }
 
     private function requireAuth(): void
