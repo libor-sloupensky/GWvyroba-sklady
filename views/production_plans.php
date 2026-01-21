@@ -697,6 +697,12 @@
 
 .deficit-cell { font-weight:600; }
 
+.deficit-with-bar {
+  display:flex;
+  flex-direction:column;
+  gap:0.25rem;
+}
+
 
 
 
@@ -2082,12 +2088,11 @@
 
 
 
-        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit': vycházíme z průměrné denní poptávky (prodeje/rezervace) za nastavený počet dnů, u auto režimu ji násobíme cílovým počtem dní zásoby a výrobní dobou. Odečteme aktuální zásoby mínus rezervace. U neskladových sad a čistých komponent bez vlastní poptávky je cíl nula a potřeba vzniká jen kvůli rodičům. Výsledek je vždy >= 0.">i</span></th><!-- noop refresh -->
+        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit':&#10;• Vycházíme z průměrné denní poptávky za nastavený počet dnů&#10;• U auto režimu násobíme cílovým počtem dní zásoby a výrobní dobou&#10;• Odečteme aktuální zásoby mínus rezervace&#10;• U neskladových sad a čistých komponent je cíl nula&#10;&#10;Barevná stupnice (priorita):&#10;• Červená = vysoká priorita výroby (velký deficit)&#10;• Oranžová = střední priorita&#10;• Zelená = nízká priorita / dostatek zásob">i</span></th><!-- noop refresh -->
 
 
 
 
-        <th>Priorita</th>
 
 
 
@@ -2294,35 +2299,19 @@
 
 
         <td class="qty-cell deficit-cell">
-          <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
-            <span class="demand-toggle">▸</span>
-            <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
-          </span>
+          <div class="deficit-with-bar">
+            <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
+              <span class="demand-toggle">▸</span>
+              <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
+            </span>
+            <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= $ratioPct . '%' ?>"></span></div>
+          </div>
         </td>
 
 
 
 
 
-        <td class="ratio-cell">
-
-
-
-
-
-          <div class="ratio-value"><?= $ratioPct ?> %</div>
-
-
-
-
-
-          <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= $ratioPct ?>%"></span></div>
-
-
-
-
-
-        </td>
 
 
 
