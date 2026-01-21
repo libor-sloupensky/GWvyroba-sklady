@@ -661,16 +661,24 @@
 
 .sku-availability {
   display:flex;
+  flex-direction:column;
+  gap:0.25rem;
+}
+
+.sku-availability-content {
+  display:flex;
   align-items:center;
   gap:0.35rem;
 }
 
 .sku-availability-bar {
-  width:60px;
+  width:100%;
+  max-width:120px;
   height:6px;
   border-radius:999px;
   background:#e0e7ef;
   overflow:hidden;
+  margin-left:1.25rem;
 }
 
 .sku-availability-bar span {
@@ -2038,7 +2046,7 @@
 
 
 
-        <th>SKU</th>
+        <th><span class="with-tooltip">SKU <span class="info-icon" title="• Kliknutím na SKU se rozbalí strom potomků se skladovými dostupnostmi&#10;• Barevná stupnice ukazuje, jaký podíl z hodnoty 'Dovyrobit' lze aktuálně vyrobit z dostupných přímých surovin (1. úroveň BOM)&#10;• Zelená = lze vyrobit vše, oranžová = částečně, červená = nedostatek materiálu">i</span></span></th>
 
 
 
@@ -2230,13 +2238,10 @@
 
 
           <div class="sku-availability">
-            <span class="sku-toggle">▸</span>
-
-
-
-
-
-            <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
+            <div class="sku-availability-content">
+              <span class="sku-toggle">▸</span>
+              <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
+            </div>
             <div class="sku-availability-bar" title="Dostupnost materialu 1. urovne: <?= $materialPct ?>%">
               <span data-state="<?= $materialState ?>" style="width: <?= $materialPct . '%' ?>"></span>
             </div>
