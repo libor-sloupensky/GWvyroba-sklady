@@ -673,12 +673,13 @@
 
 .sku-availability-bar {
   width:100%;
-  max-width:120px;
+  max-width:100px;
   height:6px;
   border-radius:999px;
   background:#e0e7ef;
   overflow:hidden;
-  margin-left:1.25rem;
+  margin-left:auto;
+  margin-right:auto;
 }
 
 .sku-availability-bar span {
