@@ -2077,13 +2077,7 @@
 
 
 
-        <th>Rezervace</th>
-
-
-
-
-
-        <th>Cílový stav</th>
+        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje cílovou zásobu, kterou chceme mít na skladě&#10;• Pokud existují rezervace, jsou zobrazeny v závorce pod cílovou hodnotou&#10;• Cílový stav = minimální zásoba + buffer dle nastavení režimu">i</span></th>
 
 
 
@@ -2280,7 +2274,7 @@
         <td class="qty-cell">
           <span class="available-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
             <span class="available-toggle">▸</span>
-            <span class="available-value"><?= $formatQty($item['available'] ?? 0) ?></span>
+            <span class="available-value"><?= $formatQty(($item['available'] ?? 0) + ($item['reservations'] ?? 0)) ?></span>
           </span>
         </td>
 
@@ -2294,7 +2288,8 @@
 
 
 
-        <td class="qty-cell"><?= $formatQty($item['target'] ?? 0, 0) ?></td>
+        <?php $adjustedTarget = ($item['target'] ?? 0) + ($item['reservations'] ?? 0); ?>
+        <td class="qty-cell"><?= $formatQty($adjustedTarget, 0) ?></td>
 
 
 
