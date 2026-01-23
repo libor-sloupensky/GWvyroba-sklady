@@ -286,6 +286,15 @@ final class ImportController
                             $isNonstock = (bool)($meta['is_nonstock'] ?? false);
                             $bomChildren = $isNonstock ? $this->loadBomChildren($sku) : [];
 
+                            // DEBUG: Logování pro WS1031
+                            if ($sku === 'WS1031') {
+                                error_log("=== DEBUG WS1031 ===");
+                                error_log("meta: " . json_encode($meta));
+                                error_log("isNonstock: " . ($isNonstock ? 'true' : 'false'));
+                                error_log("bomChildren count: " . count($bomChildren));
+                                error_log("bomChildren: " . json_encode($bomChildren));
+                            }
+
                             if ($isNonstock && !empty($bomChildren)) {
                                 // rozpad na potomky, parent neodepisovat
                                 foreach ($bomChildren as $edge) {

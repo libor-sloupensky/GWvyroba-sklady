@@ -4,7 +4,8 @@
       "Bash(php -l:*)",
       "Bash(php -r:*)",
       "Bash(sqlite3:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(php:*)"
     ]
   }
 }
