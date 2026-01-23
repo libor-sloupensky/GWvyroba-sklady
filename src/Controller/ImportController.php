@@ -1138,4 +1138,106 @@ LIMIT {$limit}
         ]);
         exit;
     }
+
+    public function getInvoiceDetail(): void
+    {
+        $this->requireAdmin();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $eshop = trim((string)($_GET['eshop'] ?? ''));
+        $docNumber = trim((string)($_GET['cislo_dokladu'] ?? ''));
+
+        if ($eshop === '' || $docNumber === '') {
+            echo json_encode(['error' => 'Chybí parametry']);
+            return;
+        }
+
+        $pdo = DB::pdo();
+
+        // Načti hlavičku dokladu
+        $headerStmt = $pdo->prepare('
+            SELECT de.*, k.firma, k.jmeno, k.ic, k.email
+            FROM doklady_eshop de
+            LEFT JOIN kontakty k ON k.id = de.kontakt_id
+            WHERE de.eshop_source = ? AND de.cislo_dokladu = ?
+            LIMIT 1
+        ');
+        $headerStmt->execute([$eshop, $docNumber]);
+        $header = $headerStmt->fetch();
+
+        if (!$header) {
+            echo json_encode(['error' => 'Faktura nenalezena']);
+            return;
+        }
+
+        // Načti položky dokladu
+        $itemsStmt = $pdo->prepare('
+            SELECT pe.*
+            FROM polozky_eshop pe
+            WHERE pe.eshop_source = ? AND pe.cislo_dokladu = ?
+            ORDER BY pe.id
+        ');
+        $itemsStmt->execute([$eshop, $docNumber]);
+        $items = $itemsStmt->fetchAll();
+
+        // Pro každou položku načti informace o odpisu
+        foreach ($items as &$item) {
+            $sku = (string)($item['sku'] ?? '');
+
+            if ($sku === '') {
+                // Nemá SKU, nemůže být odepsáno
+                $item['odpis_mnozstvi'] = 0.0;
+                $item['odpis_proveden'] = false;
+                $item['odpis_info'] = [];
+                continue;
+            }
+
+            // Vytvoř prefix pro hledání všech pohybů souvisejících s touto položkou
+            // (může jít o nonstock rozpadnutý na potomky)
+            $refPrefix = sprintf('doc:%s:%s:', mb_strtolower($eshop, 'UTF-8'), $docNumber);
+
+            // Načti všechny pohyby pro tento doklad
+            $movementStmt = $pdo->prepare('
+                SELECT sku, mnozstvi, merna_jednotka, ref_id
+                FROM polozky_pohyby
+                WHERE ref_id LIKE ?
+            ');
+            $movementStmt->execute([$refPrefix . '%']);
+            $movements = $movementStmt->fetchAll();
+
+            // Zjisti, zda se odepsal přímo tento SKU nebo jeho potomci
+            $directMovement = null;
+            $childMovements = [];
+
+            foreach ($movements as $mov) {
+                if ($mov['sku'] === $sku) {
+                    $directMovement = $mov;
+                } else {
+                    $childMovements[] = $mov;
+                }
+            }
+
+            if ($directMovement) {
+                // Přímý odpis
+                $item['odpis_mnozstvi'] = (float)$directMovement['mnozstvi'];
+                $item['odpis_proveden'] = true;
+                $item['odpis_info'] = [$directMovement];
+            } elseif (!empty($childMovements)) {
+                // Nonstock rozpad na potomky
+                $item['odpis_mnozstvi'] = 0.0; // Nelze přímo sčítat, různé jednotky
+                $item['odpis_proveden'] = true;
+                $item['odpis_info'] = $childMovements;
+            } else {
+                // Žádný odpis
+                $item['odpis_mnozstvi'] = 0.0;
+                $item['odpis_proveden'] = false;
+                $item['odpis_info'] = [];
+            }
+        }
+
+        echo json_encode([
+            'header' => $header,
+            'items' => $items,
+        ], JSON_UNESCAPED_UNICODE);
+    }
 }

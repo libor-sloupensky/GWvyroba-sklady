@@ -50,6 +50,7 @@ $router->get('/import', [ImportController::class, 'form']);
 $router->post('/import/pohoda', [ImportController::class, 'importPohoda']);
 $router->post('/import/delete-last', [ImportController::class, 'deleteLastBatch']);
 $router->post('/import/delete-invoice', [ImportController::class, 'deleteInvoice']);
+$router->get('/import/invoice-detail', [ImportController::class, 'getInvoiceDetail']);
 $router->get('/report/missing-sku', [ImportController::class, 'reportMissingSku']);
 
 // Produkty
