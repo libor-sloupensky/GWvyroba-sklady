@@ -1148,7 +1148,7 @@ LIMIT {$limit}
         $docNumber = trim((string)($_GET['cislo_dokladu'] ?? ''));
 
         if ($eshop === '' || $docNumber === '') {
-            echo json_encode(['error' => 'Chybí parametry']);
+            echo json_encode(['error' => 'Chybí parametry ']);
             return;
         }
 

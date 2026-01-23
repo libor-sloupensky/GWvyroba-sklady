@@ -357,3 +357,4 @@ function formatCzk(value) {
 }
 </script>
 <?php endif; ?>
+ 
