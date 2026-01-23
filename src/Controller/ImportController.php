@@ -1166,7 +1166,21 @@ LIMIT {$limit}
         $header = $headerStmt->fetch();
 
         if (!$header) {
-            echo json_encode(['error' => 'Faktura nenalezena']);
+            // DEBUG: Zkus najít podobné faktury
+            $debugStmt = $pdo->prepare('
+                SELECT eshop_source, cislo_dokladu
+                FROM doklady_eshop
+                WHERE cislo_dokladu LIKE ? OR eshop_source LIKE ?
+                LIMIT 5
+            ');
+            $debugStmt->execute(['%' . $docNumber . '%', '%' . $eshop . '%']);
+            $similar = $debugStmt->fetchAll();
+
+            echo json_encode([
+                'error' => 'Faktura nenalezena',
+                'debug_params' => ['eshop' => $eshop, 'cislo_dokladu' => $docNumber],
+                'debug_similar' => $similar
+            ], JSON_UNESCAPED_UNICODE);
             return;
         }
 
@@ -1196,6 +1210,11 @@ LIMIT {$limit}
             $meta = $this->loadProductMeta($sku);
             $isNonstock = $meta ? (bool)($meta['is_nonstock'] ?? false) : false;
             $bomChildren = $isNonstock ? $this->loadBomChildren($sku) : [];
+
+            // DEBUG
+            $item['_debug_meta'] = $meta;
+            $item['_debug_isNonstock'] = $isNonstock;
+            $item['_debug_bomChildren'] = $bomChildren;
 
             // Vytvoř seznam SKU, která mají být odepsána (buď parent nebo potomci)
             $skusToCheck = [];

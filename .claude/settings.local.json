@@ -3,7 +3,8 @@
     "allow": [
       "Bash(php -l:*)",
       "Bash(php -r:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(grep:*)"
     ]
   }
 }
