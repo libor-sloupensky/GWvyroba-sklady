@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php -l:*)"
+      "Bash(php -l:*)",
+      "Bash(php -r:*)",
+      "Bash(sqlite3:*)"
     ]
   }
 }

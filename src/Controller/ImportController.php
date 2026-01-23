@@ -1192,41 +1192,53 @@ LIMIT {$limit}
                 continue;
             }
 
-            // Vytvoř prefix pro hledání všech pohybů souvisejících s touto položkou
-            // (může jít o nonstock rozpadnutý na potomky)
-            $refPrefix = sprintf('doc:%s:%s:', mb_strtolower($eshop, 'UTF-8'), $docNumber);
+            // Zkontroluj, zda je produkt nonstock a má BOM potomky
+            $meta = $this->loadProductMeta($sku);
+            $isNonstock = $meta ? (bool)($meta['is_nonstock'] ?? false) : false;
+            $bomChildren = $isNonstock ? $this->loadBomChildren($sku) : [];
 
-            // Načti všechny pohyby pro tento doklad
-            $movementStmt = $pdo->prepare('
-                SELECT sku, mnozstvi, merna_jednotka, ref_id
-                FROM polozky_pohyby
-                WHERE ref_id LIKE ?
-            ');
-            $movementStmt->execute([$refPrefix . '%']);
-            $movements = $movementStmt->fetchAll();
-
-            // Zjisti, zda se odepsal přímo tento SKU nebo jeho potomci
-            $directMovement = null;
-            $childMovements = [];
-
-            foreach ($movements as $mov) {
-                if ($mov['sku'] === $sku) {
-                    $directMovement = $mov;
-                } else {
-                    $childMovements[] = $mov;
+            // Vytvoř seznam SKU, která mají být odepsána (buď parent nebo potomci)
+            $skusToCheck = [];
+            if ($isNonstock && !empty($bomChildren)) {
+                // Nonstock - hledej odpisy potomků
+                foreach ($bomChildren as $child) {
+                    $childSku = (string)($child['sku'] ?? '');
+                    if ($childSku !== '') {
+                        $skusToCheck[] = $childSku;
+                    }
                 }
+            } else {
+                // Normální produkt - hledej přímý odpis
+                $skusToCheck[] = $sku;
             }
 
-            if ($directMovement) {
-                // Přímý odpis
-                $item['odpis_mnozstvi'] = (float)$directMovement['mnozstvi'];
-                $item['odpis_proveden'] = true;
-                $item['odpis_info'] = [$directMovement];
-            } elseif (!empty($childMovements)) {
-                // Nonstock rozpad na potomky
-                $item['odpis_mnozstvi'] = 0.0; // Nelze přímo sčítat, různé jednotky
-                $item['odpis_proveden'] = true;
-                $item['odpis_info'] = $childMovements;
+            // Načti pohyby pro nalezené SKU
+            $movements = [];
+            if (!empty($skusToCheck)) {
+                $refPrefix = sprintf('doc:%s:%s:', mb_strtolower($eshop, 'UTF-8'), $docNumber);
+                $placeholders = implode(',', array_fill(0, count($skusToCheck), '?'));
+                $movementStmt = $pdo->prepare("
+                    SELECT sku, mnozstvi, merna_jednotka, ref_id
+                    FROM polozky_pohyby
+                    WHERE ref_id LIKE ? AND sku IN ($placeholders)
+                ");
+                $params = array_merge([$refPrefix . '%'], $skusToCheck);
+                $movementStmt->execute($params);
+                $movements = $movementStmt->fetchAll();
+            }
+
+            if (!empty($movements)) {
+                if ($isNonstock && !empty($bomChildren)) {
+                    // Nonstock rozpad na potomky
+                    $item['odpis_mnozstvi'] = 0.0;
+                    $item['odpis_proveden'] = true;
+                    $item['odpis_info'] = $movements;
+                } else {
+                    // Přímý odpis
+                    $item['odpis_mnozstvi'] = (float)($movements[0]['mnozstvi'] ?? 0.0);
+                    $item['odpis_proveden'] = true;
+                    $item['odpis_info'] = $movements;
+                }
             } else {
                 // Žádný odpis
                 $item['odpis_mnozstvi'] = 0.0;
