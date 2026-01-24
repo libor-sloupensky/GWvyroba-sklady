@@ -484,6 +484,15 @@ PROMPT;
             }
             return;
         }
+        if ($templateId === 'margins') {
+            try {
+                $result = $this->buildMarginRows($validated);
+                echo json_encode(['ok' => true, 'rows' => $result['rows'], 'mode' => $result['mode']], JSON_UNESCAPED_UNICODE);
+            } catch (\Throwable $e) {
+                echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            }
+            return;
+        }
         $sql = $this->expandArrayParams($template['sql'], $validated);
 
         try {
@@ -638,6 +647,75 @@ PROMPT;
             ];
         }, $rows ?: []);
         echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Načte položky faktury s výpočtem marže pro každou položku.
+     * Endpoint: GET /analytics/invoice-items?eshop_source=...&cislo_dokladu=...
+     */
+    public function invoiceItemsV2(): void
+    {
+        $this->requireRole(['admin', 'superadmin']);
+        header('Content-Type: application/json; charset=utf-8');
+
+        $eshop = trim($_GET['eshop_source'] ?? '');
+        $doklad = trim($_GET['cislo_dokladu'] ?? '');
+
+        if ($eshop === '' || $doklad === '') {
+            echo json_encode(['ok' => false, 'error' => 'Chybí parametry'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        try {
+            $pdo = DB::pdo();
+
+            // Načíst položky faktury
+            $stmt = $pdo->prepare("
+                SELECT pe.sku, pe.nazev, pe.mnozstvi, pe.cena_jedn_czk
+                FROM polozky_eshop pe
+                WHERE pe.eshop_source = ? AND pe.cislo_dokladu = ?
+                  AND pe.sku IS NOT NULL AND pe.sku != ''
+            ");
+            $stmt->execute([$eshop, $doklad]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($rows)) {
+                echo json_encode(['ok' => true, 'items' => []], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+
+            // Načíst náklady a BOM
+            $productCosts = $this->loadProductCosts();
+            $bomCache = $this->loadBomCache();
+            $nonstockTypes = $this->loadNonstockTypes();
+
+            $items = [];
+            foreach ($rows as $row) {
+                $sku = $row['sku'];
+                $qty = (float)($row['mnozstvi'] ?? 0);
+                $trzba = round($qty * (float)($row['cena_jedn_czk'] ?? 0), 2);
+
+                // Vypočítat náklad
+                $naklad = $this->calculateItemCost($sku, $qty, $productCosts, $bomCache, $nonstockTypes);
+
+                $zisk = round($trzba - $naklad, 2);
+                $ziskPct = $trzba > 0 ? round(($zisk / $trzba) * 100, 1) : 0.0;
+
+                $items[] = [
+                    'sku' => $sku,
+                    'nazev' => $row['nazev'] ?? '',
+                    'mnozstvi' => $qty,
+                    'trzba' => $trzba,
+                    'naklad' => $naklad,
+                    'zisk' => $zisk,
+                    'zisk_pct' => $ziskPct,
+                ];
+            }
+
+            echo json_encode(['ok' => true, 'items' => $items], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
     }
 
     /**
@@ -900,6 +978,28 @@ ORDER BY m.month_end, serie_label
                     ['name' => 'sku', 'label' => 'SKU', 'type' => 'string_multi', 'required' => false, 'default' => []],
                 ],
                 'suggested_render' => 'table',
+            ],
+            'margins' => [
+                'title' => 'Marže',
+                'description' => 'Analýza marží na fakturách. Pozn.: Výsledky jsou správné pouze pro položky se správně navázaným SKU na fakturách.',
+                'hide_chart' => true,
+                'sql' => '',
+                'params' => [
+                    ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'group_mode', 'label' => 'Seskupení', 'type' => 'enum', 'required' => false, 'default' => 'invoices', 'values' => [
+                        ['value' => 'invoices', 'label' => 'Nesjednocovat (jednotlivé faktury)'],
+                        ['value' => 'contacts', 'label' => 'Sjednotit dle odběratele'],
+                        ['value' => 'products', 'label' => 'Sjednotit dle produktu'],
+                    ]],
+                    ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
+                    ['name' => 'contact_ids', 'label' => 'Kontakt', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'sku', 'label' => 'SKU', 'type' => 'product_multi', 'required' => false, 'default' => []],
+                    ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
+                    ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
+                    ['name' => 'typ', 'label' => 'Typ produktu', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
+                ],
+                'suggested_render' => 'margins_table',
             ],
         ];
     }
@@ -1516,5 +1616,428 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
         $pdo = DB::pdo();
         $stmt = $pdo->prepare('INSERT INTO ai_prompts (user_id, title, prompt, is_public) VALUES (?,?,?,?)');
         $stmt->execute([$userId, $title, $prompt, $isPublic ? 1 : 0]);
+    }
+
+    /**
+     * Výpočet marží pro šablonu 'margins'
+     * @param array<string,mixed> $params
+     * @return array{mode:string,rows:array<int,array<string,mixed>>}
+     */
+    private function buildMarginRows(array $params): array
+    {
+        $pdo = DB::pdo();
+        $startDate = (string)($params['start_date'] ?? '');
+        $endDate = (string)($params['end_date'] ?? '');
+        $groupMode = (string)($params['group_mode'] ?? 'invoices');
+
+        if ($startDate === '' || $endDate === '') {
+            return ['mode' => $groupMode, 'rows' => []];
+        }
+
+        // Načíst BOM strukturu pro nonstock produkty
+        $bomCache = $this->loadBomCache();
+        // Načíst skl_hodnota pro všechny produkty
+        $productCosts = $this->loadProductCosts();
+        // Načíst info o nonstock typech
+        $nonstockTypes = $this->loadNonstockTypes();
+
+        // Sestavit SQL pro načtení faktur
+        $sql = "
+            SELECT
+                de.eshop_source, de.cislo_dokladu, de.duzp, de.castka_celkem,
+                c.id AS kontakt_id, c.firma, c.jmeno, c.ic
+            FROM doklady_eshop de
+            LEFT JOIN kontakty c ON c.id = de.kontakt_id
+            WHERE de.duzp BETWEEN ? AND ?
+        ";
+        $binds = [$startDate, $endDate];
+
+        // Filtr e-shop
+        $eshops = $params['eshop_source'] ?? [];
+        if (!empty($eshops) && is_array($eshops)) {
+            $eshops = array_filter($eshops, fn($v) => strtolower((string)$v) !== 'vsechny' && $v !== '');
+            if (!empty($eshops)) {
+                $placeholders = implode(',', array_fill(0, count($eshops), '?'));
+                $sql .= " AND de.eshop_source IN ({$placeholders})";
+                $binds = array_merge($binds, $eshops);
+            }
+        }
+
+        // Filtr kontakt
+        $contacts = $params['contact_ids'] ?? [];
+        if (!empty($contacts) && is_array($contacts)) {
+            $contacts = array_filter(array_map('intval', $contacts), fn($v) => $v > 0);
+            if (!empty($contacts)) {
+                $placeholders = implode(',', array_fill(0, count($contacts), '?'));
+                $sql .= " AND de.kontakt_id IN ({$placeholders})";
+                $binds = array_merge($binds, $contacts);
+            }
+        }
+
+        $sql .= " ORDER BY de.duzp DESC, de.cislo_dokladu";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($binds);
+        $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        if (empty($invoices)) {
+            return ['mode' => $groupMode, 'rows' => []];
+        }
+
+        // Filtr SKU (pro filtrování položek)
+        $skuFilter = $params['sku'] ?? [];
+        if (!empty($skuFilter) && is_array($skuFilter)) {
+            $skuFilter = array_filter(array_map('trim', $skuFilter), fn($v) => $v !== '');
+        } else {
+            $skuFilter = [];
+        }
+
+        // Filtry značka, skupina, typ
+        $znackaFilter = $params['znacka_id'] ?? [];
+        $skupinaFilter = $params['skupina_id'] ?? [];
+        $typFilter = $params['typ'] ?? [];
+        if (!empty($znackaFilter)) {
+            $znackaFilter = array_filter($znackaFilter, fn($v) => strtolower((string)$v) !== 'vse');
+        }
+        if (!empty($skupinaFilter)) {
+            $skupinaFilter = array_filter($skupinaFilter, fn($v) => strtolower((string)$v) !== 'vse');
+        }
+        if (!empty($typFilter)) {
+            $typFilter = array_filter($typFilter, fn($v) => strtolower((string)$v) !== 'vse');
+        }
+
+        // Načíst položky pro všechny faktury
+        $invoiceKeys = array_map(fn($inv) => $inv['eshop_source'] . '|' . $inv['cislo_dokladu'], $invoices);
+        $itemsByInvoice = $this->loadInvoiceItems($invoiceKeys, $skuFilter, $znackaFilter, $skupinaFilter, $typFilter);
+
+        // Zpracovat data podle group_mode
+        $results = [];
+        $byContact = [];
+        $byProduct = [];
+
+        foreach ($invoices as $inv) {
+            $key = $inv['eshop_source'] . '|' . $inv['cislo_dokladu'];
+            $items = $itemsByInvoice[$key] ?? [];
+
+            if (empty($items)) {
+                continue;
+            }
+
+            // Celková částka faktury pro poměrové rozpočítání
+            $invoiceTotal = (float)($inv['castka_celkem'] ?? 0);
+            $itemsSum = array_sum(array_map(fn($it) => (float)$it['cena_jedn_czk'] * (float)$it['mnozstvi'], $items));
+
+            // Poměr pro rozpočítání (slevy/doprava)
+            $ratio = ($itemsSum > 0 && $invoiceTotal > 0) ? ($invoiceTotal / $itemsSum) : 1.0;
+
+            $invoiceTrzby = 0.0;
+            $invoiceNaklady = 0.0;
+            $invoiceItems = [];
+
+            foreach ($items as $item) {
+                $sku = (string)$item['sku'];
+                $qty = (float)$item['mnozstvi'];
+                $unitPrice = (float)$item['cena_jedn_czk'];
+                $trzby = $unitPrice * $qty * $ratio;
+
+                // Náklady - pro nonstock produkty součet komponent
+                $naklady = $this->calculateItemCost($sku, $qty, $productCosts, $bomCache, $nonstockTypes);
+
+                $zisk = $trzby - $naklady;
+                $ziskPct = ($trzby > 0) ? round(($zisk / $trzby) * 100, 1) : 0;
+
+                $invoiceTrzby += $trzby;
+                $invoiceNaklady += $naklady;
+
+                $itemData = [
+                    'sku' => $sku,
+                    'nazev' => (string)$item['nazev'],
+                    'mnozstvi' => $qty,
+                    'mj' => (string)$item['merna_jednotka'],
+                    'trzby' => round($trzby, 2),
+                    'naklady' => round($naklady, 2),
+                    'zisk' => round($zisk, 2),
+                    'zisk_pct' => $ziskPct,
+                ];
+
+                $invoiceItems[] = $itemData;
+
+                // Agregace dle produktu
+                if (!isset($byProduct[$sku])) {
+                    $byProduct[$sku] = [
+                        'sku' => $sku,
+                        'nazev' => (string)$item['nazev'],
+                        'trzby' => 0,
+                        'naklady' => 0,
+                        'mnozstvi' => 0,
+                    ];
+                }
+                $byProduct[$sku]['trzby'] += $trzby;
+                $byProduct[$sku]['naklady'] += $naklady;
+                $byProduct[$sku]['mnozstvi'] += $qty;
+            }
+
+            $invoiceZisk = $invoiceTrzby - $invoiceNaklady;
+            $invoiceZiskPct = ($invoiceTrzby > 0) ? round(($invoiceZisk / $invoiceTrzby) * 100, 1) : 0;
+
+            // Agregace dle kontaktu
+            $kontaktKey = (int)($inv['kontakt_id'] ?? 0);
+            if (!isset($byContact[$kontaktKey])) {
+                $byContact[$kontaktKey] = [
+                    'kontakt_id' => $kontaktKey,
+                    'firma' => (string)($inv['firma'] ?? ''),
+                    'jmeno' => (string)($inv['jmeno'] ?? ''),
+                    'ic' => (string)($inv['ic'] ?? ''),
+                    'trzby' => 0,
+                    'naklady' => 0,
+                    'pocet_faktur' => 0,
+                ];
+            }
+            $byContact[$kontaktKey]['trzby'] += $invoiceTrzby;
+            $byContact[$kontaktKey]['naklady'] += $invoiceNaklady;
+            $byContact[$kontaktKey]['pocet_faktur']++;
+
+            // Data pro jednotlivé faktury
+            $results[] = [
+                'eshop_source' => $inv['eshop_source'],
+                'cislo_dokladu' => $inv['cislo_dokladu'],
+                'duzp' => $inv['duzp'],
+                'firma' => (string)($inv['firma'] ?? ''),
+                'ic' => (string)($inv['ic'] ?? ''),
+                'trzby' => round($invoiceTrzby, 2),
+                'naklady' => round($invoiceNaklady, 2),
+                'zisk' => round($invoiceZisk, 2),
+                'zisk_pct' => $invoiceZiskPct,
+                'items' => $invoiceItems,
+            ];
+        }
+
+        // Vrátit data podle group_mode
+        if ($groupMode === 'contacts') {
+            $rows = [];
+            foreach ($byContact as $c) {
+                $zisk = $c['trzby'] - $c['naklady'];
+                $ziskPct = ($c['trzby'] > 0) ? round(($zisk / $c['trzby']) * 100, 1) : 0;
+                $rows[] = [
+                    'kontakt_id' => $c['kontakt_id'],
+                    'firma' => $c['firma'],
+                    'jmeno' => $c['jmeno'],
+                    'ic' => $c['ic'],
+                    'trzby' => round($c['trzby'], 2),
+                    'naklady' => round($c['naklady'], 2),
+                    'zisk' => round($zisk, 2),
+                    'zisk_pct' => $ziskPct,
+                    'pocet_faktur' => $c['pocet_faktur'],
+                ];
+            }
+            usort($rows, fn($a, $b) => $b['trzby'] <=> $a['trzby']);
+            return ['mode' => 'contacts', 'rows' => $rows];
+        }
+
+        if ($groupMode === 'products') {
+            $rows = [];
+            foreach ($byProduct as $p) {
+                $zisk = $p['trzby'] - $p['naklady'];
+                $ziskPct = ($p['trzby'] > 0) ? round(($zisk / $p['trzby']) * 100, 1) : 0;
+                $rows[] = [
+                    'sku' => $p['sku'],
+                    'nazev' => $p['nazev'],
+                    'mnozstvi' => round($p['mnozstvi'], 2),
+                    'trzby' => round($p['trzby'], 2),
+                    'naklady' => round($p['naklady'], 2),
+                    'zisk' => round($zisk, 2),
+                    'zisk_pct' => $ziskPct,
+                ];
+            }
+            usort($rows, fn($a, $b) => $b['trzby'] <=> $a['trzby']);
+            return ['mode' => 'products', 'rows' => $rows];
+        }
+
+        // Default: invoices
+        return ['mode' => 'invoices', 'rows' => $results];
+    }
+
+    /**
+     * Načíst BOM strukturu pro všechny produkty
+     * @return array<string,array<int,array{sku:string,koeficient:float}>>
+     */
+    private function loadBomCache(): array
+    {
+        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient FROM bom');
+        $cache = [];
+        foreach ($stmt as $row) {
+            $parent = (string)$row['rodic_sku'];
+            if (!isset($cache[$parent])) {
+                $cache[$parent] = [];
+            }
+            $cache[$parent][] = [
+                'sku' => (string)$row['potomek_sku'],
+                'koeficient' => (float)$row['koeficient'],
+            ];
+        }
+        return $cache;
+    }
+
+    /**
+     * Načíst skl_hodnota pro všechny produkty
+     * @return array<string,float>
+     */
+    private function loadProductCosts(): array
+    {
+        $stmt = DB::pdo()->query('SELECT sku, skl_hodnota FROM produkty');
+        $costs = [];
+        foreach ($stmt as $row) {
+            $costs[(string)$row['sku']] = (float)$row['skl_hodnota'];
+        }
+        return $costs;
+    }
+
+    /**
+     * Načíst typy produktů které jsou nonstock
+     * @return array<string,bool>
+     */
+    private function loadNonstockTypes(): array
+    {
+        $stmt = DB::pdo()->query('SELECT code, is_nonstock FROM product_types');
+        $types = [];
+        foreach ($stmt as $row) {
+            $types[(string)$row['code']] = (bool)$row['is_nonstock'];
+        }
+        return $types;
+    }
+
+    /**
+     * Vypočítat náklady položky (pro nonstock součet komponent)
+     */
+    private function calculateItemCost(string $sku, float $qty, array $productCosts, array $bomCache, array $nonstockTypes): float
+    {
+        // Najít produkt podle SKU nebo alt_sku
+        $mainSku = $this->resolveMainSku($sku);
+        if ($mainSku === null) {
+            return 0.0;
+        }
+
+        // Zjistit typ produktu
+        static $productTypes = null;
+        if ($productTypes === null) {
+            $stmt = DB::pdo()->query('SELECT sku, typ FROM produkty');
+            $productTypes = [];
+            foreach ($stmt as $row) {
+                $productTypes[(string)$row['sku']] = (string)$row['typ'];
+            }
+        }
+
+        $typ = $productTypes[$mainSku] ?? '';
+        $isNonstock = $nonstockTypes[$typ] ?? false;
+
+        if ($isNonstock && isset($bomCache[$mainSku]) && !empty($bomCache[$mainSku])) {
+            // Nonstock - součet nákladů komponent
+            $cost = 0.0;
+            foreach ($bomCache[$mainSku] as $child) {
+                $childCost = $productCosts[$child['sku']] ?? 0.0;
+                $cost += $childCost * $child['koeficient'] * $qty;
+            }
+            return $cost;
+        }
+
+        // Běžný produkt
+        $unitCost = $productCosts[$mainSku] ?? 0.0;
+        return $unitCost * $qty;
+    }
+
+    /**
+     * Najít hlavní SKU (z alt_sku)
+     */
+    private function resolveMainSku(string $sku): ?string
+    {
+        static $skuMap = null;
+        if ($skuMap === null) {
+            $stmt = DB::pdo()->query('SELECT sku, alt_sku FROM produkty');
+            $skuMap = [];
+            foreach ($stmt as $row) {
+                $main = (string)$row['sku'];
+                $skuMap[$main] = $main;
+                $alt = (string)($row['alt_sku'] ?? '');
+                if ($alt !== '') {
+                    $skuMap[$alt] = $main;
+                }
+            }
+        }
+        return $skuMap[$sku] ?? null;
+    }
+
+    /**
+     * Načíst položky faktur
+     * @param array<int,string> $invoiceKeys
+     * @return array<string,array<int,array<string,mixed>>>
+     */
+    private function loadInvoiceItems(array $invoiceKeys, array $skuFilter, array $znackaFilter, array $skupinaFilter, array $typFilter): array
+    {
+        if (empty($invoiceKeys)) {
+            return [];
+        }
+
+        $pdo = DB::pdo();
+        $sql = "
+            SELECT
+                pe.eshop_source, pe.cislo_dokladu, pe.sku, pe.nazev, pe.mnozstvi,
+                pe.merna_jednotka, pe.cena_jedn_czk,
+                p.znacka_id, p.skupina_id, p.typ
+            FROM polozky_eshop pe
+            LEFT JOIN produkty p ON p.sku = pe.sku OR p.alt_sku = pe.sku
+            WHERE pe.sku IS NOT NULL AND pe.sku != ''
+        ";
+        $binds = [];
+
+        // Přidat WHERE podmínky pro invoice klíče
+        $orConditions = [];
+        foreach ($invoiceKeys as $key) {
+            [$eshop, $docNumber] = explode('|', $key, 2);
+            $orConditions[] = "(pe.eshop_source = ? AND pe.cislo_dokladu = ?)";
+            $binds[] = $eshop;
+            $binds[] = $docNumber;
+        }
+        $sql .= " AND (" . implode(' OR ', $orConditions) . ")";
+
+        // Filtr SKU
+        if (!empty($skuFilter)) {
+            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
+            $sql .= " AND (pe.sku IN ({$placeholders}) OR p.sku IN ({$placeholders}) OR p.alt_sku IN ({$placeholders}))";
+            $binds = array_merge($binds, $skuFilter, $skuFilter, $skuFilter);
+        }
+
+        // Filtr značka
+        if (!empty($znackaFilter)) {
+            $placeholders = implode(',', array_fill(0, count($znackaFilter), '?'));
+            $sql .= " AND p.znacka_id IN ({$placeholders})";
+            $binds = array_merge($binds, $znackaFilter);
+        }
+
+        // Filtr skupina
+        if (!empty($skupinaFilter)) {
+            $placeholders = implode(',', array_fill(0, count($skupinaFilter), '?'));
+            $sql .= " AND p.skupina_id IN ({$placeholders})";
+            $binds = array_merge($binds, $skupinaFilter);
+        }
+
+        // Filtr typ
+        if (!empty($typFilter)) {
+            $placeholders = implode(',', array_fill(0, count($typFilter), '?'));
+            $sql .= " AND p.typ IN ({$placeholders})";
+            $binds = array_merge($binds, $typFilter);
+        }
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($binds);
+
+        $result = [];
+        foreach ($stmt as $row) {
+            $key = $row['eshop_source'] . '|' . $row['cislo_dokladu'];
+            if (!isset($result[$key])) {
+                $result[$key] = [];
+            }
+            $result[$key][] = $row;
+        }
+        return $result;
     }
 }

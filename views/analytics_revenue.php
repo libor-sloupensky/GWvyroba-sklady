@@ -79,6 +79,23 @@
 .favorite-actions .favorite-delete { color:#c62828; font-weight:700; margin-left:0.2rem; }
 .favorite-empty { font-size:0.9rem; color:#78909c; }
 .chart-box { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:0.7rem; }
+/* Margins table styling */
+.margins-table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
+.margins-table th, .margins-table td { border:1px solid #e0e0e0; padding:0.35rem 0.5rem; text-align:left; }
+.margins-table th { background:#f1f5f9; font-weight:600; }
+.margins-table tfoot td { font-weight:700; background:#f5f7fa; }
+.margins-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.margins-table .positive { color:#2e7d32; }
+.margins-table .negative { color:#c62828; }
+.margins-row-parent { cursor:pointer; }
+.margins-row-parent:hover { background:#f8fafc; }
+.margins-row-detail { display:none; }
+.margins-row-detail.open { display:table-row; }
+.margins-row-detail td { background:#fafafa; padding:0.5rem 0.7rem; }
+.margins-detail-table { width:100%; border-collapse:collapse; font-size:0.9em; }
+.margins-detail-table th, .margins-detail-table td { border:1px solid #e8e8e8; padding:0.25rem 0.4rem; }
+.margins-detail-table th { background:#f0f4f8; }
+.margins-loading { color:#78909c; font-style:italic; }
 </style>
 
 <div class="v2-controls">
@@ -588,6 +605,231 @@
     resultBox.appendChild(table);
   }
 
+  function renderMarginsTable(rows, mode) {
+    if (!rows || !rows.length) {
+      resultBox.innerHTML = '<p class="muted">Žádná data.</p>';
+      return;
+    }
+
+    const formatNum = (val, decimals = 0) => {
+      const num = Number(val);
+      if (isNaN(num)) return val;
+      return num.toLocaleString('cs-CZ', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    };
+
+    const formatPct = (val) => {
+      const num = Number(val);
+      if (isNaN(num)) return val;
+      return num.toFixed(1) + ' %';
+    };
+
+    const profitClass = (val) => {
+      const num = Number(val);
+      if (isNaN(num)) return '';
+      return num >= 0 ? 'positive' : 'negative';
+    };
+
+    const table = document.createElement('table');
+    table.className = 'margins-table';
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+    const tfoot = document.createElement('tfoot');
+
+    let cols = [];
+    let totals = { trzby: 0, naklady: 0, zisk: 0 };
+
+    if (mode === 'invoices') {
+      cols = [
+        { key: 'toggle', label: '', width: '30px' },
+        { key: 'eshop_source', label: 'E-shop' },
+        { key: 'cislo_dokladu', label: 'Číslo dokladu' },
+        { key: 'datum', label: 'Datum' },
+        { key: 'kontakt', label: 'Kontakt' },
+        { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
+        { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
+        { key: 'zisk', label: 'Zisk (CZK)', numeric: true },
+        { key: 'zisk_pct', label: 'Zisk %', numeric: true },
+      ];
+    } else if (mode === 'contacts') {
+      cols = [
+        { key: 'kontakt', label: 'Kontakt' },
+        { key: 'pocet_faktur', label: 'Počet faktur', numeric: true },
+        { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
+        { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
+        { key: 'zisk', label: 'Zisk (CZK)', numeric: true },
+        { key: 'zisk_pct', label: 'Průměrné zisk %', numeric: true },
+      ];
+    } else if (mode === 'products') {
+      cols = [
+        { key: 'sku', label: 'SKU' },
+        { key: 'nazev', label: 'Název' },
+        { key: 'pocet_prodeju', label: 'Počet prodejů', numeric: true },
+        { key: 'mnozstvi', label: 'Prodané množství', numeric: true },
+        { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
+        { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
+        { key: 'zisk', label: 'Zisk (CZK)', numeric: true },
+        { key: 'zisk_pct', label: 'Zisk %', numeric: true },
+      ];
+    }
+
+    // Header
+    const trh = document.createElement('tr');
+    cols.forEach(col => {
+      const th = document.createElement('th');
+      th.textContent = col.label;
+      if (col.width) th.style.width = col.width;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    // Body
+    rows.forEach((row, idx) => {
+      const tr = document.createElement('tr');
+      if (mode === 'invoices') {
+        tr.className = 'margins-row-parent';
+        tr.dataset.eshop = row.eshop_source || '';
+        tr.dataset.doklad = row.cislo_dokladu || '';
+      }
+
+      cols.forEach(col => {
+        const td = document.createElement('td');
+        if (col.numeric) td.className = 'num';
+
+        if (col.key === 'toggle' && mode === 'invoices') {
+          const toggle = document.createElement('span');
+          toggle.className = 'row-toggle';
+          toggle.textContent = '▶';
+          td.appendChild(toggle);
+        } else if (col.key === 'trzby' || col.key === 'naklady' || col.key === 'zisk') {
+          td.textContent = formatNum(row[col.key]);
+          if (col.key === 'zisk') {
+            td.classList.add(profitClass(row[col.key]));
+          }
+        } else if (col.key === 'zisk_pct') {
+          td.textContent = formatPct(row[col.key]);
+          td.classList.add(profitClass(row.zisk));
+        } else if (col.key === 'pocet_faktur' || col.key === 'pocet_prodeju' || col.key === 'mnozstvi') {
+          td.textContent = formatNum(row[col.key]);
+        } else {
+          td.textContent = row[col.key] ?? '';
+        }
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+
+      // Add detail row for invoices mode
+      if (mode === 'invoices') {
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'margins-row-detail';
+        detailTr.id = `margin-detail-${idx}`;
+        const detailTd = document.createElement('td');
+        detailTd.colSpan = cols.length;
+        detailTd.innerHTML = '<span class="margins-loading">Načítám položky...</span>';
+        detailTr.appendChild(detailTd);
+        tbody.appendChild(detailTr);
+
+        tr.addEventListener('click', () => {
+          const isOpen = detailTr.classList.contains('open');
+          const toggle = tr.querySelector('.row-toggle');
+          if (isOpen) {
+            detailTr.classList.remove('open');
+            if (toggle) toggle.textContent = '▶';
+          } else {
+            detailTr.classList.add('open');
+            if (toggle) toggle.textContent = '▼';
+            // Load detail if not already loaded
+            if (detailTd.dataset.loaded !== '1') {
+              loadMarginDetail(row.eshop_source, row.cislo_dokladu, detailTd);
+            }
+          }
+        });
+      }
+
+      // Sum totals
+      totals.trzby += Number(row.trzby) || 0;
+      totals.naklady += Number(row.naklady) || 0;
+      totals.zisk += Number(row.zisk) || 0;
+    });
+
+    table.appendChild(tbody);
+
+    // Footer with totals
+    const trf = document.createElement('tr');
+    cols.forEach((col, i) => {
+      const td = document.createElement('td');
+      if (i === 0) {
+        td.textContent = 'Celkem';
+      } else if (col.key === 'trzby') {
+        td.textContent = formatNum(totals.trzby);
+        td.className = 'num';
+      } else if (col.key === 'naklady') {
+        td.textContent = formatNum(totals.naklady);
+        td.className = 'num';
+      } else if (col.key === 'zisk') {
+        td.textContent = formatNum(totals.zisk);
+        td.className = 'num ' + profitClass(totals.zisk);
+      } else if (col.key === 'zisk_pct' && totals.trzby > 0) {
+        const avgPct = (totals.zisk / totals.trzby) * 100;
+        td.textContent = formatPct(avgPct);
+        td.className = 'num ' + profitClass(totals.zisk);
+      } else if (col.key === 'pocet_faktur') {
+        td.textContent = formatNum(rows.length);
+        td.className = 'num';
+      }
+      trf.appendChild(td);
+    });
+    tfoot.appendChild(trf);
+    table.appendChild(tfoot);
+
+    resultBox.innerHTML = '';
+    resultBox.appendChild(table);
+  }
+
+  async function loadMarginDetail(eshop, doklad, td) {
+    try {
+      const res = await fetch('/analytics/invoice-items?' + new URLSearchParams({ eshop_source: eshop, cislo_dokladu: doklad }));
+      const data = await toJsonSafe(res);
+      if (!data.ok) throw new Error(data.error || 'Chyba při načítání');
+
+      const items = data.items || [];
+      if (!items.length) {
+        td.innerHTML = '<span class="muted">Žádné položky.</span>';
+        td.dataset.loaded = '1';
+        return;
+      }
+
+      const formatNum = (val, dec = 0) => {
+        const n = Number(val);
+        return isNaN(n) ? val : n.toLocaleString('cs-CZ', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+      };
+
+      let html = '<table class="margins-detail-table"><thead><tr>' +
+        '<th>SKU</th><th>Název</th><th>Množství</th><th>Tržba (CZK)</th><th>Náklad (CZK)</th><th>Zisk (CZK)</th><th>Zisk %</th>' +
+        '</tr></thead><tbody>';
+
+      items.forEach(item => {
+        const profitClass = (Number(item.zisk) >= 0) ? 'positive' : 'negative';
+        html += `<tr>
+          <td>${item.sku || ''}</td>
+          <td>${item.nazev || ''}</td>
+          <td class="num">${formatNum(item.mnozstvi)}</td>
+          <td class="num">${formatNum(item.trzba)}</td>
+          <td class="num">${formatNum(item.naklad)}</td>
+          <td class="num ${profitClass}">${formatNum(item.zisk)}</td>
+          <td class="num ${profitClass}">${Number(item.zisk_pct).toFixed(1)} %</td>
+        </tr>`;
+      });
+
+      html += '</tbody></table>';
+      td.innerHTML = html;
+      td.dataset.loaded = '1';
+    } catch (err) {
+      td.innerHTML = '<span class="error">Chyba: ' + (err.message || 'Neznámá chyba') + '</span>';
+    }
+  }
+
   function renderChart(rows) {
     if (!rows || !rows.length || !window.Chart) {
       if (chart) chart.destroy();
@@ -726,7 +968,12 @@
     if (!templates[tplId]?.hide_chart) {
       renderChart(state.lastRows);
     }
-    renderTable(state.lastRows, tplId);
+    // Special rendering for margins template
+    if (tplId === 'margins' && data.mode) {
+      renderMarginsTable(state.lastRows, data.mode);
+    } else {
+      renderTable(state.lastRows, tplId);
+    }
   }
 
   form.addEventListener('submit', async (e) => {
