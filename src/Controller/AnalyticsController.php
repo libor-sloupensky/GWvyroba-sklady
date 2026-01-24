@@ -1818,11 +1818,26 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             foreach ($byContact as $c) {
                 $zisk = $c['trzby'] - $c['naklady'];
                 $ziskPct = ($c['trzby'] > 0) ? round(($zisk / $c['trzby']) * 100, 1) : 0;
+                // Sestavit kontakt label
+                $parts = [];
+                if (!empty($c['firma'])) {
+                    $parts[] = $c['firma'];
+                }
+                if (!empty($c['jmeno'])) {
+                    $parts[] = $c['jmeno'];
+                }
+                if (!empty($c['ic'])) {
+                    $parts[] = 'IČ ' . $c['ic'];
+                }
+                $kontaktLabel = trim(implode(' • ', $parts));
+                if ($kontaktLabel === '' && $c['kontakt_id'] > 0) {
+                    $kontaktLabel = 'Kontakt #' . $c['kontakt_id'];
+                } elseif ($kontaktLabel === '') {
+                    $kontaktLabel = '(bez kontaktu)';
+                }
                 $rows[] = [
                     'kontakt_id' => $c['kontakt_id'],
-                    'firma' => $c['firma'],
-                    'jmeno' => $c['jmeno'],
-                    'ic' => $c['ic'],
+                    'kontakt' => $kontaktLabel,
                     'trzby' => round($c['trzby'], 2),
                     'naklady' => round($c['naklady'], 2),
                     'zisk' => round($zisk, 2),
