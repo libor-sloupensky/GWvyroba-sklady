@@ -164,7 +164,7 @@ final class ImportController
         $pdo = DB::pdo();
         $importTs = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $ignorePatterns = $this->loadIgnorePatterns();
-        $docInsert = $pdo->prepare('INSERT INTO doklady_eshop (eshop_source,cislo_dokladu,typ_dokladu,platba_typ,dopravce_ids,cislo_objednavky,sym_var,datum_vystaveni,duzp,splatnost,mena_puvodni,kurz_na_czk,kontakt_id,import_batch_id,import_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        $docInsert = $pdo->prepare('INSERT INTO doklady_eshop (eshop_source,cislo_dokladu,typ_dokladu,platba_typ,dopravce_ids,cislo_objednavky,sym_var,datum_vystaveni,duzp,splatnost,mena_puvodni,kurz_na_czk,castka_celkem,kontakt_id,import_batch_id,import_ts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $itemInsert = $pdo->prepare('INSERT INTO polozky_eshop (eshop_source,cislo_dokladu,code_raw,stock_ids_raw,sku,ean,nazev,mnozstvi,merna_jednotka,cena_jedn_mena,cena_jedn_czk,mena_puvodni,sazba_dph_hint,plati_dph,sleva_procento,duzp,import_batch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         $deleteItems = $pdo->prepare('DELETE FROM polozky_eshop WHERE eshop_source=? AND cislo_dokladu=?');
         $deleteDoc = $pdo->prepare('DELETE FROM doklady_eshop WHERE eshop_source=? AND cislo_dokladu=?');
@@ -204,6 +204,7 @@ final class ImportController
                 }
                 $deleteItems->execute([$eshop, $docNumber]);
                 $deleteDoc->execute([$eshop, $docNumber]);
+                $castkaCelkem = isset($doc['castka_celkem']) ? round((float)$doc['castka_celkem'], 2) : null;
                 $docInsert->execute([
                     $eshop,
                     $docNumber,
@@ -217,6 +218,7 @@ final class ImportController
                     $dueDate,
                     $this->emptyToNull($docCurrency),
                     $docRate,
+                    $castkaCelkem,
                     $contactId,
                     $batch,
                     $importTs,
@@ -466,6 +468,23 @@ final class ImportController
                     'discount' => $this->xpathValue($xpath, './inv:discountPercentage', $itemNode),
                 ];
             }
+            // Vypočítat celkovou částku faktury (součet položek bez DPH v CZK)
+            $castka = 0.0;
+            $docRate = $this->toFloat($doc['kurz']);
+            if ($docRate <= 0) {
+                $docRate = 1.0;
+            }
+            foreach ($doc['items'] as $item) {
+                $qty = $this->toFloat($item['quantity'] ?? '0');
+                $unitHome = $this->toFloat($item['unit_price_home'] ?? '');
+                $unitForeign = $this->toFloat($item['unit_price_foreign'] ?? '');
+                if ($unitHome > 0) {
+                    $castka += $qty * $unitHome;
+                } elseif ($unitForeign > 0) {
+                    $castka += $qty * $unitForeign * $docRate;
+                }
+            }
+            $doc['castka_celkem'] = $castka;
             $docs[] = $doc;
         }
         libxml_clear_errors();

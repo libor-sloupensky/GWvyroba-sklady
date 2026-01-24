@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS doklady_eshop (
   splatnost DATE NULL,
   mena_puvodni VARCHAR(16) NULL,
   kurz_na_czk DECIMAL(18,6) NULL,
+  castka_celkem DECIMAL(18,2) NULL COMMENT 'Celková částka faktury bez DPH v CZK',
   kontakt_id INT NULL,
   import_batch_id VARCHAR(32) NOT NULL,
   import_ts DATETIME NOT NULL,
