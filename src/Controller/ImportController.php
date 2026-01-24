@@ -122,10 +122,10 @@ final class ImportController
             $pdo->commit();
         } catch (\Throwable $e) {
             $pdo->rollBack();
-            $this->renderImportForm(['error' => 'Smaz?n? faktury selhalo: ' . $e->getMessage(), 'viewMode' => 'invoices']);
+            $this->renderImportForm(['error' => 'Smazání faktury selhalo: ' . $e->getMessage(), 'viewMode' => 'invoices']);
             return;
         }
-        $this->renderImportForm(['message' => 'Faktura byla smaz?na.', 'viewMode' => 'invoices']);
+        $this->renderImportForm(['message' => 'Faktura byla smazána.', 'viewMode' => 'invoices']);
     }
 
     public function reportMissingSku(): void
