@@ -526,6 +526,8 @@ PROMPT;
             echo json_encode(['ok' => false, 'error' => implode(' ', $errors)], JSON_UNESCAPED_UNICODE);
             return;
         }
+        // Nezachovávat datum od/do v oblíbených - vždy použít aktuální default
+        unset($validated['start_date'], $validated['end_date']);
         $favoritePayload = [
             'type' => 'analytics_v2',
             'template_id' => $templateId,
@@ -643,7 +645,7 @@ PROMPT;
      */
     private function loadTemplatesV2(): array
     {
-        $defaultStart = (new \DateTimeImmutable('-18 months'))->format('Y-m-d');
+        $defaultStart = (new \DateTimeImmutable('-6 months'))->format('Y-m-d');
         $defaultEnd = (new \DateTimeImmutable('today'))->format('Y-m-d');
         $eshops = [
             'vsechny', // explicit volba pro součet všech kanálů
@@ -1465,11 +1467,14 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             if (!is_array($payload) || ($payload['type'] ?? '') !== 'analytics_v2') {
                 continue;
             }
+            // Odstranit staré datumy z uložených oblíbených - vždy použít aktuální default
+            $params = (array)($payload['params'] ?? []);
+            unset($params['start_date'], $params['end_date']);
             $out[] = [
                 'id' => (int)$r['id'],
                 'title' => (string)$r['title'],
                 'template_id' => (string)($payload['template_id'] ?? ''),
-                'params' => (array)($payload['params'] ?? []),
+                'params' => $params,
                 'is_public' => (bool)($r['is_public'] ?? false),
             ];
         }

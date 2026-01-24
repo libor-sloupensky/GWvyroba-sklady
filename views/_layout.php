@@ -54,6 +54,18 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     .nav-user { margin-left:auto; color:#cfd8dc; font-size:13px; display:flex; gap:6px; align-items:center; }
     .nav-user a { color:#fff; text-decoration:underline; }
     .print-hide {}
+    /* Jednotný styl pro rozbalovací trojúhelníčky */
+    .row-toggle {
+      display:inline-block;
+      width:1.2rem;
+      text-align:center;
+      font-size:1rem;
+      color:#455a64;
+      cursor:pointer;
+      user-select:none;
+      transition: transform 0.15s ease;
+    }
+    .row-toggle:hover { color:#263238; }
     @media print {
       header, .footer, .print-hide { display:none !important; }
       body { background:#fff; }

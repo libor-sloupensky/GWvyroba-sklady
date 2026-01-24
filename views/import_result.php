@@ -12,7 +12,7 @@
 .invoice-actions { width:1%; white-space:nowrap; text-align:right; }
 .invoice-delete { background:transparent; border:1px solid #d32f2f; color:#d32f2f; border-radius:4px; padding:0 6px; cursor:pointer; }
 .invoice-delete:hover { background:#fdecea; }
-.invoice-toggle { cursor:pointer; user-select:none; display:inline-block; width:16px; text-align:center; font-size:10px; color:#607d8b; }
+.invoice-toggle { /* používá globální .row-toggle z _layout.php */ }
 .invoice-detail-row { display:none; }
 .invoice-detail-row.expanded { display:table-row; }
 .invoice-detail { padding:1rem; background:#f9f9f9; }
@@ -134,7 +134,7 @@ $currentView = $viewMode ?? 'unmatched';
       <?php foreach (($invoiceRows ?? []) as $idx => $row): ?>
         <tr>
           <td>
-            <span class="invoice-toggle" onclick="toggleInvoiceDetail(<?= $idx ?>)">▸</span>
+            <span class="row-toggle invoice-toggle" onclick="toggleInvoiceDetail(<?= $idx ?>)">▸</span>
           </td>
           <td><?= htmlspecialchars((string)($row['eshop_source'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)($row['duzp'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
