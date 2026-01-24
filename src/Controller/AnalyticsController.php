@@ -1819,10 +1819,10 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             }
 
             $results[] = [
-                'eshop_source' => $inv['eshop_source'],
-                'cislo_dokladu' => $inv['cislo_dokladu'],
-                'datum' => $inv['duzp'], // přejmenováno pro frontend
-                'kontakt' => $kontaktLabel, // jednotný label
+                'eshop_source' => (string)($inv['eshop_source'] ?? ''),
+                'cislo_dokladu' => (string)($inv['cislo_dokladu'] ?? ''),
+                'datum' => (string)($inv['duzp'] ?? ''),
+                'kontakt' => $kontaktLabel,
                 'trzby' => round($invoiceTrzby, 2),
                 'naklady' => round($invoiceNaklady, 2),
                 'zisk' => round($invoiceZisk, 2),

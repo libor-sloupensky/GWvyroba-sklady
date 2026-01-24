@@ -693,7 +693,6 @@
       cols = [
         { key: 'sku', label: 'SKU' },
         { key: 'nazev', label: 'Název' },
-        { key: 'pocet_prodeju', label: 'Počet prodejů', numeric: true },
         { key: 'mnozstvi', label: 'Prodané množství', numeric: true },
         { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
         { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
@@ -760,7 +759,7 @@
         } else if (col.key === 'zisk_pct') {
           td.textContent = formatPct(row[col.key]);
           td.classList.add(profitClass(row.zisk));
-        } else if (col.key === 'pocet_faktur' || col.key === 'pocet_prodeju' || col.key === 'mnozstvi') {
+        } else if (col.key === 'pocet_faktur' || col.key === 'mnozstvi') {
           td.textContent = formatNum(row[col.key]);
         } else {
           td.textContent = row[col.key] ?? '';
