@@ -284,16 +284,9 @@ final class ImportController
                         if ($movementQty !== 0.0) {
                             $meta = $this->loadProductMeta($sku);
                             $isNonstock = (bool)($meta['is_nonstock'] ?? false);
-                            $bomChildren = $isNonstock ? $this->loadBomChildren($sku) : [];
-
-                            // DEBUG: Logování pro WS1031
-                            if ($sku === 'WS1031') {
-                                error_log("=== DEBUG WS1031 ===");
-                                error_log("meta: " . json_encode($meta));
-                                error_log("isNonstock: " . ($isNonstock ? 'true' : 'false'));
-                                error_log("bomChildren count: " . count($bomChildren));
-                                error_log("bomChildren: " . json_encode($bomChildren));
-                            }
+                            // Použij hlavní SKU pro BOM lookup (kvůli alt_sku)
+                            $mainSku = $meta['sku'] ?? $sku;
+                            $bomChildren = $isNonstock ? $this->loadBomChildren($mainSku) : [];
 
                             if ($isNonstock && !empty($bomChildren)) {
                                 // rozpad na potomky, parent neodepisovat
@@ -998,9 +991,9 @@ final class ImportController
         }
         $stmt = DB::pdo()->prepare(
             'SELECT p.sku,p.typ,pt.is_nonstock,p.merna_jednotka FROM produkty p ' .
-            'LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku=? LIMIT 1'
+            'LEFT JOIN product_types pt ON pt.code = p.typ WHERE p.sku=? OR p.alt_sku=? LIMIT 1'
         );
-        $stmt->execute([$sku]);
+        $stmt->execute([$sku, $sku]);
         $row = $stmt->fetch();
         if (!$row) {
             $cache[$key] = null;
@@ -1204,7 +1197,9 @@ LIMIT {$limit}
             // Zkontroluj, zda je produkt nonstock a má BOM potomky
             $meta = $this->loadProductMeta($sku);
             $isNonstock = $meta ? (bool)($meta['is_nonstock'] ?? false) : false;
-            $bomChildren = $isNonstock ? $this->loadBomChildren($sku) : [];
+            // Použij hlavní SKU pro BOM lookup (kvůli alt_sku)
+            $mainSku = $meta['sku'] ?? $sku;
+            $bomChildren = $isNonstock ? $this->loadBomChildren($mainSku) : [];
 
             // Vytvoř seznam SKU, která mají být odepsána (buď parent nebo potomci)
             $skusToCheck = [];
