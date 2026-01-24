@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 // UTF-8, basic front controller
+// Updated with margins analytics endpoint
 
 require __DIR__ . '/../src/bootstrap.php';
 

@@ -12,6 +12,7 @@ final class AnalyticsController
     // No-op change to trigger deployment; logic unchanged.
     // Another no-op touch.
     // Small no-op tweak to force refresh.
+    // Margins template with sortable columns implemented.
 
     // Poznámka: Tipy a aliasy níže se odvozují od aktuálního schématu DB, proto udržuj aktualizované pokyny, pokud se DB mění.
     public function revenue(): void
@@ -1770,11 +1771,13 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                         'trzby' => 0,
                         'naklady' => 0,
                         'mnozstvi' => 0,
+                        'pocet_prodeju' => 0,
                     ];
                 }
                 $byProduct[$sku]['trzby'] += $trzby;
                 $byProduct[$sku]['naklady'] += $naklady;
                 $byProduct[$sku]['mnozstvi'] += $qty;
+                $byProduct[$sku]['pocet_prodeju']++;
             }
 
             $invoiceZisk = $invoiceTrzby - $invoiceNaklady;
@@ -1798,12 +1801,28 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             $byContact[$kontaktKey]['pocet_faktur']++;
 
             // Data pro jednotlivé faktury
+            // Sestavit kontakt label
+            $kontaktParts = [];
+            $firma = (string)($inv['firma'] ?? '');
+            $ic = (string)($inv['ic'] ?? '');
+            if (!empty($firma)) {
+                $kontaktParts[] = $firma;
+            }
+            if (!empty($ic)) {
+                $kontaktParts[] = 'IČ ' . $ic;
+            }
+            $kontaktLabel = trim(implode(' • ', $kontaktParts));
+            if ($kontaktLabel === '' && !empty($inv['kontakt_id'])) {
+                $kontaktLabel = 'Kontakt #' . $inv['kontakt_id'];
+            } elseif ($kontaktLabel === '') {
+                $kontaktLabel = '(bez kontaktu)';
+            }
+
             $results[] = [
                 'eshop_source' => $inv['eshop_source'],
                 'cislo_dokladu' => $inv['cislo_dokladu'],
-                'duzp' => $inv['duzp'],
-                'firma' => (string)($inv['firma'] ?? ''),
-                'ic' => (string)($inv['ic'] ?? ''),
+                'datum' => $inv['duzp'], // přejmenováno pro frontend
+                'kontakt' => $kontaktLabel, // jednotný label
                 'trzby' => round($invoiceTrzby, 2),
                 'naklady' => round($invoiceNaklady, 2),
                 'zisk' => round($invoiceZisk, 2),
@@ -1857,6 +1876,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                 $rows[] = [
                     'sku' => $p['sku'],
                     'nazev' => $p['nazev'],
+                    'pocet_prodeju' => $p['pocet_prodeju'],
                     'mnozstvi' => round($p['mnozstvi'], 2),
                     'trzby' => round($p['trzby'], 2),
                     'naklady' => round($p['naklady'], 2),

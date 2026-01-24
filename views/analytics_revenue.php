@@ -2,6 +2,7 @@
 /** @var string $title */
 /** @var array $templates */
 /** @var array $favoritesV2 */
+// Margins template with sortable columns
 ?>
 <h1>Analýza</h1>
  
@@ -83,6 +84,11 @@
 .margins-table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
 .margins-table th, .margins-table td { border:1px solid #e0e0e0; padding:0.35rem 0.5rem; text-align:left; }
 .margins-table th { background:#f1f5f9; font-weight:600; }
+.margins-table th.sortable { cursor:pointer; user-select:none; position:relative; padding-right:1.5rem; }
+.margins-table th.sortable:hover { background:#e3f2fd; }
+.margins-table th.sortable::after { content:'⇅'; position:absolute; right:0.4rem; color:#90a4ae; font-size:0.85em; }
+.margins-table th.sortable.asc::after { content:'▲'; color:#1565c0; }
+.margins-table th.sortable.desc::after { content:'▼'; color:#1565c0; }
 .margins-table tfoot td { font-weight:700; background:#f5f7fa; }
 .margins-table .num { text-align:right; font-variant-numeric:tabular-nums; }
 .margins-table .positive { color:#2e7d32; }
@@ -202,6 +208,8 @@
     products: [],
     favorites: favoritesInit || { mine: [], shared: [] },
     lastRows: [],
+    marginSort: { key: null, dir: null }, // key: column key, dir: 'asc' or 'desc'
+    marginMode: null,
   };
 
   // Populate template select
@@ -611,6 +619,9 @@
       return;
     }
 
+    // Store mode for re-rendering after sort
+    state.marginMode = mode;
+
     const formatNum = (val, decimals = 0) => {
       const num = Number(val);
       if (isNaN(num)) return val;
@@ -627,6 +638,25 @@
       const num = Number(val);
       if (isNaN(num)) return '';
       return num >= 0 ? 'positive' : 'negative';
+    };
+
+    const sortRows = (key, dir) => {
+      const sorted = [...rows].sort((a, b) => {
+        let valA = a[key];
+        let valB = b[key];
+        // Convert to numbers if possible
+        const numA = Number(valA);
+        const numB = Number(valB);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          valA = numA;
+          valB = numB;
+        }
+        // Compare
+        if (valA < valB) return dir === 'asc' ? -1 : 1;
+        if (valA > valB) return dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return sorted;
     };
 
     const table = document.createElement('table');
@@ -678,6 +708,27 @@
       const th = document.createElement('th');
       th.textContent = col.label;
       if (col.width) th.style.width = col.width;
+
+      // Make sortable (except toggle column)
+      if (col.key !== 'toggle') {
+        th.className = 'sortable';
+        // Highlight active sort
+        if (state.marginSort.key === col.key) {
+          th.classList.add(state.marginSort.dir);
+        }
+        // Add click handler
+        th.addEventListener('click', () => {
+          let newDir = 'desc'; // default to descending
+          if (state.marginSort.key === col.key) {
+            // Toggle direction
+            newDir = state.marginSort.dir === 'desc' ? 'asc' : 'desc';
+          }
+          state.marginSort = { key: col.key, dir: newDir };
+          const sortedRows = sortRows(col.key, newDir);
+          renderMarginsTable(sortedRows, mode);
+        });
+      }
+
       trh.appendChild(th);
     });
     thead.appendChild(trh);
