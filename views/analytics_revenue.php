@@ -379,16 +379,39 @@
           }
           input = document.createElement('select');
           input.multiple = true;
+          let hasVseOption = false;
           (p.values || []).forEach((val) => {
             const opt = document.createElement('option');
             if (typeof val === 'object') {
               opt.value = val.value ?? '';
               opt.textContent = val.label ?? val.value ?? '';
+              if (opt.value === 'vse') hasVseOption = true;
             } else {
               opt.value = val;
               opt.textContent = val === 'vse' ? 'Vše' : val;
+              if (val === 'vse') hasVseOption = true;
             }
             input.appendChild(opt);
+          });
+          // Defaultně zaškrtnout "Vše" pokud není nastaven default a existuje option "vse"
+          if (hasVseOption && (!p.default || (Array.isArray(p.default) && p.default.length === 0))) {
+            setTimeout(() => {
+              const vseOpt = input.querySelector('option[value="vse"]');
+              if (vseOpt) vseOpt.selected = true;
+            }, 0);
+          }
+          // Přidat normalizaci výběru - pokud je vybráno "Vše" + něco jiného, nechá jen "Vše"
+          input.addEventListener('change', () => {
+            const selected = Array.from(input.selectedOptions || []).map(opt => opt.value);
+            if (selected.includes('vse') && selected.length > 1) {
+              Array.from(input.options || []).forEach(opt => {
+                opt.selected = opt.value === 'vse';
+              });
+            } else if (selected.length === 0 && hasVseOption) {
+              // Pokud není nic vybráno, zaškrtnout "Vše"
+              const vseOpt = input.querySelector('option[value="vse"]');
+              if (vseOpt) vseOpt.selected = true;
+            }
           });
           break;
         }
@@ -442,6 +465,9 @@
         if (!selectAllValue) return;
         const selected = Array.from(eshopFilterSelect.selectedOptions || []).map(opt => opt.value);
         if (selected.includes(selectAllValue) && selected.length > 1) {
+          setOnlyAllSelected();
+        } else if (selected.length === 0) {
+          // Pokud není nic vybráno, zaškrtnout "Vše"
           setOnlyAllSelected();
         }
       };
@@ -1064,6 +1090,12 @@
         Array.from(select?.options || []).forEach(opt => {
           opt.selected = Array.isArray(p[param.name]) && p[param.name].includes(opt.value);
         });
+        // Pokud není nic vybráno, zaškrtnout "Vše"
+        const selectedCount = Array.from(select?.selectedOptions || []).length;
+        if (selectedCount === 0) {
+          const vseOpt = select?.querySelector('option[value="vse"], option[value="vsechny"]');
+          if (vseOpt) vseOpt.selected = true;
+        }
       } else {
         const input = paramBox.querySelector(`[name="${param.name}"]`);
         if (input) {
