@@ -754,9 +754,9 @@ PROMPT;
         return [
             'monthly_revenue_by_ic' => [
                 'title' => 'Měsíční tržby',
-                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál.',
+                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál. Používá celkovou částku faktury (vč. slev/dopravného).',
                 'sql' => "
-SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS `měsíc`,
+SELECT DATE_FORMAT(de.duzp, '%Y-%m') AS `měsíc`,
        CASE
          WHEN :has_contacts = 1 THEN CAST(COALESCE(c.id, -1) AS CHAR)
          WHEN :has_eshops = 1 THEN de.eshop_source
@@ -771,15 +771,14 @@ SELECT DATE_FORMAT(pe.duzp, '%Y-%m') AS `měsíc`,
     WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
     ELSE NULL
   END AS kontakt,
-  ROUND(SUM(pe.cena_jedn_czk * pe.mnozstvi), 0) AS `tržby`,
-  ROUND(SUM(pe.mnozstvi), 0) AS qty
-FROM polozky_eshop pe
-JOIN doklady_eshop de ON de.eshop_source = pe.eshop_source AND de.cislo_dokladu = pe.cislo_dokladu
+  ROUND(SUM(de.castka_celkem), 0) AS `tržby`,
+  COUNT(DISTINCT de.cislo_dokladu) AS qty
+FROM doklady_eshop de
 LEFT JOIN kontakty c ON c.id = de.kontakt_id
-WHERE pe.duzp BETWEEN :start_date AND :end_date
+WHERE de.duzp BETWEEN :start_date AND :end_date
   AND (:has_contacts = 0 OR de.kontakt_id IN (%contact_ids%))
   AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
-GROUP BY DATE_FORMAT(pe.duzp, '%Y-%m'), serie_key, serie_label
+GROUP BY DATE_FORMAT(de.duzp, '%Y-%m'), serie_key, serie_label
 ORDER BY `měsíc`, serie_label
 ",
                 'params' => [
