@@ -468,23 +468,32 @@ final class ImportController
                     'discount' => $this->xpathValue($xpath, './inv:discountPercentage', $itemNode),
                 ];
             }
-            // Vypočítat celkovou částku faktury (součet položek bez DPH v CZK)
-            $castka = 0.0;
-            $docRate = $this->toFloat($doc['kurz']);
-            if ($docRate <= 0) {
-                $docRate = 1.0;
+            // Načíst celkovou částku faktury z XML (invoiceSummary/homeCurrency/priceLowSum)
+            $castkaCelkem = 0.0;
+            if ($summary !== null) {
+                $priceLowSumStr = $this->xpathValue($xpath, './inv:homeCurrency/typ:priceLowSum', $summary);
+                $castkaCelkem = $this->toFloat($priceLowSumStr);
             }
-            foreach ($doc['items'] as $item) {
-                $qty = $this->toFloat($item['quantity'] ?? '0');
-                $unitHome = $this->toFloat($item['unit_price_home'] ?? '');
-                $unitForeign = $this->toFloat($item['unit_price_foreign'] ?? '');
-                if ($unitHome > 0) {
-                    $castka += $qty * $unitHome;
-                } elseif ($unitForeign > 0) {
-                    $castka += $qty * $unitForeign * $docRate;
+
+            // Fallback: pokud castka_celkem není v XML nebo je 0, spočítat ze součtu položek
+            if ($castkaCelkem <= 0.0) {
+                $docRate = $this->toFloat($doc['kurz']);
+                if ($docRate <= 0) {
+                    $docRate = 1.0;
+                }
+                foreach ($doc['items'] as $item) {
+                    $qty = $this->toFloat($item['quantity'] ?? '0');
+                    $unitHome = $this->toFloat($item['unit_price_home'] ?? '');
+                    $unitForeign = $this->toFloat($item['unit_price_foreign'] ?? '');
+                    if ($unitHome > 0) {
+                        $castkaCelkem += $qty * $unitHome;
+                    } elseif ($unitForeign > 0) {
+                        $castkaCelkem += $qty * $unitForeign * $docRate;
+                    }
                 }
             }
-            $doc['castka_celkem'] = $castka;
+
+            $doc['castka_celkem'] = $castkaCelkem;
             $docs[] = $doc;
         }
         libxml_clear_errors();
