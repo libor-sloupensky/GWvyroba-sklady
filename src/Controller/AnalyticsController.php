@@ -802,7 +802,7 @@ SELECT
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
   p.poznamka AS poznamka
 FROM produkty p
-LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
+LEFT JOIN polozky_pohyby pm ON (pm.sku = p.sku OR pm.sku = p.alt_sku)
   AND pm.datum BETWEEN :start_date AND :end_date
   AND pm.typ_pohybu IN ('odpis', 'vyroba')
   AND (
@@ -1218,7 +1218,7 @@ SELECT
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
   p.poznamka AS poznamka
 FROM produkty p
-LEFT JOIN polozky_pohyby pm ON pm.sku = p.sku
+LEFT JOIN polozky_pohyby pm ON (pm.sku = p.sku OR pm.sku = p.alt_sku)
   AND pm.datum BETWEEN :start_date AND :end_date
   AND pm.typ_pohybu IN ('odpis', 'vyroba')
   AND (
