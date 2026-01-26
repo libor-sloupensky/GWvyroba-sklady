@@ -135,8 +135,7 @@ final class ProductionController
                         if (!isset($statusMap[$dSku])) {
                             $statusMap[$dSku] = [];
                         }
-                        $statusMap[$dSku]['deficit'] = (float)$dVal['dovyrobit'];
-                        $statusMap[$dSku]['cilovy_stav_calc'] = (float)$dVal['cilovy_stav'];
+                        $statusMap[$dSku]['deficit'] = (float)$dVal;
                     }
                 }
 
@@ -156,11 +155,11 @@ final class ProductionController
 
                     $item['reservations'] = $status['reservations'] ?? 0.0;
 
-                    // Použít vypočtený cílový stav z BOM kaskády (cilovy_stav_calc)
-                    // Fallback na starý výpočet jen pokud není k dispozici
-                    $item['target'] = $status['cilovy_stav_calc'] ?? $status['target'] ?? (float)($item['min_zasoba'] ?? 0.0);
-
                     $item['deficit'] = (float)($status['deficit'] ?? 0.0);
+
+                    // Cílový stav = dovyrobit + available (vypočteno za běhu)
+                    // Vztah: dovyrobit = cilovy_stav + rezervace - dostupne
+                    $item['target'] = $item['deficit'] + $item['available'];
 
                     $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['available']);
 
@@ -415,8 +414,7 @@ final class ProductionController
                 if (!isset($statusMap[$dSku])) {
                     $statusMap[$dSku] = [];
                 }
-                $statusMap[$dSku]['deficit'] = (float)$dVal['dovyrobit'];
-                $statusMap[$dSku]['cilovy_stav_calc'] = (float)$dVal['cilovy_stav'];
+                $statusMap[$dSku]['deficit'] = (float)$dVal;
             }
 
             $basics = $this->fetchBasicsForSkus($relevant);
@@ -605,26 +603,17 @@ final class ProductionController
      * @param array<int,string> $skus
      * @return array<string,float>
      */
-    /**
-     * Načte mapu dovyrobit a cilovy_stav_calc pro zadané SKU.
-     *
-     * @param array $skus
-     * @return array<string, array{dovyrobit: float, cilovy_stav: float}>
-     */
     private function loadDovyrobitMap(array $skus): array
     {
         if (empty($skus)) {
             return [];
         }
         $placeholders = implode(',', array_fill(0, count($skus), '?'));
-        $stmt = DB::pdo()->prepare("SELECT sku, dovyrobit, cilovy_stav_calc FROM produkty WHERE sku IN ({$placeholders})");
+        $stmt = DB::pdo()->prepare("SELECT sku, dovyrobit FROM produkty WHERE sku IN ({$placeholders})");
         $stmt->execute(array_values($skus));
         $map = [];
         foreach ($stmt as $row) {
-            $map[(string)$row['sku']] = [
-                'dovyrobit' => (float)$row['dovyrobit'],
-                'cilovy_stav' => (float)$row['cilovy_stav_calc'],
-            ];
+            $map[(string)$row['sku']] = (float)$row['dovyrobit'];
         }
         return $map;
     }

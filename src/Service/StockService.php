@@ -417,10 +417,10 @@ final class StockService
         try {
             if ($skuFilter && count($skuFilter) > 0) {
                 $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
-                $stmt = $pdo->prepare("UPDATE produkty SET dovyrobit = 0, cilovy_stav_calc = 0 WHERE sku IN ({$placeholders})");
+                $stmt = $pdo->prepare("UPDATE produkty SET dovyrobit = 0 WHERE sku IN ({$placeholders})");
                 $stmt->execute(array_values($skuFilter));
             } else {
-                $pdo->exec('UPDATE produkty SET dovyrobit = 0, cilovy_stav_calc = 0');
+                $pdo->exec('UPDATE produkty SET dovyrobit = 0');
             }
 
             $meta = self::loadDovyrobitMeta($skuFilter);
@@ -461,10 +461,7 @@ final class StockService
                 $incoming = (float)($incomingSum[$sku] ?? 0.0);
                 $needs = self::calculateProductionNeeds($incoming, $baseTarget, $available, $isNonstock);
                 $needHere = $needs['dovyrobit'];
-                $updateRows[$sku] = [
-                    'dovyrobit' => $needs['dovyrobit'],
-                    'cilovy_stav' => $needs['cilovy_stav'],
-                ];
+                $updateRows[$sku] = $needHere;
 
                 foreach ($children[$sku] ?? [] as $edge) {
                     $coef = (float)$edge['coef'];
@@ -495,15 +492,12 @@ final class StockService
                 $baseTarget = self::calculateBaseTarget($isNonstock, $isRootNode, (float)($st['target'] ?? 0.0));
                 $incoming = (float)$inc;
                 $needs = self::calculateProductionNeeds($incoming, $baseTarget, $available, $isNonstock);
-                $updateRows[$sku] = [
-                    'dovyrobit' => $needs['dovyrobit'],
-                    'cilovy_stav' => $needs['cilovy_stav'],
-                ];
+                $updateRows[$sku] = $needs['dovyrobit'];
             }
 
-            $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=?, cilovy_stav_calc=? WHERE sku=?');
-            foreach ($updateRows as $sku => $row) {
-                $upd->execute([round($row['dovyrobit'], 0), round($row['cilovy_stav'], 0), $sku]);
+            $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=? WHERE sku=?');
+            foreach ($updateRows as $sku => $need) {
+                $upd->execute([round($need, 0), $sku]);
             }
             $pdo->commit();
             return count($updateRows);
