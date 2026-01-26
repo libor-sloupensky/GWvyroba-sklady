@@ -5,7 +5,8 @@
       "Bash(php -r:*)",
       "Bash(sqlite3:*)",
       "Bash(grep:*)",
-      "Bash(php:*)"
+      "Bash(php:*)",
+      "Bash(del \"c:\\\\Users\\\\HP\\\\.codex\\\\Gworm3\\\\debug_bom.php\")"
     ]
   }
 }

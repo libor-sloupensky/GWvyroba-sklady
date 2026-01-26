@@ -2077,7 +2077,7 @@
 
 
 
-        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje cílovou zásobu, kterou chceme mít na skladě&#10;• Pokud existují rezervace, jsou zobrazeny v závorce pod cílovou hodnotou&#10;• Cílový stav = minimální zásoba + buffer dle nastavení režimu">i</span></th>
+        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje celkovou poptávku po produktu z BOM kaskády&#10;• Pro finální výrobky: denní spotřeba × cílové dny zásoby&#10;• Pro komponenty: součet poptávky od všech rodičovských produktů&#10;• Pokud existují rezervace, jsou zobrazeny v závorce&#10;• Vztah: Dovyrobit = Cílový stav + rezervace - dostupné">i</span></th>
 
 
 

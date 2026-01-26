@@ -1965,11 +1965,25 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
         $isNonstock = $nonstockTypes[$typ] ?? false;
 
         if ($isNonstock && isset($bomCache[$mainSku]) && !empty($bomCache[$mainSku])) {
-            // Nonstock - součet nákladů komponent
+            // Nonstock - rekurzivně najít nejbližší skladové potomky
             $cost = 0.0;
             foreach ($bomCache[$mainSku] as $child) {
-                $childCost = $productCosts[$child['sku']] ?? 0.0;
-                $cost += $childCost * $child['koeficient'] * $qty;
+                $childSku = $child['sku'];
+                $childCoef = $child['koeficient'];
+
+                // Zkontrolovat jestli je potomek také nonstock
+                $childTyp = $productTypes[$childSku] ?? '';
+                $childIsNonstock = $nonstockTypes[$childTyp] ?? false;
+
+                if ($childIsNonstock) {
+                    // Potomek je nonstock - rekurzivně najít jeho skladové potomky
+                    $childCost = $this->calculateItemCost($childSku, $childCoef, $productCosts, $bomCache, $nonstockTypes);
+                    $cost += $childCost * $qty;
+                } else {
+                    // Potomek je skladový - použít jeho skl_hodnota
+                    $childCost = $productCosts[$childSku] ?? 0.0;
+                    $cost += $childCost * $childCoef * $qty;
+                }
             }
             return $cost;
         }

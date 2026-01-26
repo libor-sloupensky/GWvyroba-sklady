@@ -13,6 +13,38 @@ final class StockService
     private static bool $settingsColumnsVerified = false;
     private static array $baselineCache = [];
 
+    /**
+     * Vypočítá cílový stav (totalDemand) a množství k výrobě (dovyrobit) pro produkt.
+     *
+     * @param float $incoming Příchozí poptávka od rodičovských produktů
+     * @param float $baseTarget Vlastní cílový stav (pouze pro root produkty)
+     * @param float $available Dostupné zásoby (stav - rezervace)
+     * @param bool $isNonstock Zda je produkt nonstock typ
+     * @return array{cilovy_stav: float, dovyrobit: float}
+     */
+    public static function calculateProductionNeeds(float $incoming, float $baseTarget, float $available, bool $isNonstock): array
+    {
+        $totalDemand = max(0.0, $incoming) + $baseTarget;
+        $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
+        return [
+            'cilovy_stav' => $totalDemand,
+            'dovyrobit' => $needHere,
+        ];
+    }
+
+    /**
+     * Určí baseTarget pro produkt na základě jeho pozice v BOM stromu.
+     *
+     * @param bool $isNonstock Zda je produkt nonstock typ
+     * @param bool $isRootNode Zda je produkt root (nemá skladové rodiče)
+     * @param float $target Cílový stav z getStatusForSkus (daily * stockDays)
+     * @return float
+     */
+    public static function calculateBaseTarget(bool $isNonstock, bool $isRootNode, float $target): float
+    {
+        return ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, $target);
+    }
+
     public static function getSettings(): array
     {
         $pdo = DB::pdo();
@@ -385,10 +417,10 @@ final class StockService
         try {
             if ($skuFilter && count($skuFilter) > 0) {
                 $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
-                $stmt = $pdo->prepare("UPDATE produkty SET dovyrobit = 0 WHERE sku IN ({$placeholders})");
+                $stmt = $pdo->prepare("UPDATE produkty SET dovyrobit = 0, cilovy_stav_calc = 0 WHERE sku IN ({$placeholders})");
                 $stmt->execute(array_values($skuFilter));
             } else {
-                $pdo->exec('UPDATE produkty SET dovyrobit = 0');
+                $pdo->exec('UPDATE produkty SET dovyrobit = 0, cilovy_stav_calc = 0');
             }
 
             $meta = self::loadDovyrobitMeta($skuFilter);
@@ -424,12 +456,15 @@ final class StockService
                 $isNonstock = !empty($metaRow['is_nonstock']);
                 $available = (float)($st['available'] ?? 0.0);
                 $isRootNode = in_array($sku, $roots, true);
-                $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
+                $baseTarget = self::calculateBaseTarget($isNonstock, $isRootNode, (float)($st['target'] ?? 0.0));
 
-                $incoming = max(0.0, (float)($incomingSum[$sku] ?? 0.0));
-                $totalDemand = $incoming + $baseTarget;
-                $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
-                $updateRows[$sku] = $needHere;
+                $incoming = (float)($incomingSum[$sku] ?? 0.0);
+                $needs = self::calculateProductionNeeds($incoming, $baseTarget, $available, $isNonstock);
+                $needHere = $needs['dovyrobit'];
+                $updateRows[$sku] = [
+                    'dovyrobit' => $needs['dovyrobit'],
+                    'cilovy_stav' => $needs['cilovy_stav'],
+                ];
 
                 foreach ($children[$sku] ?? [] as $edge) {
                     $coef = (float)$edge['coef'];
@@ -457,16 +492,18 @@ final class StockService
                 $isNonstock = !empty($metaRow['is_nonstock']);
                 $available = (float)($st['available'] ?? 0.0);
                 $isRootNode = in_array($sku, $roots, true);
-                $baseTarget = ($isNonstock || !$isRootNode) ? 0.0 : max(0.0, (float)($st['target'] ?? 0.0));
-                $incoming = max(0.0, (float)$inc);
-                $totalDemand = $incoming + $baseTarget;
-                $needHere = $isNonstock ? $totalDemand : max(0.0, $totalDemand - $available);
-                $updateRows[$sku] = $needHere;
+                $baseTarget = self::calculateBaseTarget($isNonstock, $isRootNode, (float)($st['target'] ?? 0.0));
+                $incoming = (float)$inc;
+                $needs = self::calculateProductionNeeds($incoming, $baseTarget, $available, $isNonstock);
+                $updateRows[$sku] = [
+                    'dovyrobit' => $needs['dovyrobit'],
+                    'cilovy_stav' => $needs['cilovy_stav'],
+                ];
             }
 
-            $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=? WHERE sku=?');
-            foreach ($updateRows as $sku => $need) {
-                $upd->execute([round($need, 0), $sku]);
+            $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=?, cilovy_stav_calc=? WHERE sku=?');
+            foreach ($updateRows as $sku => $row) {
+                $upd->execute([round($row['dovyrobit'], 0), round($row['cilovy_stav'], 0), $sku]);
             }
             $pdo->commit();
             return count($updateRows);
