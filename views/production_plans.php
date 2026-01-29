@@ -2458,7 +2458,8 @@
 
 
 
-<h2 style="margin: 2rem 0 1rem 0; font-size: 1.25rem; color: #37474f;">Pohyby skladů</h2>
+<hr style="margin: 2rem 0; border: none; border-top: 1px solid #cfd8dc;">
+<h2 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #37474f;">Pohyby skladů</h2>
 
 <div class="production-log-controls">
 
@@ -2501,11 +2502,10 @@
   </form>
 
   <div class="filter-toggle-row">
-    <span class="filter-toggle-label">Typ pohybu:</span>
-    <div class="toggle-switch" id="movementTypeToggle">
-      <button type="button" data-value="all" class="active">Vše</button>
-      <button type="button" data-value="vyroba">Výroba</button>
-      <button type="button" data-value="korekce">Korekce</button>
+    <span class="filter-toggle-label">Použít filtr:</span>
+    <div class="toggle-switch" id="movementFilterToggle">
+      <button type="button" data-value="off" class="active">Nefiltrovat</button>
+      <button type="button" data-value="on">Filtrovat</button>
     </div>
   </div>
 
@@ -2600,7 +2600,7 @@
           $typLabel = $typRaw == 'korekce' ? 'Korekce' : 'Výroba';
           $typData = $typRaw == 'korekce' ? 'korekce' : 'vyroba';
         ?>
-        <tr class="<?= $rowClass ?>" data-typ="<?= $typData ?>">
+        <tr class="<?= $rowClass ?>" data-typ="<?= $typData ?>" data-sku="<?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?>">
           <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)($log['nazev'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
@@ -2766,30 +2766,44 @@
 
   const movementUrl = '/production/movements';
 
-  // Filtr typu pohybů skladů
-  const movementToggle = document.getElementById('movementTypeToggle');
+  // Filtr pohybů skladů podle SKU z hlavní tabulky
+  const movementFilterToggle = document.getElementById('movementFilterToggle');
   const logTable = document.querySelector('.production-log-table');
-  if (movementToggle && logTable) {
-    const buttons = movementToggle.querySelectorAll('button');
-    let currentFilter = 'all';
+  if (movementFilterToggle && logTable) {
+    const buttons = movementFilterToggle.querySelectorAll('button');
+    let filterActive = false;
+
+    const getFilteredSkus = () => {
+      // Získat SKU z hlavní tabulky produktů (pokud existuje)
+      const productTable = document.querySelector('.production-table');
+      if (!productTable) return null;
+      const skus = new Set();
+      productTable.querySelectorAll('tbody tr[data-sku]').forEach(row => {
+        skus.add(row.dataset.sku);
+      });
+      return skus;
+    };
 
     const applyMovementFilter = () => {
       const rows = logTable.querySelectorAll('tbody tr');
-      rows.forEach(row => {
-        if (currentFilter === 'all') {
-          row.style.display = '';
-        } else {
-          const typ = row.dataset.typ || '';
-          row.style.display = (typ === currentFilter) ? '' : 'none';
-        }
-      });
+      if (!filterActive) {
+        // Nefiltrovat - zobrazit vše
+        rows.forEach(row => row.style.display = '');
+      } else {
+        // Filtrovat podle SKU z hlavní tabulky
+        const allowedSkus = getFilteredSkus();
+        rows.forEach(row => {
+          const sku = row.dataset.sku || '';
+          row.style.display = (allowedSkus && allowedSkus.has(sku)) ? '' : 'none';
+        });
+      }
     };
 
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        currentFilter = btn.dataset.value;
+        filterActive = (btn.dataset.value === 'on');
         applyMovementFilter();
       });
     });
