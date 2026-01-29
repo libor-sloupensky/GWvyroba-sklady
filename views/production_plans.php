@@ -1720,8 +1720,41 @@
 .production-log-row--korekce { background:#ffebee; }
 .production-log-type { font-weight:600; }
 
-
-
+/* Toggle switch pro filtr */
+.toggle-switch {
+  display: inline-flex;
+  border: 1px solid #cfd8dc;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+.toggle-switch button {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0.65rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #455a64;
+  cursor: pointer;
+}
+.toggle-switch button.active {
+  background: #1e88e5;
+  color: #fff;
+}
+.toggle-switch button:focus {
+  outline: 1px solid #1e88e5;
+  outline-offset: -1px;
+}
+.filter-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: 1.5rem;
+}
+.filter-toggle-label {
+  font-size: 0.9rem;
+  color: #546e7a;
+}
 
 </style>
 
@@ -2025,9 +2058,18 @@
 
 <?php else: ?>
 
-
-
-
+  <div class="production-table-controls" style="display:flex; align-items:center; gap:1.5rem; margin-bottom:0.75rem;">
+    <div style="font-size:0.9rem; color:#546e7a;">
+      Počet záznamů: <strong id="visibleRowCount"><?= count($items) ?></strong> / <?= count($items) ?>
+    </div>
+    <div class="filter-toggle-row">
+      <span class="filter-toggle-label">Filtr poptávky:</span>
+      <div class="toggle-switch" id="deficitFilterToggle">
+        <button type="button" data-value="all" class="active">Vše</button>
+        <button type="button" data-value="deficit">Jen s poptávkou</button>
+      </div>
+    </div>
+  </div>
 
   <div class="production-table-wrapper">
 
@@ -2730,6 +2772,45 @@
   const bomUrl = '/products/bom-tree';
 
   const demandUrl = '/production/demand-tree';
+
+  // Filtr poptávky - toggle
+  const deficitToggle = document.getElementById('deficitFilterToggle');
+  const visibleRowCount = document.getElementById('visibleRowCount');
+  if (deficitToggle && table) {
+    const buttons = deficitToggle.querySelectorAll('button');
+    let currentFilter = 'all';
+
+    const applyFilter = () => {
+      const rows = table.querySelectorAll('tbody tr');
+      let visible = 0;
+      rows.forEach(row => {
+        if (currentFilter === 'all') {
+          row.style.display = '';
+          visible++;
+        } else {
+          const deficit = parseFloat(row.dataset.deficit || '0');
+          if (deficit > 0) {
+            row.style.display = '';
+            visible++;
+          } else {
+            row.style.display = 'none';
+          }
+        }
+      });
+      if (visibleRowCount) {
+        visibleRowCount.textContent = visible;
+      }
+    };
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.value;
+        applyFilter();
+      });
+    });
+  }
 
   const movementUrl = '/production/movements';
 
