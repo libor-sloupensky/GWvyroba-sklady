@@ -2058,19 +2058,6 @@
 
 <?php else: ?>
 
-  <div class="production-table-controls" style="display:flex; align-items:center; gap:1.5rem; margin-bottom:0.75rem;">
-    <div style="font-size:0.9rem; color:#546e7a;">
-      Počet záznamů: <strong id="visibleRowCount"><?= count($items) ?></strong> / <?= count($items) ?>
-    </div>
-    <div class="filter-toggle-row">
-      <span class="filter-toggle-label">Filtr poptávky:</span>
-      <div class="toggle-switch" id="deficitFilterToggle">
-        <button type="button" data-value="all" class="active">Vše</button>
-        <button type="button" data-value="deficit">Jen s poptávkou</button>
-      </div>
-    </div>
-  </div>
-
   <div class="production-table-wrapper">
 
 
@@ -2471,6 +2458,8 @@
 
 
 
+<h2 style="margin: 2rem 0 1rem 0; font-size: 1.25rem; color: #37474f;">Pohyby skladů</h2>
+
 <div class="production-log-controls">
 
 
@@ -2509,15 +2498,16 @@
 
     <button type="submit">Aktualizovat</button>
 
-
-
-
-
   </form>
 
-
-
-
+  <div class="filter-toggle-row">
+    <span class="filter-toggle-label">Typ pohybu:</span>
+    <div class="toggle-switch" id="movementTypeToggle">
+      <button type="button" data-value="all" class="active">Vše</button>
+      <button type="button" data-value="vyroba">Výroba</button>
+      <button type="button" data-value="korekce">Korekce</button>
+    </div>
+  </div>
 
 </div>
 
@@ -2608,8 +2598,9 @@
           $typRaw = strtolower((string)($log['typ'] ?? ''));
           $rowClass = $typRaw == 'korekce' ? 'production-log-row--korekce' : 'production-log-row--vyroba';
           $typLabel = $typRaw == 'korekce' ? 'Korekce' : 'Výroba';
+          $typData = $typRaw == 'korekce' ? 'korekce' : 'vyroba';
         ?>
-        <tr class="<?= $rowClass ?>">
+        <tr class="<?= $rowClass ?>" data-typ="<?= $typData ?>">
           <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)($log['nazev'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
@@ -2773,33 +2764,25 @@
 
   const demandUrl = '/production/demand-tree';
 
-  // Filtr poptávky - toggle
-  const deficitToggle = document.getElementById('deficitFilterToggle');
-  const visibleRowCount = document.getElementById('visibleRowCount');
-  if (deficitToggle && table) {
-    const buttons = deficitToggle.querySelectorAll('button');
+  const movementUrl = '/production/movements';
+
+  // Filtr typu pohybů skladů
+  const movementToggle = document.getElementById('movementTypeToggle');
+  const logTable = document.querySelector('.production-log-table');
+  if (movementToggle && logTable) {
+    const buttons = movementToggle.querySelectorAll('button');
     let currentFilter = 'all';
 
-    const applyFilter = () => {
-      const rows = table.querySelectorAll('tbody tr');
-      let visible = 0;
+    const applyMovementFilter = () => {
+      const rows = logTable.querySelectorAll('tbody tr');
       rows.forEach(row => {
         if (currentFilter === 'all') {
           row.style.display = '';
-          visible++;
         } else {
-          const deficit = parseFloat(row.dataset.deficit || '0');
-          if (deficit > 0) {
-            row.style.display = '';
-            visible++;
-          } else {
-            row.style.display = 'none';
-          }
+          const typ = row.dataset.typ || '';
+          row.style.display = (typ === currentFilter) ? '' : 'none';
         }
       });
-      if (visibleRowCount) {
-        visibleRowCount.textContent = visible;
-      }
     };
 
     buttons.forEach(btn => {
@@ -2807,16 +2790,10 @@
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentFilter = btn.dataset.value;
-        applyFilter();
+        applyMovementFilter();
       });
     });
   }
-
-  const movementUrl = '/production/movements';
-
-
-
-
 
   let pendingForm = null;
 
