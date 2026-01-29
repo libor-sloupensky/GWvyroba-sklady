@@ -91,6 +91,7 @@ $router->post('/production/delete', [ProductionController::class, 'deleteRecord'
 $router->post('/production/check', [ProductionController::class, 'check']);
 $router->get('/production/demand-tree', [ProductionController::class, 'demandTree']);
 $router->get('/production/movements', [ProductionController::class, 'movements']);
+$router->get('/production/filtered-movements', [ProductionController::class, 'filteredMovements']);
 $router->post('/production/recent-limit', [ProductionController::class, 'updateRecentLimit']);
 
 // Analytics

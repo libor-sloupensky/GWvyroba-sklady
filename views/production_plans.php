@@ -2725,10 +2725,15 @@
 
 
 <script>
-
-
-
-
+// Konfigurace filtru pro pohyby skladů
+const movementFilterConfig = {
+  brand: <?= (int)$filterBrand ?>,
+  group: <?= (int)$filterGroup ?>,
+  type: <?= json_encode($filterType) ?>,
+  search: <?= json_encode($filterSearch) ?>,
+  limit: <?= (int)($recentLimit ?? 30) ?>,
+  hasFilter: <?= $hasSearchActive ? 'true' : 'false' ?>
+};
 
 (function(){
 
@@ -2766,36 +2771,80 @@
 
   const movementUrl = '/production/movements';
 
-  // Filtr pohybů skladů podle SKU z hlavní tabulky
+  // Filtr pohybů skladů - AJAX načítání
   const movementFilterToggle = document.getElementById('movementFilterToggle');
   const logTable = document.querySelector('.production-log-table');
-  if (movementFilterToggle && logTable) {
+  const logTableContainer = logTable ? logTable.parentElement : null;
+
+  if (movementFilterToggle) {
     const buttons = movementFilterToggle.querySelectorAll('button');
     let filterActive = false;
+    let originalHtml = logTable ? logTable.outerHTML : '';
+    let noDataHtml = '<p class="notice-empty">Pro zadané podmínky nejsou dostupná žádná data.</p>';
 
-    const getFilteredSkus = () => {
-      // Získat SKU z hlavní tabulky produktů (pokud existuje)
-      const productTable = document.querySelector('.production-table');
-      if (!productTable) return null;
-      const skus = new Set();
-      productTable.querySelectorAll('tbody tr[data-sku]').forEach(row => {
-        skus.add(row.dataset.sku);
-      });
-      return skus;
+    const renderMovements = (movements) => {
+      if (!logTableContainer) return;
+
+      if (movements.length === 0) {
+        // Nahradit tabulku zprávou o prázdných datech
+        if (logTable) {
+          logTable.style.display = 'none';
+        }
+        let noDataEl = logTableContainer.querySelector('.notice-empty');
+        if (!noDataEl) {
+          noDataEl = document.createElement('p');
+          noDataEl.className = 'notice-empty';
+          noDataEl.textContent = 'Pro zadané podmínky nejsou dostupná žádná data.';
+          logTableContainer.appendChild(noDataEl);
+        }
+        return;
+      }
+
+      // Odstranit zprávu o prázdných datech
+      const noDataEl = logTableContainer.querySelector('.notice-empty');
+      if (noDataEl) noDataEl.remove();
+
+      // Zobrazit tabulku
+      if (logTable) {
+        logTable.style.display = '';
+        const tbody = logTable.querySelector('tbody');
+        if (tbody) {
+          tbody.innerHTML = movements.map(m => {
+            const typRaw = (m.typ || '').toLowerCase();
+            const rowClass = typRaw === 'korekce' ? 'production-log-row--korekce' : 'production-log-row--vyroba';
+            const typLabel = typRaw === 'korekce' ? 'Korekce' : 'Výroba';
+            const typData = typRaw === 'korekce' ? 'korekce' : 'vyroba';
+            return `<tr class="${rowClass}" data-typ="${typData}" data-sku="${m.sku || ''}">
+              <td>${m.datum || ''}</td>
+              <td>${m.sku || ''}</td>
+              <td>${m.nazev || ''}</td>
+              <td class="production-log-type">${typLabel}</td>
+              <td class="qty-cell">${parseFloat(m.mnozstvi || 0).toFixed(2)}</td>
+            </tr>`;
+          }).join('');
+        }
+      }
     };
 
-    const applyMovementFilter = () => {
-      const rows = logTable.querySelectorAll('tbody tr');
-      if (!filterActive) {
-        // Nefiltrovat - zobrazit vše
-        rows.forEach(row => row.style.display = '');
-      } else {
-        // Filtrovat podle SKU z hlavní tabulky
-        const allowedSkus = getFilteredSkus();
-        rows.forEach(row => {
-          const sku = row.dataset.sku || '';
-          row.style.display = (allowedSkus && allowedSkus.has(sku)) ? '' : 'none';
-        });
+    const loadMovements = async (useFilter) => {
+      const params = new URLSearchParams();
+      params.set('limit', movementFilterConfig.limit);
+
+      if (useFilter && movementFilterConfig.hasFilter) {
+        if (movementFilterConfig.brand > 0) params.set('brand', movementFilterConfig.brand);
+        if (movementFilterConfig.group > 0) params.set('group', movementFilterConfig.group);
+        if (movementFilterConfig.type) params.set('type', movementFilterConfig.type);
+        if (movementFilterConfig.search) params.set('search', movementFilterConfig.search);
+      }
+
+      try {
+        const res = await fetch('/production/filtered-movements?' + params.toString());
+        const data = await res.json();
+        if (data.ok) {
+          renderMovements(data.movements);
+        }
+      } catch (e) {
+        console.error('Chyba při načítání pohybů:', e);
       }
     };
 
@@ -2804,7 +2853,7 @@
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         filterActive = (btn.dataset.value === 'on');
-        applyMovementFilter();
+        loadMovements(filterActive);
       });
     });
   }

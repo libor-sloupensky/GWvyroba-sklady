@@ -1577,7 +1577,69 @@ final class ProductionController
         return DB::pdo()->query($sql)->fetchAll();
     }
 
+    /**
+     * AJAX endpoint pro filtrované pohyby skladů
+     */
+    public function filteredMovements(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json');
 
+        $limit = (int)($_GET['limit'] ?? 30);
+        $limit = max(1, min(500, $limit));
+
+        $brand = (int)($_GET['brand'] ?? 0);
+        $group = (int)($_GET['group'] ?? 0);
+        $type = $this->toUtf8((string)($_GET['type'] ?? ''));
+        $search = $this->toUtf8((string)($_GET['search'] ?? ''));
+
+        // Validovat typ
+        if ($type !== '' && !in_array($type, $this->productTypes(), true)) {
+            $type = '';
+        }
+
+        $pdo = DB::pdo();
+
+        // Sestavit WHERE podmínky pro produkty
+        $conditions = ["m.typ_pohybu IN ('vyroba','korekce')"];
+        $params = [];
+
+        if ($brand > 0) {
+            $conditions[] = 'p.znacka_id = ?';
+            $params[] = $brand;
+        }
+        if ($group > 0) {
+            $conditions[] = 'p.skupina_id = ?';
+            $params[] = $group;
+        }
+        if ($type !== '') {
+            $conditions[] = 'p.typ = ?';
+            $params[] = $type;
+        }
+        if ($search !== '') {
+            $searchLike = '%' . $search . '%';
+            $conditions[] = '(p.sku LIKE ? OR p.alt_sku LIKE ? OR p.nazev LIKE ? OR p.ean LIKE ?)';
+            $params[] = $searchLike;
+            $params[] = $searchLike;
+            $params[] = $searchLike;
+            $params[] = $searchLike;
+        }
+
+        $where = implode(' AND ', $conditions);
+
+        $sql = "SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
+                FROM polozky_pohyby m
+                LEFT JOIN produkty p ON p.sku = m.sku
+                WHERE {$where}
+                ORDER BY m.datum DESC, m.id DESC
+                LIMIT {$limit}";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+
+        echo json_encode(['ok' => true, 'movements' => $rows]);
+    }
 
     private function redirect(string $path): void
 
