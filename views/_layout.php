@@ -84,6 +84,9 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného"<?= $navIsActive('/production') ? ' class="active" aria-current="page"' : '' ?>>Výroba</a>
       <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
+      <?php if (($currentUser['role'] ?? '') === 'superadmin'): ?>
+        <a href="/admin/history" title="Historie přihlášení"<?= $navIsActive('/admin/history') ? ' class="active" aria-current="page"' : '' ?>>Historie</a>
+      <?php endif; ?>
       <span class="nav-user">
         <?php if ($currentUser): ?>
           <?= htmlspecialchars((string)$currentUser['email'], ENT_QUOTES, 'UTF-8') ?>

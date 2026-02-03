@@ -127,5 +127,6 @@ $router->post('/admin/migrate', [AdminController::class, 'migrateRun']);
 $router->get('/admin/seed', [AdminController::class, 'seedForm']);
 $router->post('/admin/seed', [AdminController::class, 'seedRun']);
 $router->get('/admin/rebuild-movements', [AdminController::class, 'rebuildMovements']);
+$router->get('/admin/history', [AdminController::class, 'history']);
 
 $router->dispatch();
