@@ -1098,7 +1098,7 @@
         }
       } else {
         const input = paramBox.querySelector(`[name="${param.name}"]`);
-        if (input) {
+        if (input && Object.prototype.hasOwnProperty.call(p, param.name)) {
           input.value = p[param.name] || '';
           if (param.name === 'movement_direction') {
             input.dispatchEvent(new Event('change', { bubbles: true }));

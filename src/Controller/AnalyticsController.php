@@ -975,7 +975,7 @@ ORDER BY m.month_end, serie_label
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
                     ['name' => 'typ', 'label' => 'Typ', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $types],
-                    ['name' => 'sku', 'label' => 'SKU', 'type' => 'string_multi', 'required' => false, 'default' => []],
+                    ['name' => 'sku', 'label' => 'Produkty (SKU / název)', 'type' => 'product_multi', 'required' => false, 'default' => []],
                 ],
                 'suggested_render' => 'table',
             ],
