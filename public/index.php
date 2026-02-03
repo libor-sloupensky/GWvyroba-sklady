@@ -34,6 +34,23 @@ session_set_cookie_params([
 
 session_start();
 
+// Logování návštěv - max jednou za hodinu
+if (isset($_SESSION['user']['email'])) {
+    $lastLog = $_SESSION['_last_access_log'] ?? 0;
+    if (time() - $lastLog >= 3600) {
+        $_SESSION['_last_access_log'] = time();
+        $logDir = __DIR__ . '/../data';
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
+        }
+        @file_put_contents(
+            $logDir . '/access_log.csv',
+            date('Y-m-d H:i:s') . ',' . $_SESSION['user']['email'] . "\n",
+            FILE_APPEND | LOCK_EX
+        );
+    }
+}
+
 $router = new Router();
 
 // Auth

@@ -6,17 +6,6 @@ use PDO;
 
 final class AuthController
 {
-    private function logAccess(string $email): void
-    {
-        $logDir = dirname(__DIR__, 2) . '/data';
-        if (!is_dir($logDir)) {
-            @mkdir($logDir, 0755, true);
-        }
-        $logFile = $logDir . '/access_log.csv';
-        $line = date('Y-m-d H:i:s') . ',' . $email . "\n";
-        @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
-    }
-
     public function loginForm(): void
     {
         if ($this->isLoggedIn()) {
@@ -57,7 +46,6 @@ final class AuthController
                 'name' => 'Lokální administrátor',
             ];
             session_regenerate_id(true);
-            $this->logAccess('admin@local');
             $target = $_SESSION['redirect_after_login'] ?? '/';
             unset($_SESSION['redirect_after_login']);
             $this->redirect($target ?: '/');
@@ -155,7 +143,6 @@ final class AuthController
             'name' => (string)($profile['name'] ?? ''),
         ];
         session_regenerate_id(true);
-        $this->logAccess($email);
         $target = $_SESSION['redirect_after_login'] ?? '/';
         unset($_SESSION['redirect_after_login']);
         $this->redirect($target ?: '/');
