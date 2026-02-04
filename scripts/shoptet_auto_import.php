@@ -224,7 +224,7 @@ try {
         $tmpFile = __DIR__ . '/../xml/shoptet_' . $label . '_' . date('Ymd_His') . '.xml';
         file_put_contents($tmpFile, $xmlContent);
         logLine("Staženo do {$tmpFile}");
-        $result = $importCtrl->importPohodaFromStringCli($eshop, $xmlContent);
+        $result = $importCtrl->importPohodaFromStringCli($eshop, $xmlContent, $label);
         logLine("Import {$label} OK: doklady={$result['doklady']}, polozky={$result['polozky']}, batch={$result['batch']}");
         if (!empty($result['missingSku'])) {
             logLine("Chybějící SKU: " . implode(', ', $result['missingSku']), 'WARN');

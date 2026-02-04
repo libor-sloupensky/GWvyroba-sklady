@@ -56,6 +56,13 @@ $formatCzk = static function ($value): string {
     <p class="notice" style="border-color:#ffe0b2;background:#fff8e1;color:#8c6d1f;">Nejprve p&#345;idejte e-shop v Nastaven&iacute; &gt; Faktura&#269;n&iacute; &#345;ady.</p>
   <?php endif; ?>
   <br>
+  <label>M&#283;na</label><br>
+  <select name="currency">
+    <option value="">Auto (detekce z XML)</option>
+    <option value="CZK">CZK</option>
+    <option value="EUR">EUR</option>
+  </select>
+  <br>
   <label>XML soubor</label><br>
   <input type="file" name="xml" accept=".xml" required />
   <br>

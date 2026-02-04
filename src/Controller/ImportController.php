@@ -20,6 +20,10 @@ final class ImportController
     {
         $this->requireAdmin();
         $eshop = trim((string)($_POST['eshop'] ?? ''));
+        $currencyOverride = strtoupper(trim((string)($_POST['currency'] ?? '')));
+        if (!in_array($currencyOverride, ['', 'CZK', 'EUR'], true)) {
+            $currencyOverride = '';
+        }
         if (!isset($_FILES['xml'])) {
             $this->renderImportForm(['error'=>'Vyberte XML soubor.', 'selectedEshop'=>$eshop]);
             return;
@@ -46,7 +50,7 @@ final class ImportController
                 throw new \RuntimeException('XML neobsahuje žádné doklady.');
             }
             $batch = date('YmdHis');
-            [$docCount, $itemCount, $missingSku, $skipped] = $this->persistInvoices($eshop, $series, $documents, $batch);
+            [$docCount, $itemCount, $missingSku, $skipped] = $this->persistInvoices($eshop, $series, $documents, $batch, $currencyOverride);
             $eshops = $this->loadEshops();
             $outstanding = $this->collectOutstandingMissingSku();
             $viewMode = $this->currentViewMode();
@@ -159,7 +163,7 @@ final class ImportController
      * @param array<int,array<string,mixed>> $documents
      * @return array{0:int,1:int,2:array<int,array<string,string>>,3:array<int,array<string,string>>}
      */
-    private function persistInvoices(string $eshop, array $series, array $documents, string $batch): array
+    private function persistInvoices(string $eshop, array $series, array $documents, string $batch, string $currencyOverride = ''): array
     {
         $pdo = DB::pdo();
         $importTs = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
@@ -194,7 +198,7 @@ final class ImportController
                 $dateIssue = $this->normalizeDate($doc['datum_vystaveni'] ?? null);
                 $dueDate = $this->normalizeDate($doc['splatnost'] ?? null);
                 $contactId = $this->syncContact($doc['contact'] ?? []);
-                $docCurrency = strtoupper(trim((string)($doc['mena'] ?? '')));
+                $docCurrency = $currencyOverride !== '' ? $currencyOverride : strtoupper(trim((string)($doc['mena'] ?? '')));
                 if ($docCurrency === '') {
                     $docCurrency = 'CZK';
                 }
@@ -451,6 +455,13 @@ final class ImportController
             $currencyInfo = $this->resolveCurrencyInfo($xpath, $header, $summary);
             $doc['mena'] = $currencyInfo['currency'];
             $doc['kurz'] = $currencyInfo['rate'];
+            // Fallback: detekce měny z roundingDocument pokud XML neobsahuje typ:currency
+            if ($doc['mena'] === '' && $summary !== null) {
+                $rounding = $this->xpathValue($xpath, './inv:roundingDocument', $summary);
+                if (stripos($rounding, 'cent') !== false) {
+                    $doc['mena'] = 'EUR';
+                }
+            }
             foreach ($xpath->query('./inv:invoiceDetail/inv:invoiceItem', $invoiceNode) as $itemNode) {
                 $payVatRaw = $this->xpathValue($xpath, './inv:payVAT', $itemNode);
                 $doc['items'][] = [
@@ -1131,11 +1142,15 @@ LIMIT {$limit}
      * Programový import Pohoda XML (pro cron/CLI). Vrací souhrn bez renderu.
      * @return array<string,mixed>
      */
-    public function importPohodaFromStringCli(string $eshop, string $xml): array
+    public function importPohodaFromStringCli(string $eshop, string $xml, string $currency = ''): array
     {
         $eshop = trim($eshop);
         if ($eshop === '' || !$this->isKnownEshop($eshop)) {
             throw new \RuntimeException('Zvolte e-shop z nastaveného seznamu.');
+        }
+        $currencyOverride = strtoupper(trim($currency));
+        if (!in_array($currencyOverride, ['', 'CZK', 'EUR'], true)) {
+            $currencyOverride = '';
         }
         $xml = $this->ensureUtf8($xml);
         $series = $this->loadSeries($eshop);
@@ -1144,7 +1159,7 @@ LIMIT {$limit}
             throw new \RuntimeException('XML neobsahuje žádné doklady.');
         }
         $batch = date('YmdHis');
-        [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch);
+        [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch, $currencyOverride);
         return [
             'batch' => $batch,
             'doklady' => $docCount,
