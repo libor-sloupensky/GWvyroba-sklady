@@ -132,7 +132,7 @@ final class ProductsController
 
         $pdo = DB::pdo();
 
-        $rows = $pdo->query($this->productsSelectSql() . ' ORDER BY p.nazev')->fetchAll();
+        $rows = $pdo->query($this->productsSelectSql() . ' ORDER BY p.aktivni DESC, p.nazev')->fetchAll();
 
         $fh = fopen('php://output', 'wb');
 
@@ -1499,7 +1499,7 @@ final class ProductsController
 
         }
 
-        $sql .= ' ORDER BY p.nazev LIMIT 500';
+        $sql .= ' ORDER BY p.aktivni DESC, p.nazev LIMIT 500';
 
 
 
