@@ -798,6 +798,7 @@ SELECT
   p.sku AS sku,
   p.nazev AS nazev,
   p.merna_jednotka AS mj,
+  p.aktivni AS aktivni,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi)), 0), 0) AS mnozstvi,
   ROUND(COALESCE(SUM(ABS(pm.mnozstvi) * COALESCE(p.skl_hodnota, 0)), 0), 0) AS `hodnota skladu`,
   p.poznamka AS poznamka
@@ -819,8 +820,8 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
   AND (:allow_null_znacka = 0 OR p.znacka_id IS NOT NULL)
   AND (:allow_null_skupina = 0 OR p.skupina_id IS NOT NULL)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
-GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka
-ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
+GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka, p.aktivni
+ORDER BY p.aktivni DESC, COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 
 ",
                 'params' => [
@@ -1238,7 +1239,7 @@ WHERE (:active_only = 0 OR p.aktivni = 1)
   AND (:allow_null_typ = 0 OR p.typ IS NOT NULL)
 GROUP BY p.sku, p.nazev, p.merna_jednotka, p.poznamka, p.aktivni
 HAVING (:nonzero_only = 0 OR COALESCE(SUM(ABS(pm.mnozstvi)), 0) <> 0)
-ORDER BY COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
+ORDER BY p.aktivni DESC, COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
 ";
         $filters = $params['eshop_source'] ?? [];
         if (!is_array($filters)) {
@@ -1640,6 +1641,8 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
         $productCosts = $this->loadProductCosts();
         // Načíst info o nonstock typech
         $nonstockTypes = $this->loadNonstockTypes();
+        // Načíst aktivnost produktů pro řazení
+        $productAktivni = $this->loadProductAktivni();
 
         // Sestavit SQL pro načtení faktur
         $sql = "
@@ -1771,6 +1774,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                         'naklady' => 0,
                         'mnozstvi' => 0,
                         'pocet_prodeju' => 0,
+                        'aktivni' => $productAktivni[$sku] ?? 1,
                     ];
                 }
                 $byProduct[$sku]['trzby'] += $trzby;
@@ -1881,9 +1885,16 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                     'naklady' => round($p['naklady'], 2),
                     'zisk' => round($zisk, 2),
                     'zisk_pct' => $ziskPct,
+                    'aktivni' => $p['aktivni'] ?? 1,
                 ];
             }
-            usort($rows, fn($a, $b) => $b['trzby'] <=> $a['trzby']);
+            // Neaktivní produkty řadit na konec, pak podle tržeb
+            usort($rows, function ($a, $b) {
+                if ($a['aktivni'] !== $b['aktivni']) {
+                    return $b['aktivni'] <=> $a['aktivni'];
+                }
+                return $b['trzby'] <=> $a['trzby'];
+            });
             return ['mode' => 'products', 'rows' => $rows];
         }
 
@@ -1924,6 +1935,20 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             $costs[(string)$row['sku']] = (float)$row['skl_hodnota'];
         }
         return $costs;
+    }
+
+    /**
+     * Načíst aktivnost produktů
+     * @return array<string,int>
+     */
+    private function loadProductAktivni(): array
+    {
+        $stmt = DB::pdo()->query('SELECT sku, aktivni FROM produkty');
+        $result = [];
+        foreach ($stmt as $row) {
+            $result[(string)$row['sku']] = (int)$row['aktivni'];
+        }
+        return $result;
     }
 
     /**

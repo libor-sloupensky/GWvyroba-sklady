@@ -187,6 +187,12 @@ final class ProductionController
                 unset($item);
 
                 usort($items, function ($a, $b) {
+                    // Neaktivní produkty řadit na konec
+                    $aktivniA = (int)($a['aktivni'] ?? 1);
+                    $aktivniB = (int)($b['aktivni'] ?? 1);
+                    if ($aktivniA !== $aktivniB) {
+                        return $aktivniB <=> $aktivniA;
+                    }
 
                     $ratioA = $a['ratio'] ?? 0.0;
 
