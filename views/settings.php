@@ -33,47 +33,6 @@
 .series-badge-ok { background:#e6f4ea; color:#1b5e20; }
 .series-badge-no { background:#eceff1; color:#78909c; }
 </style>
-<form method="post" action="/settings/series" id="series-form" class="series-form">
-  <input type="hidden" name="id" value="" />
-  <fieldset>
-    <legend>Fakturacni rada</legend>
-    <div class="field-row">
-      <div><label>E-shop</label><input type="text" name="eshop_source" required /></div>
-      <div><label>Prefix</label><input type="text" name="prefix" /></div>
-      <div><label>Cislo od</label><input type="text" name="cislo_od" /></div>
-      <div><label>Cislo do</label><input type="text" name="cislo_do" /></div>
-    </div>
-  </fieldset>
-  <fieldset>
-    <legend>Auto-import (prihlaseni do adminu)</legend>
-    <div class="field-row">
-      <div><label>Admin URL</label><input type="url" name="admin_url" placeholder="https://www.example.com" /></div>
-      <div><label>E-mail</label><input type="email" name="admin_email" placeholder="admin@example.com" /></div>
-      <div><label>Heslo</label><input type="password" name="admin_password" placeholder="nechte prazdne = beze zmeny" autocomplete="new-password" /></div>
-    </div>
-    <p class="muted" style="margin:0.25rem 0 0;font-size:0.82rem;">Heslo je ulozeno sifrovane. Pri editaci nechte prazdne, pokud nechcete menit.</p>
-  </fieldset>
-  <button type="submit">Ulozit e-shop</button>
-</form>
-<?php
-  $cfg = include __DIR__ . '/../config/config.php';
-  $cronToken = (string)($cfg['cron_token'] ?? '');
-  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-  $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
-  $cronUrl = $scheme . '://' . $host . '/cron.php' . ($cronToken !== '' ? '?token=' . urlencode($cronToken) : '');
-?>
-<div style="margin-top:0.75rem;padding:0.75rem 1rem;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;font-size:0.85rem;">
-  <strong>Automaticky import (CRON)</strong><br>
-  <span style="color:#455a64;">
-    Pro automaticke stahovani faktur ze Shoptetu nastavte v hostingu (Webglobe: HOSTING &rarr; WEB &rarr; CRON)
-    pravidelne spousteni nasledujici adresy. Doporuceny interval je kazdych 15&ndash;30 minut.
-    Vzdy se zpracuje pouze jeden e-shop na jedno spusteni, takze nehrozí pretizeni serveru.
-  </span>
-  <div style="margin-top:0.5rem;padding:0.4rem 0.6rem;background:#fff;border:1px solid #bbdefb;border-radius:4px;font-family:monospace;word-break:break-all;user-select:all;cursor:text;">
-    <?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?>
-  </div>
-  <span style="color:#78909c;font-size:0.8rem;">Kliknete do pole a zkopirujte celou adresu.</span>
-</div>
 <table>
   <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Auto-import</th><th>Akce</th></tr>
   <?php foreach (($series ?? []) as $s): ?>
@@ -114,10 +73,65 @@
   </tr>
   <?php endforeach; ?>
 </table>
+<div style="margin-top:0.5rem;">
+  <button type="button" id="btn-add-series" style="cursor:pointer;">+ Pridat e-shop</button>
+</div>
+<?php
+  $cfg = include __DIR__ . '/../config/config.php';
+  $cronToken = (string)($cfg['cron_token'] ?? '');
+  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+  $cronUrl = $scheme . '://' . $host . '/cron.php' . ($cronToken !== '' ? '?token=' . urlencode($cronToken) : '');
+?>
+<div style="margin-top:0.75rem;padding:0.75rem 1rem;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;font-size:0.85rem;">
+  <strong>Automaticky import (CRON)</strong><br>
+  <span style="color:#455a64;">
+    Pro automaticke stahovani faktur ze Shoptetu nastavte v hostingu (Webglobe: HOSTING &rarr; WEB &rarr; CRON)
+    pravidelne spousteni nasledujici adresy. Doporuceny interval je kazdych 15&ndash;30 minut.
+    Vzdy se zpracuje pouze jeden e-shop na jedno spusteni, takze nehrozí pretizeni serveru.
+  </span>
+  <div style="margin-top:0.5rem;padding:0.4rem 0.6rem;background:#fff;border:1px solid #bbdefb;border-radius:4px;font-family:monospace;word-break:break-all;user-select:all;cursor:text;">
+    <?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?>
+  </div>
+  <span style="color:#78909c;font-size:0.8rem;">Kliknete do pole a zkopirujte celou adresu.</span>
+</div>
+<div id="series-form-wrapper" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;background:#f5f5f5;border:1px solid #cfd8dc;border-radius:6px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+    <strong id="series-form-title">Novy e-shop</strong>
+    <button type="button" id="btn-cancel-series" style="cursor:pointer;background:none;border:none;font-size:1.2rem;color:#78909c;" title="Zavrit">&times;</button>
+  </div>
+  <form method="post" action="/settings/series" id="series-form" class="series-form">
+    <input type="hidden" name="id" value="" />
+    <fieldset>
+      <legend>Fakturacni rada</legend>
+      <div class="field-row">
+        <div><label>E-shop</label><input type="text" name="eshop_source" required /></div>
+        <div><label>Prefix</label><input type="text" name="prefix" /></div>
+        <div><label>Cislo od</label><input type="text" name="cislo_od" /></div>
+        <div><label>Cislo do</label><input type="text" name="cislo_do" /></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Auto-import (prihlaseni do adminu)</legend>
+      <div class="field-row">
+        <div><label>Admin URL</label><input type="url" name="admin_url" placeholder="https://www.example.com" /></div>
+        <div><label>E-mail</label><input type="email" name="admin_email" placeholder="admin@example.com" /></div>
+        <div><label>Heslo</label><input type="password" name="admin_password" placeholder="nechte prazdne = beze zmeny" autocomplete="new-password" /></div>
+      </div>
+      <p class="muted" style="margin:0.25rem 0 0;font-size:0.82rem;">Heslo je ulozeno sifrovane. Pri editaci nechte prazdne, pokud nechcete menit.</p>
+    </fieldset>
+    <button type="submit">Ulozit e-shop</button>
+  </form>
+</div>
 <script>
 (function(){
   const form = document.getElementById('series-form');
-  if (!form) return;
+  const wrapper = document.getElementById('series-form-wrapper');
+  const title = document.getElementById('series-form-title');
+  const btnAdd = document.getElementById('btn-add-series');
+  const btnCancel = document.getElementById('btn-cancel-series');
+  if (!form || !wrapper) return;
+
   const fields = {
     id: form.querySelector('input[name="id"]'),
     eshop: form.querySelector('input[name="eshop_source"]'),
@@ -129,6 +143,42 @@
     adminPassword: form.querySelector('input[name="admin_password"]'),
   };
   const setValue = (input, value = '') => { if (input) input.value = value; };
+
+  function resetForm() {
+    setValue(fields.id, '');
+    setValue(fields.eshop, '');
+    setValue(fields.prefix, '');
+    setValue(fields.from, '');
+    setValue(fields.to, '');
+    setValue(fields.adminUrl, '');
+    setValue(fields.adminEmail, '');
+    setValue(fields.adminPassword, '');
+    if (fields.adminPassword) fields.adminPassword.placeholder = 'nechte prazdne = beze zmeny';
+  }
+
+  function showForm(titleText) {
+    if (title) title.textContent = titleText;
+    wrapper.style.display = 'block';
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function hideForm() {
+    wrapper.style.display = 'none';
+    resetForm();
+  }
+
+  if (btnAdd) {
+    btnAdd.addEventListener('click', () => {
+      resetForm();
+      showForm('Novy e-shop');
+      fields.eshop?.focus();
+    });
+  }
+
+  if (btnCancel) {
+    btnCancel.addEventListener('click', hideForm);
+  }
+
   document.querySelectorAll('.js-edit-series').forEach((btn) => {
     btn.addEventListener('click', () => {
       setValue(fields.id, btn.dataset.id || '');
@@ -144,8 +194,8 @@
       } else if (fields.adminPassword) {
         fields.adminPassword.placeholder = 'nechte prazdne = beze zmeny';
       }
+      showForm('Upravit: ' + (btn.dataset.eshop || ''));
       fields.eshop?.focus();
-      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 })();
