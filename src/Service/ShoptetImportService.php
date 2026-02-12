@@ -271,7 +271,14 @@ final class ShoptetImportService
                     // Ověřit, že odpověď je XML
                     if (stripos($xmlContent, '<?xml') === false && stripos($xmlContent, '<dat:dataPack') === false) {
                         if (stripos($xmlContent, '<html') !== false) {
-                            throw new \RuntimeException("Export {$label} vrátil HTML místo XML.");
+                            // Extrahovat <title> pro diagnostiku
+                            $htmlTitle = '';
+                            if (preg_match('#<title[^>]*>(.*?)</title>#si', $xmlContent, $tm)) {
+                                $htmlTitle = ' Title: ' . trim(strip_tags($tm[1]));
+                            }
+                            $snippet = substr(strip_tags($xmlContent), 0, 200);
+                            $this->log("HTML odpověď ({$label}):{$htmlTitle} Snippet: {$snippet}", 'DEBUG');
+                            throw new \RuntimeException("Export {$label} vrátil HTML místo XML.{$htmlTitle}");
                         }
                     }
 
@@ -474,14 +481,26 @@ final class ShoptetImportService
     }
 
     /**
-     * Zjistí, zda eshop už byl dnes úspěšně naimportován (alespoň 1 měna se statusem 'ok').
+     * Zjistí, zda eshop už byl dnes úspěšně naimportován,
+     * nebo zda překročil max. počet pokusů (3 chyby = stop na dnes).
      */
     private function wasImportedToday(string $eshopSource): bool
     {
         $pdo = DB::pdo();
-        $st = $pdo->prepare("SELECT COUNT(*) FROM import_history WHERE eshop_source = ? AND status = 'ok' AND DATE(created_at) = CURDATE() AND doklady > 0");
-        $st->execute([$eshopSource]);
-        return (int)$st->fetchColumn() > 0;
+        // Úspěšný import dnes?
+        $ok = $pdo->prepare("SELECT COUNT(*) FROM import_history WHERE eshop_source = ? AND status = 'ok' AND DATE(created_at) = CURDATE() AND doklady > 0");
+        $ok->execute([$eshopSource]);
+        if ((int)$ok->fetchColumn() > 0) {
+            return true;
+        }
+        // Příliš mnoho chyb dnes? (max 3 pokusy)
+        $err = $pdo->prepare("SELECT COUNT(*) FROM import_history WHERE eshop_source = ? AND status = 'error' AND DATE(created_at) = CURDATE()");
+        $err->execute([$eshopSource]);
+        if ((int)$err->fetchColumn() >= 3) {
+            $this->log("Eshop {$eshopSource}: příliš mnoho chyb dnes (3+), přeskakuji do zítřka.", 'WARN');
+            return true;
+        }
+        return false;
     }
 
     private function log(string $msg, string $level = 'INFO'): void
