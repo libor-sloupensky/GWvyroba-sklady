@@ -1353,7 +1353,9 @@ LIMIT {$limit}
         echo str_repeat('-', 40) . "\n";
         $hasError = false;
         foreach ($results as $eshop => $result) {
-            if (isset($result['error'])) {
+            if (!empty($result['skipped'])) {
+                echo "SKIP: {$eshop} (už naimportován dnes)\n";
+            } elseif (isset($result['error'])) {
                 $hasError = true;
                 echo "FAIL: {$eshop} - {$result['error']}\n";
             } elseif (isset($result['currencies'])) {
@@ -1361,6 +1363,8 @@ LIMIT {$limit}
                     if (isset($curResult['error'])) {
                         $hasError = true;
                         echo "FAIL: {$eshop}/{$cur} - {$curResult['error']}\n";
+                    } elseif (((int)($curResult['doklady'] ?? 0)) === 0) {
+                        echo "WARN: {$eshop}/{$cur} - žádné doklady\n";
                     } else {
                         echo "OK: {$eshop}/{$cur} - doklady={$curResult['doklady']}, polozky={$curResult['polozky']}\n";
                     }

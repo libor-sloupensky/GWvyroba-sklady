@@ -44,7 +44,17 @@ final class ShoptetImportService
         $results = [];
         foreach ($eshops as $row) {
             $eshopSource = (string)$row['eshop_source'];
+
+            // Přeskočit eshopy, které už dnes byly úspěšně naimportovány
+            if ($this->wasImportedToday($eshopSource)) {
+                $this->log("=== Eshop {$eshopSource}: už byl dnes naimportován, přeskakuji ===");
+                $results[$eshopSource] = ['skipped' => true];
+                continue;
+            }
+
             $this->log("=== Zpracovávám eshop: {$eshopSource} ===");
+            // Timeout per eshop: resetovat PHP time limit
+            @set_time_limit(300);
             try {
                 $results[$eshopSource] = $this->runForEshop($row);
             } catch (\Throwable $e) {
@@ -159,7 +169,7 @@ final class ShoptetImportService
 
                     if (empty(trim($xmlContent))) {
                         $this->log("Export {$label}: prázdná odpověď, přeskakuji.", 'WARN');
-                        $this->saveHistory($eshopSource, strtoupper($label), $firstOfLastMonth->format('Y-m-d'), $now->format('Y-m-d'), null, 0, 0, 'ok', 'Prázdná odpověď (žádné faktury)');
+                        $this->saveHistory($eshopSource, strtoupper($label), $firstOfLastMonth->format('Y-m-d'), $now->format('Y-m-d'), null, 0, 0, 'warning', 'Prázdná odpověď (žádné faktury)');
                         continue;
                     }
 
@@ -187,20 +197,37 @@ final class ShoptetImportService
 
                     $totalResults['currencies'][$label] = $result;
                 } catch (\Throwable $e) {
-                    $msg = "Import {$label} selhal: " . $e->getMessage();
-                    $this->log($msg, 'ERROR');
-                    $this->saveHistory(
-                        $eshopSource,
-                        strtoupper($label),
-                        $firstOfLastMonth->format('Y-m-d'),
-                        $now->format('Y-m-d'),
-                        null,
-                        0,
-                        0,
-                        'error',
-                        $e->getMessage()
-                    );
-                    $totalResults['currencies'][$label] = ['error' => $e->getMessage()];
+                    $isEmptyExport = str_contains($e->getMessage(), 'neobsahuje žádné doklady');
+                    if ($isEmptyExport) {
+                        $this->log("Export {$label}: žádné doklady pro toto období, přeskakuji.", 'WARN');
+                        $this->saveHistory(
+                            $eshopSource,
+                            strtoupper($label),
+                            $firstOfLastMonth->format('Y-m-d'),
+                            $now->format('Y-m-d'),
+                            null,
+                            0,
+                            0,
+                            'warning',
+                            'Žádné doklady pro toto období.'
+                        );
+                        $totalResults['currencies'][$label] = ['doklady' => 0, 'polozky' => 0, 'batch' => null];
+                    } else {
+                        $msg = "Import {$label} selhal: " . $e->getMessage();
+                        $this->log($msg, 'ERROR');
+                        $this->saveHistory(
+                            $eshopSource,
+                            strtoupper($label),
+                            $firstOfLastMonth->format('Y-m-d'),
+                            $now->format('Y-m-d'),
+                            null,
+                            0,
+                            0,
+                            'error',
+                            $e->getMessage()
+                        );
+                        $totalResults['currencies'][$label] = ['error' => $e->getMessage()];
+                    }
                 }
             }
 
@@ -349,6 +376,17 @@ final class ShoptetImportService
     {
         $pdo = DB::pdo();
         return $pdo->query("SELECT * FROM nastaveni_rady WHERE admin_url IS NOT NULL AND admin_url != '' AND admin_email IS NOT NULL AND admin_email != '' AND admin_password_enc IS NOT NULL AND admin_password_enc != '' ORDER BY eshop_source")->fetchAll();
+    }
+
+    /**
+     * Zjistí, zda eshop už byl dnes úspěšně naimportován (alespoň 1 měna se statusem 'ok').
+     */
+    private function wasImportedToday(string $eshopSource): bool
+    {
+        $pdo = DB::pdo();
+        $st = $pdo->prepare("SELECT COUNT(*) FROM import_history WHERE eshop_source = ? AND status = 'ok' AND DATE(created_at) = CURDATE() AND doklady > 0");
+        $st->execute([$eshopSource]);
+        return (int)$st->fetchColumn() > 0;
     }
 
     private function log(string $msg, string $level = 'INFO'): void

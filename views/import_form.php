@@ -157,7 +157,8 @@ $formatCzk = static function ($value): string {
       </tr>
       <?php foreach (($historyRows ?? []) as $hRow): ?>
       <?php $isError = ($hRow['status'] ?? '') === 'error'; ?>
-      <tr style="<?= $isError ? 'background:#ffebee;color:#c62828;' : '' ?>">
+      <?php $isWarning = ($hRow['status'] ?? '') === 'warning'; ?>
+      <tr style="<?= $isError ? 'background:#ffebee;color:#c62828;' : ($isWarning ? 'background:#fff8e1;color:#e65100;' : '') ?>">
         <td><?= htmlspecialchars((string)($hRow['created_at'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)($hRow['eshop_source'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
         <td><?= htmlspecialchars((string)($hRow['mena'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
@@ -173,6 +174,8 @@ $formatCzk = static function ($value): string {
         <td>
           <?php if ($isError): ?>
             <strong style="color:#c62828;">CHYBA</strong>
+          <?php elseif ($isWarning): ?>
+            <span style="color:#e65100;">POZOR</span>
           <?php else: ?>
             <span style="color:#2e7d32;">OK</span>
           <?php endif; ?>

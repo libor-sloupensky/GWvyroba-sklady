@@ -168,6 +168,12 @@ try {
             KEY idx_ih_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci");
     }
+    // Rozšíření ENUM status o 'warning'
+    try {
+        $pdo->exec("ALTER TABLE import_history MODIFY COLUMN status ENUM('ok','error','warning') NOT NULL DEFAULT 'ok'");
+    } catch (Throwable $e) {
+        // Už může být rozšířeno
+    }
     echo "Migrace OK\n";
 } catch (Throwable $e) {
     echo "Migrace selhala: " . $e->getMessage() . "\n";
