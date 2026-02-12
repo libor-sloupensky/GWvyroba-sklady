@@ -87,7 +87,7 @@
       <?php if ($hasCredentials): ?>
         <span class="series-badge series-badge-ok" title="Prihlasovaci udaje nastaveny">aktivni</span>
       <?php else: ?>
-        <span class="series-badge series-badge-no" title="Prihlasovaci udaje chybi">---</span>
+        <span class="series-badge series-badge-no" title="Prihlasovaci udaje chybi" style="background:#ffebee;color:#c62828;">neaktivni</span>
       <?php endif; ?>
     </td>
     <td>
