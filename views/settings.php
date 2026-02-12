@@ -58,11 +58,22 @@
 <?php
   $cfg = include __DIR__ . '/../config/config.php';
   $cronToken = (string)($cfg['cron_token'] ?? '');
-  $cronUrl = '/import/auto-run' . ($cronToken !== '' ? '?token=' . urlencode($cronToken) : '');
+  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+  $cronUrl = $scheme . '://' . $host . '/cron.php' . ($cronToken !== '' ? '?token=' . urlencode($cronToken) : '');
 ?>
-<p class="muted" style="margin-top:0.5rem;font-size:0.85rem;">
-  Cron URL pro automaticky import: <code><?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?></code>
-</p>
+<div style="margin-top:0.75rem;padding:0.75rem 1rem;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;font-size:0.85rem;">
+  <strong>Automaticky import (CRON)</strong><br>
+  <span style="color:#455a64;">
+    Pro automaticke stahovani faktur ze Shoptetu nastavte v hostingu (Webglobe: HOSTING &rarr; WEB &rarr; CRON)
+    pravidelne spousteni nasledujici adresy. Doporuceny interval je kazdych 15&ndash;30 minut.
+    Vzdy se zpracuje pouze jeden e-shop na jedno spusteni, takze nehrozí pretizeni serveru.
+  </span>
+  <div style="margin-top:0.5rem;padding:0.4rem 0.6rem;background:#fff;border:1px solid #bbdefb;border-radius:4px;font-family:monospace;word-break:break-all;user-select:all;cursor:text;">
+    <?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?>
+  </div>
+  <span style="color:#78909c;font-size:0.8rem;">Kliknete do pole a zkopirujte celou adresu.</span>
+</div>
 <table>
   <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Auto-import</th><th>Akce</th></tr>
   <?php foreach (($series ?? []) as $s): ?>
