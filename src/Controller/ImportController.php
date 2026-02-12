@@ -1351,6 +1351,13 @@ LIMIT {$limit}
         }
 
         echo str_repeat('-', 40) . "\n";
+
+        // Pokud běží jiný import, rychle ukončit
+        if (isset($results['_locked'])) {
+            echo "LOCKED: Jiný import právě běží, zkuste za chvíli.\n\nSTATUS: OK\n";
+            return;
+        }
+
         $hasError = false;
         foreach ($results as $eshop => $result) {
             if (!empty($result['skipped'])) {

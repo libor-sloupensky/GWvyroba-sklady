@@ -31,17 +31,45 @@ final class ShoptetImportService
     }
 
     /**
-     * Spustí auto-import pro všechny eshopy s vyplněnými credentials.
+     * Spustí auto-import. Zpracuje JEDEN eshop na jedno spuštění.
+     * Používá file lock proti souběžným běhům.
      * @return array<string,array<string,mixed>> Výsledky per eshop
      */
     public function runAll(): array
+    {
+        // File lock - zabránit souběžným běhům
+        $lockFile = sys_get_temp_dir() . '/gworm_shoptet_import.lock';
+        $lockFp = @fopen($lockFile, 'c');
+        if (!$lockFp || !flock($lockFp, LOCK_EX | LOCK_NB)) {
+            $this->log('Jiný import právě běží, přeskakuji.', 'WARN');
+            if ($lockFp) { fclose($lockFp); }
+            return ['_locked' => ['skipped' => true]];
+        }
+
+        // Zapsat PID do lock souboru pro diagnostiku
+        ftruncate($lockFp, 0);
+        fwrite($lockFp, (string)getmypid() . ' ' . date('Y-m-d H:i:s'));
+        fflush($lockFp);
+
+        try {
+            return $this->runAllInternal();
+        } finally {
+            flock($lockFp, LOCK_UN);
+            fclose($lockFp);
+        }
+    }
+
+    private function runAllInternal(): array
     {
         $eshops = $this->loadEshopsWithCredentials();
         if (empty($eshops)) {
             $this->log('Žádné eshopy s přihlašovacími údaji.', 'WARN');
             return [];
         }
+
         $results = [];
+        $processed = false;
+
         foreach ($eshops as $row) {
             $eshopSource = (string)$row['eshop_source'];
 
@@ -52,8 +80,8 @@ final class ShoptetImportService
                 continue;
             }
 
+            // Zpracovat pouze JEDEN eshop a skončit
             $this->log("=== Zpracovávám eshop: {$eshopSource} ===");
-            // Timeout per eshop: resetovat PHP time limit
             @set_time_limit(300);
             try {
                 $results[$eshopSource] = $this->runForEshop($row);
@@ -62,6 +90,12 @@ final class ShoptetImportService
                 $results[$eshopSource] = ['error' => $e->getMessage()];
                 $this->saveHistory($eshopSource, '', null, null, null, 0, 0, 'error', $e->getMessage());
             }
+            $processed = true;
+            break; // Jeden eshop na jedno spuštění
+        }
+
+        if (!$processed) {
+            $this->log('Všechny eshopy jsou dnes hotové.');
         }
         $this->log('=== Auto-import dokončen ===');
         return $results;
