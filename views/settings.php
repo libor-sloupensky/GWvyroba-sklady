@@ -1,5 +1,4 @@
 <h1>Nastavení</h1>
-<!-- noop change: deployment refresh -->
 
 <?php if (!empty($flashError)): ?>
   <div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;">
@@ -12,7 +11,14 @@
   </div>
 <?php endif; ?>
 
-<h2>E-shopy a fakturační řady</h2>
+<style>
+.settings-toggle { cursor:pointer; user-select:none; }
+.settings-toggle:hover { color:#1565c0; }
+.settings-toggle .tri { display:inline-block; width:1em; font-size:0.8em; }
+</style>
+
+<h2 class="settings-toggle"><span class="tri">▸</span> E-shopy a fakturační řady</h2>
+<div class="settings-section" style="display:none;">
 <style>
 .series-form fieldset { border:1px solid #cfd8dc; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.75rem; }
 .series-form legend { font-weight:600; font-size:0.95rem; padding:0 0.4rem; }
@@ -133,8 +139,10 @@
   });
 })();
 </script>
+</div>
 
-<h2>Ignorované položky</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Ignorované položky</h2>
+<div class="settings-section" style="display:none;">
 <form method="post" action="/settings/ignore">
   <label>Glob vzor (např. *SHIPPING*)</label>
   <input type="text" name="vzor" required />
@@ -151,8 +159,10 @@
     </li>
   <?php endforeach; ?>
 </ul>
+</div>
 
-<h2>Značky produktů</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Značky produktů</h2>
+<div class="settings-section" style="display:none;">
 <form method="post" action="/settings/brand">
   <label>Název značky</label>
   <input type="text" name="nazev" required />
@@ -176,8 +186,10 @@
   </tr>
   <?php endforeach; ?>
 </table>
+</div>
 
-<h2>Skupiny produktů</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Skupiny produktů</h2>
+<div class="settings-section" style="display:none;">
 <form method="post" action="/settings/group">
   <label>Název skupiny</label>
   <input type="text" name="nazev" required />
@@ -201,8 +213,10 @@
   </tr>
   <?php endforeach; ?>
 </table>
+</div>
 
-<h2>Typy produktů</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Typy produktů</h2>
+<div class="settings-section" style="display:none;">
 <form method="post" action="/settings/type" id="product-type-form">
   <input type="hidden" name="id" value="" />
   <label>Kód typu (bez diakritiky)</label>
@@ -270,8 +284,10 @@
   });
 })();
 </script>
+</div>
 
-<h2>Měrné jednotky</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Měrné jednotky</h2>
+<div class="settings-section" style="display:none;">
 <form method="post" action="/settings/unit">
   <label>Kód jednotky (např. ks, kg)</label>
   <input type="text" name="kod" required />
@@ -295,8 +311,10 @@
   </tr>
   <?php endforeach; ?>
 </table>
+</div>
 
-<h2>Globální nastavení</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Globální nastavení</h2>
+<div class="settings-section" style="display:none;">
 <style>
 .info-icon {
   display: inline-flex;
@@ -355,9 +373,11 @@
     <button type="submit">Uložit</button>
   </div>
 </form>
+</div>
 
 <?php if (!empty($canManageUsers)): ?>
-<h2>Uživatelé (superadmin)</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Uživatelé (superadmin)</h2>
+<div class="settings-section" style="display:none;">
 <p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu jej povolíte, odebrání provedete deaktivací účtu. U každého vidíte aktuální roli.</p>
 <form method="post" action="/settings/users/save" id="user-form">
   <input type="hidden" name="id" value="" />
@@ -418,4 +438,24 @@
   });
 })();
 </script>
+</div>
 <?php endif; ?>
+
+<script>
+(function(){
+  document.querySelectorAll('.settings-toggle').forEach(function(h2) {
+    h2.addEventListener('click', function() {
+      var body = this.nextElementSibling;
+      var tri = this.querySelector('.tri');
+      if (!body) return;
+      if (body.style.display === 'none') {
+        body.style.display = '';
+        tri.textContent = '\u25BE';
+      } else {
+        body.style.display = 'none';
+        tri.textContent = '\u25B8';
+      }
+    });
+  });
+})();
+</script>
