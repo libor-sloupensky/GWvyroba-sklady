@@ -10,15 +10,15 @@ declare(strict_types=1);
  *   Script: https://vase-domena.cz/cron.php?token=VAS-CRON-TOKEN
  *
  * Alternativně lze spustit z CLI:
- *   php public/cron.php
+ *   php cron.php
  */
 
-require __DIR__ . '/../src/bootstrap.php';
+require __DIR__ . '/src/bootstrap.php';
 
 use App\Service\ShoptetImportService;
 
 // -- Autorizace --------------------------------------------------------
-$cfg = include __DIR__ . '/../config/config.php';
+$cfg = include __DIR__ . '/config/config.php';
 $cronToken = (string)($cfg['cron_token'] ?? '');
 $providedToken = trim((string)($_GET['token'] ?? ''));
 
