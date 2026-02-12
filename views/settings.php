@@ -12,27 +12,67 @@
   </div>
 <?php endif; ?>
 
-<h2>Fakturační řady</h2>
-<form method="post" action="/settings/series" id="series-form">
+<h2>E-shopy a fakturační řady</h2>
+<style>
+.series-form fieldset { border:1px solid #cfd8dc; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.75rem; }
+.series-form legend { font-weight:600; font-size:0.95rem; padding:0 0.4rem; }
+.series-form .field-row { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:0.5rem; }
+.series-form .field-row > div { display:flex; flex-direction:column; }
+.series-form .field-row label { font-size:0.85rem; color:#455a64; margin-bottom:2px; }
+.series-form .field-row input { min-width:120px; }
+.series-form .field-row input[name="eshop_source"] { min-width:180px; }
+.series-form .field-row input[name="admin_url"] { min-width:240px; }
+.series-form .field-row input[name="admin_email"] { min-width:200px; }
+.series-badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:0.8rem; }
+.series-badge-ok { background:#e6f4ea; color:#1b5e20; }
+.series-badge-no { background:#eceff1; color:#78909c; }
+</style>
+<form method="post" action="/settings/series" id="series-form" class="series-form">
   <input type="hidden" name="id" value="" />
-  <label>E-shop</label>
-  <input type="text" name="eshop_source" required />
-  <label>Prefix</label>
-  <input type="text" name="prefix" />
-  <label>Číslo od</label>
-  <input type="text" name="cislo_od" />
-  <label>Číslo do</label>
-  <input type="text" name="cislo_do" />
-  <button type="submit">Uložit</button>
+  <fieldset>
+    <legend>Fakturacni rada</legend>
+    <div class="field-row">
+      <div><label>E-shop</label><input type="text" name="eshop_source" required /></div>
+      <div><label>Prefix</label><input type="text" name="prefix" /></div>
+      <div><label>Cislo od</label><input type="text" name="cislo_od" /></div>
+      <div><label>Cislo do</label><input type="text" name="cislo_do" /></div>
+    </div>
+  </fieldset>
+  <fieldset>
+    <legend>Auto-import (prihlaseni do adminu)</legend>
+    <div class="field-row">
+      <div><label>Admin URL</label><input type="url" name="admin_url" placeholder="https://www.example.com" /></div>
+      <div><label>E-mail</label><input type="email" name="admin_email" placeholder="admin@example.com" /></div>
+      <div><label>Heslo</label><input type="password" name="admin_password" placeholder="nechte prazdne = beze zmeny" autocomplete="new-password" /></div>
+    </div>
+    <p class="muted" style="margin:0.25rem 0 0;font-size:0.82rem;">Heslo je ulozeno sifrovane. Pri editaci nechte prazdne, pokud nechcete menit.</p>
+  </fieldset>
+  <button type="submit">Ulozit e-shop</button>
 </form>
+<?php
+  $cfg = include __DIR__ . '/../config/config.php';
+  $cronToken = (string)($cfg['cron_token'] ?? '');
+  $cronUrl = '/import/auto-run' . ($cronToken !== '' ? '?token=' . urlencode($cronToken) : '');
+?>
+<p class="muted" style="margin-top:0.5rem;font-size:0.85rem;">
+  Cron URL pro automaticky import: <code><?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?></code>
+</p>
 <table>
-  <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Akce</th></tr>
+  <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Auto-import</th><th>Akce</th></tr>
   <?php foreach (($series ?? []) as $s): ?>
+  <?php $hasCredentials = !empty($s['admin_url']) && !empty($s['admin_email']) && !empty($s['admin_password_enc']); ?>
   <tr>
     <td><?= htmlspecialchars((string)$s['eshop_source'], ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$s['prefix'], ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$s['cislo_od'], ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$s['cislo_do'], ENT_QUOTES, 'UTF-8') ?></td>
+    <td>
+      <?php if ($hasCredentials): ?>
+        <span class="series-badge series-badge-ok" title="Prihlasovaci udaje nastaveny">aktivni</span>
+      <?php else: ?>
+        <span class="series-badge series-badge-no" title="Prihlasovaci udaje chybi">---</span>
+      <?php endif; ?>
+    </td>
     <td>
       <button type="button"
         class="js-edit-series"
@@ -41,14 +81,17 @@
         data-prefix="<?= htmlspecialchars((string)$s['prefix'], ENT_QUOTES, 'UTF-8') ?>"
         data-cislo-od="<?= htmlspecialchars((string)$s['cislo_od'], ENT_QUOTES, 'UTF-8') ?>"
         data-cislo-do="<?= htmlspecialchars((string)$s['cislo_do'], ENT_QUOTES, 'UTF-8') ?>"
+        data-admin-url="<?= htmlspecialchars((string)($s['admin_url'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+        data-admin-email="<?= htmlspecialchars((string)($s['admin_email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+        data-has-password="<?= !empty($s['admin_password_enc']) ? '1' : '0' ?>"
       >Upravit</button>
       <?php if (empty($s['has_imports'])): ?>
         <form method="post" action="/settings/series/delete" style="display:inline;margin-left:8px;">
           <input type="hidden" name="id" value="<?= (int)$s['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop">✕</button>
+          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop">&#10005;</button>
         </form>
       <?php else: ?>
-        <span class="muted" title="E-shop má importovaná data, nejde smazat.">nelze smazat</span>
+        <span class="muted" title="E-shop ma importovana data, nejde smazat.">nelze smazat</span>
       <?php endif; ?>
     </td>
   </tr>
@@ -63,7 +106,10 @@
     eshop: form.querySelector('input[name="eshop_source"]'),
     prefix: form.querySelector('input[name="prefix"]'),
     from: form.querySelector('input[name="cislo_od"]'),
-    to: form.querySelector('input[name="cislo_do"]')
+    to: form.querySelector('input[name="cislo_do"]'),
+    adminUrl: form.querySelector('input[name="admin_url"]'),
+    adminEmail: form.querySelector('input[name="admin_email"]'),
+    adminPassword: form.querySelector('input[name="admin_password"]'),
   };
   const setValue = (input, value = '') => { if (input) input.value = value; };
   document.querySelectorAll('.js-edit-series').forEach((btn) => {
@@ -73,6 +119,14 @@
       setValue(fields.prefix, btn.dataset.prefix || '');
       setValue(fields.from, btn.dataset.cisloOd || '');
       setValue(fields.to, btn.dataset.cisloDo || '');
+      setValue(fields.adminUrl, btn.dataset.adminUrl || '');
+      setValue(fields.adminEmail, btn.dataset.adminEmail || '');
+      setValue(fields.adminPassword, '');
+      if (fields.adminPassword && btn.dataset.hasPassword === '1') {
+        fields.adminPassword.placeholder = '*** (ulozeno, nechte prazdne)';
+      } else if (fields.adminPassword) {
+        fields.adminPassword.placeholder = 'nechte prazdne = beze zmeny';
+      }
       fields.eshop?.focus();
       form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });

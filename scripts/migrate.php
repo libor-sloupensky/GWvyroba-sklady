@@ -140,6 +140,34 @@ try {
         addColumn($pdo, 'rezervace', "COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
         try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (Throwable $e) {}
     }
+    // Auto-import credentials pro nastaveni_rady
+    if (!columnExists($pdo, 'nastaveni_rady', 'admin_url')) {
+        addColumn($pdo, 'nastaveni_rady', 'COLUMN `admin_url` VARCHAR(255) NULL AFTER `cislo_do`');
+    }
+    if (!columnExists($pdo, 'nastaveni_rady', 'admin_email')) {
+        addColumn($pdo, 'nastaveni_rady', 'COLUMN `admin_email` VARCHAR(255) NULL AFTER `admin_url`');
+    }
+    if (!columnExists($pdo, 'nastaveni_rady', 'admin_password_enc')) {
+        addColumn($pdo, 'nastaveni_rady', 'COLUMN `admin_password_enc` TEXT NULL AFTER `admin_email`');
+    }
+    // Import history tabulka
+    if (!tableExists($pdo, 'import_history')) {
+        $pdo->exec("CREATE TABLE import_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            eshop_source VARCHAR(128) NOT NULL,
+            mena VARCHAR(8) NOT NULL DEFAULT '',
+            datum_od DATE NULL,
+            datum_do DATE NULL,
+            batch_id VARCHAR(32) NULL,
+            doklady INT NOT NULL DEFAULT 0,
+            polozky INT NOT NULL DEFAULT 0,
+            status ENUM('ok','error') NOT NULL DEFAULT 'ok',
+            message TEXT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_ih_eshop (eshop_source),
+            KEY idx_ih_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci");
+    }
     echo "Migrace OK\n";
 } catch (Throwable $e) {
     echo "Migrace selhala: " . $e->getMessage() . "\n";

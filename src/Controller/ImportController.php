@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Service\ShoptetImportService;
 use App\Support\DB;
 
 final class ImportController
@@ -786,6 +787,7 @@ final class ImportController
         $vars['viewModes'] = $this->viewModes();
         $vars['invoiceRows'] = $viewMode === 'invoices' ? $this->loadImportedInvoices($invoiceLimit) : [];
         $vars['invoiceLimit'] = $invoiceLimit;
+        $vars['historyRows'] = $viewMode === 'history' ? $this->loadImportHistory() : [];
         $this->render('import_form.php', $vars);
     }
 
@@ -837,6 +839,7 @@ final class ImportController
             'all'       => 'Všechny vazby',
             'unique'    => 'Všechny unikátní vazby',
             'invoices'  => 'Naimportované faktury',
+            'history'   => 'Historie auto-importu',
         ];
     }
 
@@ -888,7 +891,7 @@ final class ImportController
      */
     private function filterOutstandingRows(array $rows, string $mode): array
     {
-        if ($mode === 'invoices') {
+        if ($mode === 'invoices' || $mode === 'history') {
             return [];
         }
         if ($mode === 'unmatched') {
@@ -1298,5 +1301,80 @@ LIMIT {$limit}
             'header' => $header,
             'items' => $items,
         ], JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Web endpoint pro automatický import (cron URL).
+     * Autorizace: admin session nebo ?token= z config.php.
+     */
+    public function autoRun(): void
+    {
+        // Autorizace: buď admin session nebo cron token
+        $cfg = include __DIR__ . '/../../config/config.php';
+        $cronToken = (string)($cfg['cron_token'] ?? '');
+        $providedToken = trim((string)($_GET['token'] ?? ''));
+
+        $authorized = false;
+        if ($cronToken !== '' && $providedToken !== '' && hash_equals($cronToken, $providedToken)) {
+            $authorized = true;
+        }
+        if (!$authorized) {
+            $u = $_SESSION['user'] ?? null;
+            if ($u && in_array(($u['role'] ?? 'user'), ['admin', 'superadmin'], true)) {
+                $authorized = true;
+            }
+        }
+
+        if (!$authorized) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo "403 Forbidden: Invalid token or not logged in.\n";
+            return;
+        }
+
+        header('Content-Type: text/plain; charset=utf-8');
+        @ini_set('output_buffering', 'off');
+        @ini_set('zlib.output_compression', '0');
+        if (function_exists('ob_implicit_flush')) {
+            ob_implicit_flush(true);
+        }
+
+        echo "Shoptet auto-import\n";
+        echo str_repeat('-', 40) . "\n";
+
+        $service = new ShoptetImportService();
+        $results = $service->runAll();
+
+        // Výpis logů
+        foreach ($service->getLogBuffer() as $line) {
+            echo $line . "\n";
+        }
+
+        echo str_repeat('-', 40) . "\n";
+        $hasError = false;
+        foreach ($results as $eshop => $result) {
+            if (isset($result['error'])) {
+                $hasError = true;
+                echo "FAIL: {$eshop} - {$result['error']}\n";
+            } elseif (isset($result['currencies'])) {
+                foreach ($result['currencies'] as $cur => $curResult) {
+                    if (isset($curResult['error'])) {
+                        $hasError = true;
+                        echo "FAIL: {$eshop}/{$cur} - {$curResult['error']}\n";
+                    } else {
+                        echo "OK: {$eshop}/{$cur} - doklady={$curResult['doklady']}, polozky={$curResult['polozky']}\n";
+                    }
+                }
+            }
+        }
+        echo $hasError ? "\nSTATUS: ERROR\n" : "\nSTATUS: OK\n";
+    }
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    private function loadImportHistory(): array
+    {
+        return DB::pdo()->query('SELECT * FROM import_history ORDER BY created_at DESC LIMIT 200')->fetchAll();
     }
 }

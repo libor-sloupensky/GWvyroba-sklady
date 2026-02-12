@@ -24,4 +24,6 @@ return [
     'superadmins' => ['sloupensky@grig.cz'],
     'allowed_domain' => '', // pokud chcete omezit na doménu, nastavte např. wormup.com
   ],
+  'encryption_key' => getenv('ENCRYPTION_KEY') ?: 'gw0rm-s3cr3t-k3y-ch4ng3-m3',
+  'cron_token' => getenv('CRON_TOKEN') ?: 'gworm-auto-import-2025',
 ];

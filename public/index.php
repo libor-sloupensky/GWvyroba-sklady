@@ -70,6 +70,7 @@ $router->post('/import/delete-last', [ImportController::class, 'deleteLastBatch'
 $router->post('/import/delete-invoice', [ImportController::class, 'deleteInvoice']);
 $router->get('/import/invoice-detail', [ImportController::class, 'getInvoiceDetail']);
 $router->get('/report/missing-sku', [ImportController::class, 'reportMissingSku']);
+$router->get('/import/auto-run', [ImportController::class, 'autoRun']);
 
 // Produkty
 $router->get('/products', [ProductsController::class, 'index']);

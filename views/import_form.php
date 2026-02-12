@@ -138,6 +138,54 @@ $formatCzk = static function ($value): string {
   <?php endif; ?>
 <?php endif; ?>
 
+<?php if (($viewMode ?? '') === 'history'): ?>
+  <hr>
+  <h2>Historie auto-importu</h2>
+  <?php if (empty($historyRows ?? [])): ?>
+    <p class="muted">Zatim zadna historie.</p>
+  <?php else: ?>
+    <table class="invoice-table">
+      <tr>
+        <th>Datum</th>
+        <th>E-shop</th>
+        <th>Mena</th>
+        <th>Obdobi</th>
+        <th>Doklady</th>
+        <th>Polozky</th>
+        <th>Status</th>
+        <th>Zprava</th>
+      </tr>
+      <?php foreach (($historyRows ?? []) as $hRow): ?>
+      <?php $isError = ($hRow['status'] ?? '') === 'error'; ?>
+      <tr style="<?= $isError ? 'background:#ffebee;color:#c62828;' : '' ?>">
+        <td><?= htmlspecialchars((string)($hRow['created_at'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($hRow['eshop_source'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+        <td><?= htmlspecialchars((string)($hRow['mena'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
+        <td>
+          <?php if (!empty($hRow['datum_od']) && !empty($hRow['datum_do'])): ?>
+            <?= htmlspecialchars((string)$hRow['datum_od'], ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars((string)$hRow['datum_do'], ENT_QUOTES, 'UTF-8') ?>
+          <?php else: ?>
+            ---
+          <?php endif; ?>
+        </td>
+        <td><?= (int)($hRow['doklady'] ?? 0) ?></td>
+        <td><?= (int)($hRow['polozky'] ?? 0) ?></td>
+        <td>
+          <?php if ($isError): ?>
+            <strong style="color:#c62828;">CHYBA</strong>
+          <?php else: ?>
+            <span style="color:#2e7d32;">OK</span>
+          <?php endif; ?>
+        </td>
+        <td style="font-size:0.85rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;" title="<?= htmlspecialchars((string)($hRow['message'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+          <?= htmlspecialchars((string)($hRow['message'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+        </td>
+      </tr>
+      <?php endforeach; ?>
+    </table>
+  <?php endif; ?>
+<?php endif; ?>
+
 <?php if (!empty($outstandingMissing)): ?>
   <hr>
   <h2>Nesp&aacute;rovan&eacute; polo&#382;ky za posledn&iacute;ch <?= (int)($outstandingDays ?? 30) ?> dn&iacute;</h2>

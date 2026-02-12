@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\CryptoService;
 use App\Service\StockService;
 use App\Support\DB;
 
@@ -11,7 +12,7 @@ final class SettingsController
     {
         $this->requireAdmin();
         $pdo = DB::pdo();
-        $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do, EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports FROM nastaveni_rady nr ORDER BY nr.eshop_source")->fetchAll();
+        $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do,nr.admin_url,nr.admin_email,nr.admin_password_enc, EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports FROM nastaveni_rady nr ORDER BY nr.eshop_source")->fetchAll();
         $ignores = $pdo->query('SELECT id,vzor FROM nastaveni_ignorovane_polozky ORDER BY id DESC')->fetchAll();
         $glob = $pdo->query('SELECT okno_pro_prumer_dni,spotreba_prumer_dni,zasoba_cil_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
         $brands = $pdo->query('SELECT z.id,z.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.znacka_id=z.id) AS used_count FROM produkty_znacky z ORDER BY z.nazev')->fetchAll();
@@ -48,6 +49,9 @@ final class SettingsController
         $prefix = trim((string)($_POST['prefix'] ?? ''));
         $from = trim((string)($_POST['cislo_od'] ?? ''));
         $to = trim((string)($_POST['cislo_do'] ?? ''));
+        $adminUrl = trim((string)($_POST['admin_url'] ?? ''));
+        $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
+        $adminPassword = (string)($_POST['admin_password'] ?? '');
 
         if ($eshop === '') {
             $_SESSION['settings_error'] = 'Zadejte název e-shopu.';
@@ -55,18 +59,31 @@ final class SettingsController
             return;
         }
 
-        $existingStmt = $pdo->prepare('SELECT id FROM nastaveni_rady WHERE eshop_source = ? LIMIT 1');
+        // Encrypt password if provided
+        $passwordEnc = null;
+        if ($adminPassword !== '') {
+            $passwordEnc = CryptoService::encrypt($adminPassword);
+        }
+
+        $existingStmt = $pdo->prepare('SELECT id, admin_password_enc FROM nastaveni_rady WHERE eshop_source = ? LIMIT 1');
         $existingStmt->execute([$eshop]);
-        $existingId = (int)($existingStmt->fetchColumn() ?: 0);
+        $existingRow = $existingStmt->fetch();
+        $existingId = $existingRow ? (int)$existingRow['id'] : 0;
         $targetId = ($existingId > 0 && $existingId !== $id) ? $existingId : $id;
 
         if ($targetId > 0) {
-            $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=? WHERE id=?');
-            $st->execute([$eshop, $prefix, $from, $to, $targetId]);
+            if ($passwordEnc !== null) {
+                $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=?,admin_url=?,admin_email=?,admin_password_enc=? WHERE id=?');
+                $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $passwordEnc, $targetId]);
+            } else {
+                // Keep existing password
+                $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=?,admin_url=?,admin_email=? WHERE id=?');
+                $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $targetId]);
+            }
             $_SESSION['settings_message'] = "E-shop {$eshop} byl upraven.";
         } else {
-            $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do) VALUES (?,?,?,?)');
-            $st->execute([$eshop, $prefix, $from, $to]);
+            $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do,admin_url,admin_email,admin_password_enc) VALUES (?,?,?,?,?,?,?)');
+            $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $passwordEnc]);
             $_SESSION['settings_message'] = "E-shop {$eshop} byl přidán.";
         }
 
