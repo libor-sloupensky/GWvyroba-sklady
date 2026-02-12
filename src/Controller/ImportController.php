@@ -1340,7 +1340,7 @@ LIMIT {$limit}
         }
 
         echo "Shoptet auto-import\n";
-        echo str_repeat('-', 40) . "\n";
+        echo str_repeat('=', 40) . "\n\n";
 
         $service = new ShoptetImportService();
         $results = $service->runAll();
@@ -1350,7 +1350,8 @@ LIMIT {$limit}
             echo $line . "\n";
         }
 
-        echo str_repeat('-', 40) . "\n";
+        echo "\n" . str_repeat('=', 40) . "\n";
+        echo "SOUHRN:\n" . str_repeat('-', 40) . "\n\n";
 
         // Pokud běží jiný import, rychle ukončit
         if (isset($results['_locked'])) {
@@ -1361,24 +1362,26 @@ LIMIT {$limit}
         $hasError = false;
         foreach ($results as $eshop => $result) {
             if (!empty($result['skipped'])) {
-                echo "SKIP: {$eshop} (už naimportován dnes)\n";
+                echo "  SKIP  {$eshop}  (už naimportován dnes)\n";
             } elseif (isset($result['error'])) {
                 $hasError = true;
-                echo "FAIL: {$eshop} - {$result['error']}\n";
+                echo "  FAIL  {$eshop}  {$result['error']}\n";
             } elseif (isset($result['currencies'])) {
                 foreach ($result['currencies'] as $cur => $curResult) {
                     if (isset($curResult['error'])) {
                         $hasError = true;
-                        echo "FAIL: {$eshop}/{$cur} - {$curResult['error']}\n";
+                        echo "  FAIL  {$eshop}/{$cur}  {$curResult['error']}\n";
                     } elseif (((int)($curResult['doklady'] ?? 0)) === 0) {
-                        echo "WARN: {$eshop}/{$cur} - žádné doklady\n";
+                        echo "  WARN  {$eshop}/{$cur}  žádné doklady\n";
                     } else {
-                        echo "OK: {$eshop}/{$cur} - doklady={$curResult['doklady']}, polozky={$curResult['polozky']}\n";
+                        echo "  OK    {$eshop}/{$cur}  doklady={$curResult['doklady']}  polozky={$curResult['polozky']}\n";
                     }
                 }
             }
+            echo "\n";
         }
-        echo $hasError ? "\nSTATUS: ERROR\n" : "\nSTATUS: OK\n";
+        echo str_repeat('-', 40) . "\n";
+        echo $hasError ? "STATUS: ERROR\n" : "STATUS: OK\n";
     }
 
     /**

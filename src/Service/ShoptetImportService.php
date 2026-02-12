@@ -182,6 +182,7 @@ final class ShoptetImportService
         $cookieFile = tempnam(sys_get_temp_dir(), 'shoptet_cookies_');
         try {
             // 1. Login
+            $this->log('');
             $this->log("Přihlašuji se na {$loginUrl}...");
             $loginPage = $this->httpRequest($loginUrl, 'GET', null, [], $cookieFile);
             $csrf = $this->extractCsrf($loginPage['body']) ?? '';
@@ -238,14 +239,16 @@ final class ShoptetImportService
             $from = $firstOfLastMonth->format('d.m.Y');
             $to = $now->format('d.m.Y');
             $this->log("Období: {$from} - {$to}");
+            $this->log('');
 
             // 5. Stáhnout a importovat pro každou měnu
             $importCtrl = new ImportController();
             $totalResults = ['currencies' => []];
 
-            foreach ($currencies as $cur) {
+            foreach ($currencies as $idx => $cur) {
                 $label = $cur['label'];
                 $currencyId = $cur['id'];
+                if ($idx > 0) { $this->log(''); }
                 $this->log("Stahuji export {$label} (currencyId={$currencyId})...");
 
                 try {
@@ -483,6 +486,12 @@ final class ShoptetImportService
 
     private function log(string $msg, string $level = 'INFO'): void
     {
+        if ($msg === '') {
+            file_put_contents($this->logFile, "\n", FILE_APPEND);
+            $this->logBuffer[] = '';
+            if (PHP_SAPI === 'cli') { echo "\n"; }
+            return;
+        }
         $line = sprintf("[%s] [%s] %s", date('Y-m-d H:i:s'), $level, $msg);
         file_put_contents($this->logFile, $line . "\n", FILE_APPEND);
         $this->logBuffer[] = $line;
