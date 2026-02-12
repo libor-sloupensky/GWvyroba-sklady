@@ -68,6 +68,64 @@ final class ShoptetImportService
     }
 
     /**
+     * Ověří přihlašovací údaje k Shoptet adminu.
+     * @return array{ok:bool,message:string}
+     */
+    public function testLogin(string $adminUrl, string $email, string $password): array
+    {
+        $baseUrl = rtrim($adminUrl, '/');
+        $loginUrl = $baseUrl . '/admin/login/';
+        $cookieFile = tempnam(sys_get_temp_dir(), 'shoptet_test_');
+
+        try {
+            $loginPage = $this->httpRequest($loginUrl, 'GET', null, [], $cookieFile);
+            $csrf = $this->extractCsrf($loginPage['body']) ?? '';
+            if ($csrf === '') {
+                return ['ok' => false, 'message' => 'CSRF token z login stránky nenalezen. Zkontrolujte Admin URL.'];
+            }
+
+            $loginHeaders = [
+                'Content-Type: application/x-www-form-urlencoded',
+                'X-Csrf-Token: ' . $csrf,
+                'Referer: ' . $loginUrl,
+                'Origin: ' . $baseUrl,
+                'Accept-Language: cs,en;q=0.8',
+            ];
+            $loginResp = $this->httpRequest($loginUrl, 'POST', [
+                'action' => 'login',
+                'email' => $email,
+                'password' => $password,
+                '__csrf__' => $csrf,
+            ], $loginHeaders, $cookieFile);
+
+            if ($loginResp['status'] >= 400) {
+                return ['ok' => false, 'message' => 'Přihlášení selhalo (HTTP ' . $loginResp['status'] . ').'];
+            }
+
+            // Po úspěšném loginu musí být v odpovědi session CSRF token
+            $sessionCsrf = $this->extractCsrf($loginResp['body']);
+            if (!$sessionCsrf) {
+                // Zkusit ještě dashboard
+                $dash = $this->httpRequest($baseUrl . '/admin/danove-doklady/', 'GET', null, [], $cookieFile);
+                $sessionCsrf = $this->extractCsrf($dash['body']);
+            }
+
+            if (!$sessionCsrf) {
+                // Přihlášení pravděpodobně selhalo (špatné heslo), Shoptet vrátí login stránku znovu
+                return ['ok' => false, 'message' => 'Přihlášení nebylo úspěšné. Zkontrolujte e-mail a heslo.'];
+            }
+
+            return ['ok' => true, 'message' => 'Přihlášení úspěšné.'];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'message' => $e->getMessage()];
+        } finally {
+            if ($cookieFile && file_exists($cookieFile)) {
+                @unlink($cookieFile);
+            }
+        }
+    }
+
+    /**
      * Spustí import pro jeden eshop. Automaticky detekuje měny.
      * @param array<string,mixed> $eshopRow Řádek z nastaveni_rady s credentials
      * @return array<string,mixed>

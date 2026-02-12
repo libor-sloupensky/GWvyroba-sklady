@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\CryptoService;
+use App\Service\ShoptetImportService;
 use App\Service\StockService;
 use App\Support\DB;
 
@@ -85,6 +86,39 @@ final class SettingsController
             $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do,admin_url,admin_email,admin_password_enc) VALUES (?,?,?,?,?,?,?)');
             $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $passwordEnc]);
             $_SESSION['settings_message'] = "E-shop {$eshop} byl přidán.";
+        }
+
+        // Ověřit přihlašovací údaje, pokud jsou vyplněny
+        if ($adminUrl !== '' && $adminEmail !== '') {
+            // Zjistit aktuální heslo pro test (nové nebo existující)
+            $testPassword = $adminPassword;
+            if ($testPassword === '' && $targetId > 0) {
+                // Heslo nebylo změněno, načíst existující šifrované a dešifrovat
+                $encStmt = $pdo->prepare('SELECT admin_password_enc FROM nastaveni_rady WHERE id = ?');
+                $encStmt->execute([$targetId]);
+                $encVal = $encStmt->fetchColumn();
+                if ($encVal) {
+                    try {
+                        $testPassword = CryptoService::decrypt((string)$encVal);
+                    } catch (\Throwable $e) {
+                        $testPassword = '';
+                    }
+                }
+            }
+
+            if ($testPassword !== '') {
+                try {
+                    $service = new ShoptetImportService();
+                    $loginResult = $service->testLogin($adminUrl, $adminEmail, $testPassword);
+                    if ($loginResult['ok']) {
+                        $_SESSION['settings_message'] .= ' Přihlášení ověřeno ✓';
+                    } else {
+                        $_SESSION['settings_error'] = 'E-shop uložen, ale přihlášení selhalo: ' . $loginResult['message'];
+                    }
+                } catch (\Throwable $e) {
+                    $_SESSION['settings_error'] = 'E-shop uložen, ale test přihlášení selhal: ' . $e->getMessage();
+                }
+            }
         }
 
         header('Location: /settings');
