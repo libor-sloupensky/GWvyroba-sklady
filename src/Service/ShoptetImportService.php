@@ -208,11 +208,27 @@ final class ShoptetImportService
                 throw new \RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status']);
             }
 
+            // Zkontrolovat chybovou hlášku v login odpovědi
+            $loginError = $this->extractLoginError($loginResp['body']);
+            if ($loginError !== null) {
+                throw new \RuntimeException('Přihlášení selhalo: ' . $loginError);
+            }
+
+            // Pokud odpověď stále obsahuje login formulář, přihlášení neproběhlo
+            if (stripos($loginResp['body'], 'action="login"') !== false && stripos($loginResp['body'], 'name="password"') !== false) {
+                $this->log('Login odpověď stále obsahuje login formulář.', 'WARN');
+            }
+
             // 2. Získat session CSRF
             $sessionCsrf = $this->extractCsrf($loginResp['body']);
             if (!$sessionCsrf) {
                 $doklady = $this->httpRequest($baseUrl . '/admin/danove-doklady/', 'GET', null, [], $cookieFile);
                 $sessionCsrf = $this->extractCsrf($doklady['body']);
+                // Zkontrolovat i tady chybu loginu
+                if (stripos($doklady['body'], 'action="login"') !== false) {
+                    $loginError2 = $this->extractLoginError($doklady['body']);
+                    throw new \RuntimeException('Přihlášení selhalo (session nevytvořena).' . ($loginError2 ? ' ' . $loginError2 : ''));
+                }
             }
             if (!$sessionCsrf) {
                 throw new \RuntimeException('Session CSRF token nenalezen po přihlášení.');
@@ -225,7 +241,8 @@ final class ShoptetImportService
 
             // Ověřit, že jsme přihlášeni (export stránka nesmí být login)
             if (stripos($exportPage['body'], 'action="login"') !== false || stripos($exportPage['body'], 'name="password"') !== false) {
-                throw new \RuntimeException('Přihlášení selhalo - export stránka vrací login formulář.');
+                $loginError3 = $this->extractLoginError($exportPage['body']);
+                throw new \RuntimeException('Přihlášení selhalo - export stránka vrací login formulář.' . ($loginError3 ? ' ' . $loginError3 : ''));
             }
 
             $currencies = $this->detectCurrencies($exportPage['body']);
@@ -578,6 +595,30 @@ final class ShoptetImportService
         }
         if (preg_match('#name="__csrf__"[^>]*value="([^"]+)"#', $html, $m)) {
             return $m[1];
+        }
+        return null;
+    }
+
+    /**
+     * Extrahuje chybovou hlášku z Shoptet login stránky.
+     * Shoptet zobrazuje chyby v elementech jako .alert, .error, .flash-message apod.
+     */
+    private function extractLoginError(string $html): ?string
+    {
+        // Shoptet flash/alert zprávy
+        $patterns = [
+            '#<div[^>]*class="[^"]*(?:alert|error|flash-message|message--error)[^"]*"[^>]*>(.*?)</div>#si',
+            '#<p[^>]*class="[^"]*(?:alert|error|flash-message|message--error)[^"]*"[^>]*>(.*?)</p>#si',
+            '#<span[^>]*class="[^"]*(?:alert|error|flash-message|message--error)[^"]*"[^>]*>(.*?)</span>#si',
+            '#<li[^>]*class="[^"]*(?:error|alert)[^"]*"[^>]*>(.*?)</li>#si',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $m)) {
+                $text = trim(strip_tags($m[1]));
+                if ($text !== '') {
+                    return $text;
+                }
+            }
         }
         return null;
     }
