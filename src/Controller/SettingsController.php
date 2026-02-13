@@ -110,12 +110,15 @@ final class SettingsController
                 try {
                     $service = new ShoptetImportService();
                     $loginResult = $service->testLogin($adminUrl, $adminEmail, $testPassword);
+                    $loginOk = $loginResult['ok'] ? 1 : -1;
+                    $pdo->prepare('UPDATE nastaveni_rady SET login_ok = ? WHERE id = ?')->execute([$loginOk, $targetId ?: $pdo->lastInsertId()]);
                     if ($loginResult['ok']) {
                         $_SESSION['settings_message'] .= ' Přihlášení ověřeno ✓';
                     } else {
                         $_SESSION['settings_error'] = 'E-shop uložen, ale přihlášení selhalo: ' . $loginResult['message'];
                     }
                 } catch (\Throwable $e) {
+                    $pdo->prepare('UPDATE nastaveni_rady SET login_ok = -1 WHERE id = ?')->execute([$targetId ?: $pdo->lastInsertId()]);
                     $_SESSION['settings_error'] = 'E-shop uložen, ale test přihlášení selhal: ' . $e->getMessage();
                 }
             }

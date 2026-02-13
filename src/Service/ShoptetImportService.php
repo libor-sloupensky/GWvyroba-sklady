@@ -136,16 +136,28 @@ final class ShoptetImportService
                 return ['ok' => false, 'message' => 'Přihlášení selhalo (HTTP ' . $loginResp['status'] . ').'];
             }
 
+            // Zkontrolovat chybovou hlášku v login odpovědi
+            $loginError = $this->extractLoginError($loginResp['body']);
+            if ($loginError !== null) {
+                return ['ok' => false, 'message' => $loginError];
+            }
+
             // Po úspěšném loginu musí být v odpovědi session CSRF token
             $sessionCsrf = $this->extractCsrf($loginResp['body']);
             if (!$sessionCsrf) {
                 // Zkusit ještě dashboard
                 $dash = $this->httpRequest($baseUrl . '/admin/danove-doklady/', 'GET', null, [], $cookieFile);
                 $sessionCsrf = $this->extractCsrf($dash['body']);
+                // Zkontrolovat chybu i na dashboardu
+                if (!$sessionCsrf) {
+                    $dashError = $this->extractLoginError($dash['body']);
+                    if ($dashError) {
+                        return ['ok' => false, 'message' => $dashError];
+                    }
+                }
             }
 
             if (!$sessionCsrf) {
-                // Přihlášení pravděpodobně selhalo (špatné heslo), Shoptet vrátí login stránku znovu
                 return ['ok' => false, 'message' => 'Přihlášení nebylo úspěšné. Zkontrolujte e-mail a heslo.'];
             }
 
@@ -211,6 +223,7 @@ final class ShoptetImportService
             // Zkontrolovat chybovou hlášku v login odpovědi
             $loginError = $this->extractLoginError($loginResp['body']);
             if ($loginError !== null) {
+                $this->updateLoginStatus($eshopSource, -1);
                 throw new \RuntimeException('Přihlášení selhalo: ' . $loginError);
             }
 
@@ -234,6 +247,7 @@ final class ShoptetImportService
                 throw new \RuntimeException('Session CSRF token nenalezen po přihlášení.');
             }
             $this->log('Session CSRF OK');
+            $this->updateLoginStatus($eshopSource, 1);
 
             // 3. Navštívit export stránku a detekovat měny
             $exportPage = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
@@ -519,6 +533,16 @@ final class ShoptetImportService
     /**
      * Uloží záznam do import_history.
      */
+    private function updateLoginStatus(string $eshopSource, int $status): void
+    {
+        try {
+            $pdo = DB::pdo();
+            $pdo->prepare('UPDATE nastaveni_rady SET login_ok = ? WHERE eshop_source = ?')->execute([$status, $eshopSource]);
+        } catch (\Throwable $e) {
+            // neblokovat import kvůli statusu
+        }
+    }
+
     private function saveHistory(
         string $eshopSource,
         string $mena,

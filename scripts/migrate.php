@@ -150,6 +150,10 @@ try {
     if (!columnExists($pdo, 'nastaveni_rady', 'admin_password_enc')) {
         addColumn($pdo, 'nastaveni_rady', 'COLUMN `admin_password_enc` TEXT NULL AFTER `admin_email`');
     }
+    // Stav ověření přihlášení (0=neověřeno, 1=ok, -1=selhalo)
+    if (!columnExists($pdo, 'nastaveni_rady', 'login_ok')) {
+        addColumn($pdo, 'nastaveni_rady', 'COLUMN `login_ok` TINYINT NOT NULL DEFAULT 0 AFTER `admin_password_enc`');
+    }
     // Import history tabulka
     if (!tableExists($pdo, 'import_history')) {
         $pdo->exec("CREATE TABLE import_history (
