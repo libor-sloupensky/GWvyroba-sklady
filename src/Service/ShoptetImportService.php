@@ -223,6 +223,11 @@ final class ShoptetImportService
             $exportPage = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
             $exportCsrf = $this->extractCsrf($exportPage['body']) ?: $sessionCsrf;
 
+            // Ověřit, že jsme přihlášeni (export stránka nesmí být login)
+            if (stripos($exportPage['body'], 'action="login"') !== false || stripos($exportPage['body'], 'name="password"') !== false) {
+                throw new \RuntimeException('Přihlášení selhalo - export stránka vrací login formulář.');
+            }
+
             $currencies = $this->detectCurrencies($exportPage['body']);
             if (empty($currencies)) {
                 $this->log('Měny nebyly nalezeny, použiji výchozí CZK+EUR.', 'WARN');
@@ -252,6 +257,13 @@ final class ShoptetImportService
                 $this->log("Stahuji export {$label} (currencyId={$currencyId})...");
 
                 try {
+                    // Obnovit CSRF token před každou měnou (Shoptet ho může rotovat)
+                    $freshExportPage = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
+                    $freshCsrf = $this->extractCsrf($freshExportPage['body']);
+                    if ($freshCsrf) {
+                        $exportCsrf = $freshCsrf;
+                    }
+
                     $xmlContent = $this->downloadExport(
                         $exportUrl,
                         $baseUrl,
@@ -268,17 +280,57 @@ final class ShoptetImportService
                         continue;
                     }
 
-                    // Ověřit, že odpověď je XML
+                    // Ověřit, že odpověď je XML (ne HTML login/chybová stránka)
                     if (stripos($xmlContent, '<?xml') === false && stripos($xmlContent, '<dat:dataPack') === false) {
                         if (stripos($xmlContent, '<html') !== false) {
-                            // Extrahovat <title> pro diagnostiku
                             $htmlTitle = '';
                             if (preg_match('#<title[^>]*>(.*?)</title>#si', $xmlContent, $tm)) {
                                 $htmlTitle = ' Title: ' . trim(strip_tags($tm[1]));
                             }
                             $snippet = substr(strip_tags($xmlContent), 0, 200);
                             $this->log("HTML odpověď ({$label}):{$htmlTitle} Snippet: {$snippet}", 'DEBUG');
-                            throw new \RuntimeException("Export {$label} vrátil HTML místo XML.{$htmlTitle}");
+
+                            // Pokud je to login stránka, zkusit se znovu přihlásit
+                            $isLoginPage = stripos($xmlContent, 'action="login"') !== false
+                                || stripos($xmlContent, 'name="password"') !== false;
+                            if ($isLoginPage) {
+                                $this->log("Session vypršela, zkouším opětovné přihlášení...", 'WARN');
+                                $loginPage2 = $this->httpRequest($loginUrl, 'GET', null, [], $cookieFile);
+                                $csrf2 = $this->extractCsrf($loginPage2['body']) ?? '';
+                                if ($csrf2 !== '') {
+                                    $this->httpRequest($loginUrl, 'POST', [
+                                        'action' => 'login',
+                                        'email' => $email,
+                                        'password' => $password,
+                                        '__csrf__' => $csrf2,
+                                    ], [
+                                        'Content-Type: application/x-www-form-urlencoded',
+                                        'X-Csrf-Token: ' . $csrf2,
+                                        'Referer: ' . $loginUrl,
+                                        'Origin: ' . $baseUrl,
+                                    ], $cookieFile);
+
+                                    // Znovu načíst export stránku a CSRF
+                                    $retryExport = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
+                                    $retryCsrf = $this->extractCsrf($retryExport['body']) ?: $exportCsrf;
+
+                                    $this->log("Opakuji stažení exportu {$label} po re-loginu...");
+                                    $xmlContent = $this->downloadExport(
+                                        $exportUrl, $baseUrl, $retryCsrf, $cookieFile, $from, $to, $currencyId
+                                    );
+
+                                    // Znovu ověřit
+                                    if (stripos($xmlContent, '<?xml') === false && stripos($xmlContent, '<dat:dataPack') === false) {
+                                        throw new \RuntimeException("Export {$label} vrátil HTML místo XML i po re-loginu.{$htmlTitle}");
+                                    }
+                                    // Pokud jsme tady, re-login pomohl - pokračujeme normálně
+                                    $exportCsrf = $retryCsrf;
+                                } else {
+                                    throw new \RuntimeException("Export {$label} vrátil login stránku a re-login selhal (CSRF nenalezen).");
+                                }
+                            } else {
+                                throw new \RuntimeException("Export {$label} vrátil HTML místo XML.{$htmlTitle}");
+                            }
                         }
                     }
 
