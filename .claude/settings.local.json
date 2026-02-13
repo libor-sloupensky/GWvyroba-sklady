@@ -1,12 +1,29 @@
 {
   "permissions": {
     "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "WebFetch",
+      "Bash(php:*)",
       "Bash(php -l:*)",
       "Bash(php -r:*)",
-      "Bash(sqlite3:*)",
+      "Bash(curl:*)",
+      "Bash(git *)",
+      "Bash(rm *)",
+      "Bash(del *)",
       "Bash(grep:*)",
-      "Bash(php:*)",
-      "Bash(del \"c:\\\\Users\\\\HP\\\\.codex\\\\Gworm3\\\\debug_bom.php\")"
-    ]
+      "Bash(sqlite3:*)",
+      "Bash(mysql:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(composer:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)"
+    ],
+    "deny": []
   }
 }

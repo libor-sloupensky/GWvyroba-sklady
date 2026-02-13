@@ -38,7 +38,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title><?= htmlspecialchars((string)$title, ENT_QUOTES, 'UTF-8') ?></title>
+  <title><?= htmlspecialchars((string)$title, ENT_QUOTES, 'UTF-8') ?> | Gworm</title>
   <style>
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7f9; }
     header { background:#263238; color:#fff; padding:10px 16px; }
