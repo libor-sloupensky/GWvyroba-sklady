@@ -111,19 +111,6 @@ try {
         $insertSuper = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?, ?, 1)');
         $insertSuper->execute([$superEmail, 'superadmin']);
     }
-    if (!tableExists($pdo, 'ai_prompts')) {
-        $pdo->exec("CREATE TABLE ai_prompts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL DEFAULT 0,
-            title VARCHAR(255) NOT NULL,
-            prompt TEXT NOT NULL,
-            is_public TINYINT(1) NOT NULL DEFAULT 1,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            KEY idx_ai_prompts_user (user_id),
-            KEY idx_ai_prompts_public (is_public, created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci");
-    }
     try {
         $pdo->exec('ALTER TABLE produkty ADD CONSTRAINT fk_produkty_znacka FOREIGN KEY (znacka_id) REFERENCES produkty_znacky(id) ON DELETE SET NULL');
     } catch (Throwable $e) {}
