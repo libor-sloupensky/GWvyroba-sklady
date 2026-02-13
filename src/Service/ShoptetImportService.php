@@ -625,16 +625,23 @@ final class ShoptetImportService
 
     /**
      * Extrahuje chybovou hlášku z Shoptet login stránky.
-     * Shoptet zobrazuje chyby v elementech jako .alert, .error, .flash-message apod.
+     * Vrací text chyby pouze pokud stránka obsahuje login formulář.
+     * Po úspěšném loginu Shoptet zobrazuje reklamní alert boxy - ty ignorujeme.
      */
     private function extractLoginError(string $html): ?string
     {
-        // Shoptet flash/alert zprávy
+        // Pouze pokud stránka obsahuje login formulář (jinak je to dashboard s promo alerts)
+        $isLoginPage = stripos($html, 'action="login"') !== false
+            || (stripos($html, 'name="password"') !== false && stripos($html, 'name="email"') !== false);
+        if (!$isLoginPage) {
+            return null;
+        }
+
+        // Shoptet chybové hlášky na login stránce
         $patterns = [
-            '#<div[^>]*class="[^"]*(?:alert|error|flash-message|message--error)[^"]*"[^>]*>(.*?)</div>#si',
-            '#<p[^>]*class="[^"]*(?:alert|error|flash-message|message--error)[^"]*"[^>]*>(.*?)</p>#si',
-            '#<span[^>]*class="[^"]*(?:alert|error|flash-message|message--error)[^"]*"[^>]*>(.*?)</span>#si',
-            '#<li[^>]*class="[^"]*(?:error|alert)[^"]*"[^>]*>(.*?)</li>#si',
+            '#<div[^>]*class="[^"]*(?:alert-danger|error|message--error|flash-message--error)[^"]*"[^>]*>(.*?)</div>#si',
+            '#<p[^>]*class="[^"]*(?:alert-danger|error|message--error)[^"]*"[^>]*>(.*?)</p>#si',
+            '#<li[^>]*class="[^"]*(?:error)[^"]*"[^>]*>(.*?)</li>#si',
         ];
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $html, $m)) {
@@ -644,6 +651,15 @@ final class ShoptetImportService
                 }
             }
         }
+
+        // Fallback: hledat jakýkoliv text s "nesprávn" nebo "špatn" nebo "heslo" v alert elementech
+        if (preg_match('#<div[^>]*class="[^"]*alert[^"]*"[^>]*>(.*?)</div>#si', $html, $m)) {
+            $text = trim(strip_tags($m[1]));
+            if (preg_match('/nesprávn|špatn|heslo|password|locked|zamčen|pokus/iu', $text)) {
+                return $text;
+            }
+        }
+
         return null;
     }
 
