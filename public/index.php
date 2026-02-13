@@ -139,12 +139,7 @@ $router->post('/settings/type/delete', [SettingsController::class, 'deleteProduc
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 $router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
 
-// Admin utilities (secured)
-$router->get('/admin/migrate', [AdminController::class, 'migrateForm']);
-$router->post('/admin/migrate', [AdminController::class, 'migrateRun']);
-$router->get('/admin/seed', [AdminController::class, 'seedForm']);
-$router->post('/admin/seed', [AdminController::class, 'seedRun']);
-$router->get('/admin/rebuild-movements', [AdminController::class, 'rebuildMovements']);
+// Admin
 $router->get('/admin/history', [AdminController::class, 'history']);
 
 $router->dispatch();
