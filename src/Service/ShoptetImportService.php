@@ -191,66 +191,92 @@ final class ShoptetImportService
         $loginUrl = $baseUrl . '/admin/login/';
         $exportUrl = $baseUrl . '/admin/export-faktur/';
 
-        $cookieFile = tempnam(sys_get_temp_dir(), 'shoptet_cookies_');
+        // Persistentní cookie soubor per eshop (přežije mezi cron běhy)
+        $cookieDir = __DIR__ . '/../../log';
+        @mkdir($cookieDir, 0775, true);
+        $cookieFile = $cookieDir . '/cookies_' . md5($eshopSource) . '.txt';
+
         try {
-            // 1. Login
-            $this->log('');
-            $this->log("Přihlašuji se na {$loginUrl}...");
-            $loginPage = $this->httpRequest($loginUrl, 'GET', null, [], $cookieFile);
-            $csrf = $this->extractCsrf($loginPage['body']) ?? '';
-            if ($csrf === '') {
-                throw new \RuntimeException('CSRF token z login stránky nenalezen.');
-            }
-
-            $loginHeaders = [
-                'Content-Type: application/x-www-form-urlencoded',
-                'X-Csrf-Token: ' . $csrf,
-                'Referer: ' . $loginUrl,
-                'Origin: ' . $baseUrl,
-                'Accept-Language: cs,en;q=0.8',
-            ];
-            $loginResp = $this->httpRequest($loginUrl, 'POST', [
-                'action' => 'login',
-                'email' => $email,
-                'password' => $password,
-                '__csrf__' => $csrf,
-            ], $loginHeaders, $cookieFile);
-
-            if ($loginResp['status'] >= 400) {
-                throw new \RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status']);
-            }
-
-            // Zkontrolovat chybovou hlášku v login odpovědi
-            $loginError = $this->extractLoginError($loginResp['body']);
-            if ($loginError !== null) {
-                $this->updateLoginStatus($eshopSource, -1);
-                throw new \RuntimeException('Přihlášení selhalo: ' . $loginError);
-            }
-
-            // Pokud odpověď stále obsahuje login formulář, přihlášení neproběhlo
-            if (stripos($loginResp['body'], 'action="login"') !== false && stripos($loginResp['body'], 'name="password"') !== false) {
-                $this->log('Login odpověď stále obsahuje login formulář.', 'WARN');
-            }
-
-            // 2. Získat session CSRF
-            $sessionCsrf = $this->extractCsrf($loginResp['body']);
-            if (!$sessionCsrf) {
-                $doklady = $this->httpRequest($baseUrl . '/admin/danove-doklady/', 'GET', null, [], $cookieFile);
-                $sessionCsrf = $this->extractCsrf($doklady['body']);
-                // Zkontrolovat i tady chybu loginu
-                if (stripos($doklady['body'], 'action="login"') !== false) {
-                    $loginError2 = $this->extractLoginError($doklady['body']);
-                    throw new \RuntimeException('Přihlášení selhalo (session nevytvořena).' . ($loginError2 ? ' ' . $loginError2 : ''));
+            // 1. Zkusit existující session (bez loginu)
+            $needLogin = true;
+            if (file_exists($cookieFile) && filemtime($cookieFile) > time() - 86400) {
+                $this->log('');
+                $this->log('Zkouším existující session...');
+                $testPage = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
+                $testCsrf = $this->extractCsrf($testPage['body']);
+                $isLogin = stripos($testPage['body'], 'action="login"') !== false
+                    && stripos($testPage['body'], 'name="password"') !== false;
+                if ($testCsrf && !$isLogin) {
+                    $this->log('Session platná, přeskakuji login.');
+                    $needLogin = false;
+                    $sessionCsrf = $testCsrf;
+                    $exportPage = $testPage;
+                } else {
+                    $this->log('Session vypršela, přihlašuji se znovu.');
                 }
             }
-            if (!$sessionCsrf) {
-                throw new \RuntimeException('Session CSRF token nenalezen po přihlášení.');
-            }
-            $this->log('Session CSRF OK');
-            $this->updateLoginStatus($eshopSource, 1);
 
-            // 3. Navštívit export stránku a detekovat měny
-            $exportPage = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
+            if ($needLogin) {
+                // 1b. Plný login
+                $this->log('');
+                $this->log("Přihlašuji se na {$loginUrl}...");
+                $loginPage = $this->httpRequest($loginUrl, 'GET', null, [], $cookieFile);
+                $csrf = $this->extractCsrf($loginPage['body']) ?? '';
+                if ($csrf === '') {
+                    throw new \RuntimeException('CSRF token z login stránky nenalezen.');
+                }
+
+                $loginHeaders = [
+                    'Content-Type: application/x-www-form-urlencoded',
+                    'X-Csrf-Token: ' . $csrf,
+                    'Referer: ' . $loginUrl,
+                    'Origin: ' . $baseUrl,
+                    'Accept-Language: cs,en;q=0.8',
+                ];
+                $loginResp = $this->httpRequest($loginUrl, 'POST', [
+                    'action' => 'login',
+                    'email' => $email,
+                    'password' => $password,
+                    '__csrf__' => $csrf,
+                ], $loginHeaders, $cookieFile);
+
+                if ($loginResp['status'] >= 400) {
+                    throw new \RuntimeException('Přihlášení selhalo, HTTP ' . $loginResp['status']);
+                }
+
+                // Zkontrolovat chybovou hlášku v login odpovědi
+                $loginError = $this->extractLoginError($loginResp['body']);
+                if ($loginError !== null) {
+                    $this->updateLoginStatus($eshopSource, -1);
+                    throw new \RuntimeException('Přihlášení selhalo: ' . $loginError);
+                }
+
+                // Pokud odpověď stále obsahuje login formulář, přihlášení neproběhlo
+                if (stripos($loginResp['body'], 'action="login"') !== false && stripos($loginResp['body'], 'name="password"') !== false) {
+                    $this->log('Login odpověď stále obsahuje login formulář.', 'WARN');
+                }
+
+                // 2. Získat session CSRF
+                $sessionCsrf = $this->extractCsrf($loginResp['body']);
+                if (!$sessionCsrf) {
+                    $doklady = $this->httpRequest($baseUrl . '/admin/danove-doklady/', 'GET', null, [], $cookieFile);
+                    $sessionCsrf = $this->extractCsrf($doklady['body']);
+                    // Zkontrolovat i tady chybu loginu
+                    if (stripos($doklady['body'], 'action="login"') !== false) {
+                        $loginError2 = $this->extractLoginError($doklady['body']);
+                        throw new \RuntimeException('Přihlášení selhalo (session nevytvořena).' . ($loginError2 ? ' ' . $loginError2 : ''));
+                    }
+                }
+                if (!$sessionCsrf) {
+                    throw new \RuntimeException('Session CSRF token nenalezen po přihlášení.');
+                }
+                $this->log('Session CSRF OK');
+                $this->updateLoginStatus($eshopSource, 1);
+
+                // 3. Navštívit export stránku a detekovat měny
+                $exportPage = $this->httpRequest($exportUrl, 'GET', null, [], $cookieFile);
+            }
+
             $exportCsrf = $this->extractCsrf($exportPage['body']) ?: $sessionCsrf;
 
             // Ověřit, že jsme přihlášeni (export stránka nesmí být login)
@@ -417,10 +443,12 @@ final class ShoptetImportService
             }
 
             return $totalResults;
-        } finally {
-            if ($cookieFile && file_exists($cookieFile)) {
+        } catch (\Throwable $e) {
+            // Při chybě loginu smazat cookies, aby se příště přihlásil čistě
+            if (stripos($e->getMessage(), 'selhalo') !== false && file_exists($cookieFile)) {
                 @unlink($cookieFile);
             }
+            throw $e;
         }
     }
 
