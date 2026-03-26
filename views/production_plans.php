@@ -1718,6 +1718,7 @@
 
 .production-log-row--vyroba { background:#e8f5e9; }
 .production-log-row--korekce { background:#ffebee; }
+.production-log-row--inventura { background:#e3f2fd; color:#1565c0; font-weight:600; }
 .production-log-type { font-weight:600; }
 
 /* Toggle switch pro filtr */
@@ -2596,9 +2597,19 @@
       <?php foreach ($recentProductions as $log): ?>
         <?php
           $typRaw = strtolower((string)($log['typ'] ?? ''));
-          $rowClass = $typRaw == 'korekce' ? 'production-log-row--korekce' : 'production-log-row--vyroba';
-          $typLabel = $typRaw == 'korekce' ? 'Korekce' : 'Výroba';
-          $typData = $typRaw == 'korekce' ? 'korekce' : 'vyroba';
+          if ($typRaw === 'inventura') {
+              $rowClass = 'production-log-row--inventura';
+              $typLabel = 'Inventarizovaný stav';
+              $typData = 'inventura';
+          } elseif ($typRaw === 'korekce') {
+              $rowClass = 'production-log-row--korekce';
+              $typLabel = 'Korekce';
+              $typData = 'korekce';
+          } else {
+              $rowClass = 'production-log-row--vyroba';
+              $typLabel = 'Výroba';
+              $typData = 'vyroba';
+          }
         ?>
         <tr class="<?= $rowClass ?>" data-typ="<?= $typData ?>" data-sku="<?= htmlspecialchars((string)$log['sku'], ENT_QUOTES, 'UTF-8') ?>">
           <td><?= htmlspecialchars((string)$log['datum'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -2811,9 +2822,20 @@ const movementFilterConfig = {
         if (tbody) {
           tbody.innerHTML = movements.map(m => {
             const typRaw = (m.typ || '').toLowerCase();
-            const rowClass = typRaw === 'korekce' ? 'production-log-row--korekce' : 'production-log-row--vyroba';
-            const typLabel = typRaw === 'korekce' ? 'Korekce' : 'Výroba';
-            const typData = typRaw === 'korekce' ? 'korekce' : 'vyroba';
+            let rowClass, typLabel, typData;
+            if (typRaw === 'inventura') {
+              rowClass = 'production-log-row--inventura';
+              typLabel = 'Inventarizovaný stav';
+              typData = 'inventura';
+            } else if (typRaw === 'korekce') {
+              rowClass = 'production-log-row--korekce';
+              typLabel = 'Korekce';
+              typData = 'korekce';
+            } else {
+              rowClass = 'production-log-row--vyroba';
+              typLabel = 'Výroba';
+              typData = 'vyroba';
+            }
             return `<tr class="${rowClass}" data-typ="${typData}" data-sku="${m.sku || ''}">
               <td>${m.datum || ''}</td>
               <td>${m.sku || ''}</td>

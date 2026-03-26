@@ -1576,7 +1576,7 @@ final class ProductionController
         $sql = "SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
                 FROM polozky_pohyby m
                 LEFT JOIN produkty p ON p.sku = m.sku
-                WHERE m.typ_pohybu IN ('vyroba','korekce')
+                WHERE m.typ_pohybu IN ('vyroba','korekce','inventura')
                 ORDER BY m.datum DESC, m.id DESC
                 LIMIT {$limit}";
 
@@ -1607,7 +1607,7 @@ final class ProductionController
         $pdo = DB::pdo();
 
         // Sestavit WHERE podmínky pro produkty
-        $conditions = ["m.typ_pohybu IN ('vyroba','korekce')"];
+        $conditions = ["m.typ_pohybu IN ('vyroba','korekce','inventura')"];
         $params = [];
 
         if ($brand > 0) {
