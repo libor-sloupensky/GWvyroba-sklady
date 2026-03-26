@@ -1573,11 +1573,19 @@ final class ProductionController
 
     private function recentProductions(int $limit = 30): array
     {
-        $sql = "SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
-                FROM polozky_pohyby m
-                LEFT JOIN produkty p ON p.sku = m.sku
-                WHERE m.typ_pohybu IN ('vyroba','korekce','inventura')
-                ORDER BY m.datum DESC, m.id DESC
+        $sql = "(SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
+                 FROM polozky_pohyby m
+                 LEFT JOIN produkty p ON p.sku = m.sku
+                 WHERE m.typ_pohybu IN ('vyroba','korekce'))
+                UNION ALL
+                (SELECT i.closed_at AS datum, s.sku, s.stav AS mnozstvi, 'inventura' AS typ, p.nazev
+                 FROM inventura_stavy s
+                 JOIN inventury i ON i.id = s.inventura_id
+                 LEFT JOIN produkty p ON p.sku = s.sku
+                 LEFT JOIN product_types pt ON pt.code = p.typ
+                 WHERE i.closed_at IS NOT NULL
+                   AND COALESCE(pt.is_nonstock, 0) = 0)
+                ORDER BY datum DESC
                 LIMIT {$limit}";
 
         return DB::pdo()->query($sql)->fetchAll();
@@ -1607,39 +1615,61 @@ final class ProductionController
         $pdo = DB::pdo();
 
         // Sestavit WHERE podmínky pro produkty
-        $conditions = ["m.typ_pohybu IN ('vyroba','korekce','inventura')"];
-        $params = [];
+        $movConditions = ["m.typ_pohybu IN ('vyroba','korekce')"];
+        $invConditions = ['i.closed_at IS NOT NULL', 'COALESCE(pt.is_nonstock, 0) = 0'];
+        $movParams = [];
+        $invParams = [];
 
         if ($brand > 0) {
-            $conditions[] = 'p.znacka_id = ?';
-            $params[] = $brand;
+            $movConditions[] = 'p.znacka_id = ?';
+            $movParams[] = $brand;
+            $invConditions[] = 'p2.znacka_id = ?';
+            $invParams[] = $brand;
         }
         if ($group > 0) {
-            $conditions[] = 'p.skupina_id = ?';
-            $params[] = $group;
+            $movConditions[] = 'p.skupina_id = ?';
+            $movParams[] = $group;
+            $invConditions[] = 'p2.skupina_id = ?';
+            $invParams[] = $group;
         }
         if ($type !== '') {
-            $conditions[] = 'p.typ = ?';
-            $params[] = $type;
+            $movConditions[] = 'p.typ = ?';
+            $movParams[] = $type;
+            $invConditions[] = 'p2.typ = ?';
+            $invParams[] = $type;
         }
         if ($search !== '') {
             $searchLike = '%' . $search . '%';
-            $conditions[] = '(p.sku LIKE ? OR p.alt_sku LIKE ? OR p.nazev LIKE ? OR p.ean LIKE ?)';
-            $params[] = $searchLike;
-            $params[] = $searchLike;
-            $params[] = $searchLike;
-            $params[] = $searchLike;
+            $movConditions[] = '(p.sku LIKE ? OR p.alt_sku LIKE ? OR p.nazev LIKE ? OR p.ean LIKE ?)';
+            $movParams[] = $searchLike;
+            $movParams[] = $searchLike;
+            $movParams[] = $searchLike;
+            $movParams[] = $searchLike;
+            $invConditions[] = '(p2.sku LIKE ? OR p2.alt_sku LIKE ? OR p2.nazev LIKE ? OR p2.ean LIKE ?)';
+            $invParams[] = $searchLike;
+            $invParams[] = $searchLike;
+            $invParams[] = $searchLike;
+            $invParams[] = $searchLike;
         }
 
-        $where = implode(' AND ', $conditions);
+        $movWhere = implode(' AND ', $movConditions);
+        $invWhere = implode(' AND ', $invConditions);
 
-        $sql = "SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
-                FROM polozky_pohyby m
-                LEFT JOIN produkty p ON p.sku = m.sku
-                WHERE {$where}
-                ORDER BY m.datum DESC, m.id DESC
+        $sql = "(SELECT m.datum, m.sku, m.mnozstvi, m.typ_pohybu AS typ, p.nazev
+                 FROM polozky_pohyby m
+                 LEFT JOIN produkty p ON p.sku = m.sku
+                 WHERE {$movWhere})
+                UNION ALL
+                (SELECT i.closed_at AS datum, s.sku, s.stav AS mnozstvi, 'inventura' AS typ, p2.nazev
+                 FROM inventura_stavy s
+                 JOIN inventury i ON i.id = s.inventura_id
+                 LEFT JOIN produkty p2 ON p2.sku = s.sku
+                 LEFT JOIN product_types pt ON pt.code = p2.typ
+                 WHERE {$invWhere})
+                ORDER BY datum DESC
                 LIMIT {$limit}";
 
+        $params = array_merge($movParams, $invParams);
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll();
