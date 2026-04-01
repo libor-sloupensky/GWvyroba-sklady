@@ -2505,8 +2505,8 @@
   <div class="filter-toggle-row">
     <span class="filter-toggle-label">Použít filtr:</span>
     <div class="toggle-switch" id="movementFilterToggle">
-      <button type="button" data-value="off" class="active">Nefiltrovat</button>
-      <button type="button" data-value="on">Filtrovat</button>
+      <button type="button" data-value="off">Nefiltrovat</button>
+      <button type="button" data-value="on" class="active">Filtrovat</button>
     </div>
   </div>
 
@@ -2789,7 +2789,7 @@ const movementFilterConfig = {
 
   if (movementFilterToggle) {
     const buttons = movementFilterToggle.querySelectorAll('button');
-    let filterActive = false;
+    let filterActive = true;
     let originalHtml = logTable ? logTable.outerHTML : '';
     let noDataHtml = '<p class="notice-empty">Pro zadané podmínky nejsou dostupná žádná data.</p>';
 
@@ -2878,6 +2878,11 @@ const movementFilterConfig = {
         loadMovements(filterActive);
       });
     });
+
+    // Načíst filtrovaná data hned při startu
+    if (movementFilterConfig.hasFilter) {
+      loadMovements(true);
+    }
   }
 
   let pendingForm = null;
