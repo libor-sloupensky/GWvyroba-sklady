@@ -1726,13 +1726,11 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                 continue;
             }
 
-            // Celková částka faktury pro poměrové rozpočítání
-            $invoiceTotal = (float)($inv['castka_celkem'] ?? 0);
-            $itemsSum = array_sum(array_map(fn($it) => (float)$it['cena_jedn_czk'] * (float)$it['mnozstvi'], $items));
-
-            // Poměr pro rozpočítání (slevy/doprava)
-            $ratio = ($itemsSum > 0 && $invoiceTotal > 0) ? ($invoiceTotal / $itemsSum) : 1.0;
-
+            // Tržby počítáme jako prostý součet cena_jedn_czk × mnozstvi.
+            // Dřívější poměrové rozpočítávání přes castka_celkem / Σ(items) bylo chybné:
+            // když uživatel zapnul filtr (typ, značka, skupina, SKU), $items obsahuje jen
+            // podmnožinu položek faktury, ale castka_celkem je za celou fakturu — ratio se
+            // nafouklo a tržby filtrovaných položek se napumpovaly hodnotami ostatních řádků.
             $invoiceTrzby = 0.0;
             $invoiceNaklady = 0.0;
             $invoiceItems = [];
@@ -1741,7 +1739,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                 $sku = (string)$item['sku'];
                 $qty = (float)$item['mnozstvi'];
                 $unitPrice = (float)$item['cena_jedn_czk'];
-                $trzby = $unitPrice * $qty * $ratio;
+                $trzby = $unitPrice * $qty;
 
                 // Náklady - pro nonstock produkty součet komponent
                 $naklady = $this->calculateItemCost($sku, $qty, $productCosts, $bomCache, $nonstockTypes);
