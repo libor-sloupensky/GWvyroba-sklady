@@ -67,6 +67,13 @@ Modul nemá vlastní DB schema kromě:
 
 ⚠️ **Známé dluhy / gotchy / historie oprav**
 
+### 🟢 ZMĚNA 2026-06-04: analýzy už nefiltrují na `aktivni`
+Dříve šablony **Sklady** (`stock_value_by_month`) a **Produkty** + PHP varianty pohybů filtrovaly na `p.aktivni = 1`, takže deaktivované produkty mizely z výsledků (skladová hodnota klesala po deaktivaci, i když na produktu fyzicky ležely zásoby).
+
+**Změna:** odstraněn filtr `p.aktivni = 1` ze **všech** analytických výpočtů — `fetchStockProducts()`, SQL šablony `stock_value_by_month` (`JOIN ... ON 1=1`), `products` i `buildProductMovementRows()`. Odebrán i přepínač „Jen aktivní" (`active_only`) a instrukce pro AI SQL generátor upravena na „NEFILTRUJ na p.aktivni". Sloupec `aktivni` ve výstupu a řazení aktivních nahoru zůstaly (jen informativní, nic nevyřazují). Viz commit `ff6a7f4`.
+
+**Pozor:** výpočet skladové hodnoty ve **Výrobě** (`vyroba`) zůstal beze změny — pokud se má chování sjednotit i tam, je to samostatná úprava.
+
 ### 🔴 OPRAVA 2026-04-20: `ratio` odstraněno z výpočtu tržeb
 Předchozí implementace `buildMarginRows()` počítala tržby jako:
 ```
@@ -85,7 +92,7 @@ ratio = doklady_eshop.castka_celkem / Σ(cena_jedn_czk × mnozstvi) přes FILTRO
 
 - **Filtr `typ produktu = produkt` sám je neúplný pro celkový prodej.** Eshopy prodávají jak jednotlivé kusy (`typ=produkt`), tak velkoobchodní balení (`typ=karton`, např. "25 ks - WormUp..."). Pro plný obraz tržeb/marže je potřeba ve filtru vybrat **oba typy** (produkt + karton). Samotný `produkt` vypadá jako podtížené tržby.
 - **`skl_hodnota` je aktuální, ne historická** — prodeje před rokem se oceňují dnešní nákladovou cenou. Změny nákupních cen nebo re-evaluace skladu → starší analytika se zpětně mění. Pokud chceš zpětně korektní marže, je potřeba snapshot `skl_hodnota` v čase prodeje.
-- **Produkt nenalezený v `produkty`** (`resolveMainSku` vrátí null) → náklad = 0 → marže 100 %. Stejně `skl_hodnota = 0` u legitimního produktu. Diagnostiku lze udělat přes `/report/missing-sku` + kontrolu `SELECT sku FROM produkty WHERE skl_hodnota=0 AND aktivni=1`.
+- **Produkt nenalezený v `produkty`** (`resolveMainSku` vrátí null) → náklad = 0 → marže 100 %. Stejně `skl_hodnota = 0` u legitimního produktu. Diagnostiku lze udělat přes `/report/missing-sku` + kontrolu `SELECT sku FROM produkty WHERE skl_hodnota=0` (pozn.: od 2026-06-04 analytika nefiltruje na `aktivni`, viz výše).
 - **Duplikace přes `OR JOIN`** v `loadInvoiceItems()` (`JOIN produkty p ON p.sku = pe.sku OR p.alt_sku = pe.sku`) — pokud pe.sku matchne víc produktů, řádek se zduplikuje. V praxi marginální (2 případy v Q1/2026).
 - **`castka_celkem` vs DPH** — schema tvrdí "bez DPH", ale data často obsahují DPH. Neovlivňuje aktuální výpočet marží (už ratio nepoužíváme), ale pokud přidáš novou logiku používající `castka_celkem`, pozor.
 - **Nonstock rekurze** přes BOM + `skl_hodnota` potomků — stejný problém s "vždy aktuální" jako u obyčejných produktů, jen znásobený kusovníkovou strukturou.
