@@ -312,7 +312,7 @@ Tipy a aliasy:
   - Pohyby po inventure: SELECT sku, SUM(mnozstvi) AS qty FROM polozky_pohyby WHERE (closed_at IS NULL OR datum > closed_at) GROUP BY sku.
   - Rezervace: SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE platna_do >= CURDATE() GROUP BY sku.
   - stav_sku = COALESCE(snapshot,0) + COALESCE(pohyby,0) - COALESCE(rezervace,0).
-  - hodnota = SUM(p.skl_hodnota * COALESCE(stav_sku,0)) pres aktivni produkty; pro rozpad podle typu pridej GROUP BY p.typ.
+  - hodnota = SUM(p.skl_hodnota * COALESCE(stav_sku,0)) pres vsechny produkty (NEFILTRUJ na p.aktivni); pro rozpad podle typu pridej GROUP BY p.typ.
 - Kontaktni udaje klienta jsou v tabulce kontakty (ic, dic, email, telefon, adresa). polozky_eshop nema kontakt_id; pro prodeje pouzij JOIN doklady_eshop ON (eshop_source, cislo_dokladu) a doklady_eshop.kontakt_id -> kontakty.id (filtruj podle kontakty.ic).
 - Pokud uzivatel neupresni obdobi, pouzij posledn?ch 12 m?s?c?; ve vysvetleni uved, jake omezeni bylo pouzito a co upresnit.
 - Skladove dostupne polozky nejsou primo v analyticke tabulce; lze je odvodit z pohybu (polozky_pohyby) nebo uvest, ze hodnota je aproximace.
@@ -811,8 +811,7 @@ LEFT JOIN polozky_pohyby pm ON (pm.sku = p.sku OR pm.sku = p.alt_sku)
     OR (:movement_direction = 'prijem' AND pm.mnozstvi > 0)
   )
 LEFT JOIN product_types pt ON pt.code = p.typ
-WHERE (:active_only = 0 OR p.aktivni = 1)
-  AND COALESCE(pt.is_nonstock,0) = 0
+WHERE COALESCE(pt.is_nonstock,0) = 0
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
@@ -827,7 +826,6 @@ ORDER BY p.aktivni DESC, COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
                 'params' => [
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
-                    ['name' => 'active_only', 'label' => 'Jen aktivní', 'type' => 'bool', 'required' => false, 'default' => 0, 'help' => 'Zapnuto = jen aktivní produkty. Vypnuto = včetně neaktivních.'],
                     ['name' => 'movement_direction', 'label' => 'Výdej/příjem', 'type' => 'enum', 'required' => false, 'default' => 'vydej', 'values' => [
                         ['value' => 'vydej', 'label' => 'Výdej'],
                         ['value' => 'prijem', 'label' => 'Příjem'],
@@ -911,7 +909,7 @@ FROM (
   ) seqs
   WHERE DATE_ADD(DATE_FORMAT(:start_date, '%Y-%m-01'), INTERVAL seq MONTH) <= :end_date
 ) m
-JOIN produkty p ON p.aktivni = 1
+JOIN produkty p ON 1=1
 LEFT JOIN produkty_znacky zn ON zn.id = p.znacka_id
 LEFT JOIN produkty_skupiny sg ON sg.id = p.skupina_id
 LEFT JOIN (
@@ -1228,8 +1226,7 @@ LEFT JOIN polozky_pohyby pm ON (pm.sku = p.sku OR pm.sku = p.alt_sku)
   )
 __ESHOP_FILTER__
 LEFT JOIN product_types pt ON pt.code = p.typ
-WHERE (:active_only = 0 OR p.aktivni = 1)
-  AND COALESCE(pt.is_nonstock,0) = 0
+WHERE COALESCE(pt.is_nonstock,0) = 0
   AND (:has_znacka = 0 OR p.znacka_id IN (%znacka_id%))
   AND (:has_skupina = 0 OR p.skupina_id IN (%skupina_id%))
   AND (:has_typ = 0 OR p.typ IN (%typ%))
@@ -1304,7 +1301,7 @@ ORDER BY p.aktivni DESC, COALESCE(SUM(ABS(pm.mnozstvi)), 0) DESC, p.sku
             'FROM produkty p ' .
             'LEFT JOIN produkty_znacky z ON z.id = p.znacka_id ' .
             'LEFT JOIN produkty_skupiny g ON g.id = p.skupina_id ';
-        $conditions = ['p.aktivni = 1'];
+        $conditions = [];
         $binds = [];
         $hasZnacka = !empty($params['has_znacka']);
         $hasSkupina = !empty($params['has_skupina']);
