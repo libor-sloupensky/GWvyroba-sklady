@@ -74,7 +74,7 @@ Oprava (Fáze 1):
 - Import: `castka_celkem` = základ položek bez DPH, po slevě (viz `import.md`). Migrace: `db/migrate_castka_celkem_bez_dph.sql`.
 - Marže (`buildMarginRows` + `invoiceItemsV2`): tržba = `cena_jedn_czk × mn. × (1 − sleva_procento/100)`. `sleva_procento` přidána do SELECTů `loadInvoiceItems` i detailu.
 
-**Fáze 2 (TODO):** EUR doklady z grig.sk mají `cena_jedn_czk`/`castka_celkem` v EUR (kurz null) → přepočet na CZK přes ČNB kurz dle DUZP. gogrig.com EUR je už v CZK (Shoptet.cz převádí při importu).
+**Fáze 2 (HOTOVO 2026-06-15):** EUR doklady z grig.sk (Shoptet.sk) měly `cena_jedn_czk`/`castka_celkem` v EUR (kurz null). Doplněna služba `src/Service/CnbRateService.php` (denní kurzy ČNB, cache v `log/cnb/`). Import ([ImportController.php] persist „Case B") u cizí měny bez kurzu dopočítá kurz ČNB dle DUZP a uloží ceny v CZK + `kurz_na_czk`. Migrace existujících dat: `scripts/migrate_eur_to_czk.php` (dry-run / `--apply`). gogrig.com EUR je už v CZK (Shoptet.cz převádí při importu, kurz vyplněn) → migrace se ho netýká.
 
 ### 🟢 ZMĚNA 2026-06-15: přepínač „pouze/kromě" u výběru firem (Marže + Měsíční tržby)
 Šablony `margins` a `monthly_revenue_by_ic` mají nový enum parametr `contact_mode` (`pouze` = default / `krome`). Při výběru konkrétních firem lze přepnout, zda se zobrazí **jen vybrané firmy** (`IN`), nebo **vše kromě nich** (`NOT IN`). V režimu „kromě" se ponechávají i faktury bez kontaktu (`OR de.kontakt_id IS NULL`).

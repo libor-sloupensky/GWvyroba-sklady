@@ -2,6 +2,7 @@
 namespace App\Controller;
 
 use App\Service\ShoptetImportService;
+use App\Service\CnbRateService;
 use App\Support\DB;
 
 final class ImportController
@@ -11,6 +12,12 @@ final class ImportController
      * @var array<string,int>
      */
     private array $contactCache = [];
+    private ?CnbRateService $cnbRates = null;
+
+    private function cnbRates(): CnbRateService
+    {
+        return $this->cnbRates ??= new CnbRateService();
+    }
     public function form(): void
     {
         $this->requireAdmin();
@@ -207,9 +214,24 @@ final class ImportController
                 if ($docCurrency === 'CZK') {
                     $docRate = '1';
                 }
+                // Case B (Shoptet.sk): cizí měna a XML neobsahuje kurz → ceny položek i
+                // castka_celkem jsou v cizí měně. Dopočti kurz z ČNB dle DUZP a převeď na CZK.
+                // (Shoptet.cz posílá EUR doklady už s kurzem a v CZK → tohle se jich netýká.)
+                $foreignHome = false;
+                if ($docCurrency !== 'CZK' && ($docRate === null || (float)$docRate <= 0)) {
+                    $cnbRate = $this->cnbRates()->getRate($docCurrency, $duzp);
+                    if ($cnbRate !== null && $cnbRate > 0) {
+                        $foreignHome = true;
+                        $docRate = (string)$cnbRate;
+                    }
+                }
                 $deleteItems->execute([$eshop, $docNumber]);
                 $deleteDoc->execute([$eshop, $docNumber]);
                 $castkaCelkem = isset($doc['castka_celkem']) ? round((float)$doc['castka_celkem'], 2) : null;
+                if ($foreignHome && $castkaCelkem !== null) {
+                    // parser spočítal castka_celkem z cen v cizí měně → převeď na CZK
+                    $castkaCelkem = round($castkaCelkem * (float)$docRate, 2);
+                }
                 $docInsert->execute([
                     $eshop,
                     $docNumber,
@@ -244,6 +266,13 @@ final class ImportController
                         $computed = $this->toFloat($unitForeign) * $this->toFloat($docRate);
                         $formatted = rtrim(rtrim(number_format($computed, 6, '.', ''), '0'), '.');
                         $unitHome = $this->normalizeDecimal($formatted);
+                    }
+                    // Case B: unitHome je v cizí měně → ulož ji jako cena_jedn_mena a
+                    // cena_jedn_czk dopočti přes kurz (CZK).
+                    if ($foreignHome && $unitHome !== null) {
+                        $unitForeign = $unitHome;
+                        $computed = $this->toFloat($unitHome) * $this->toFloat($docRate);
+                        $unitHome = $this->normalizeDecimal(rtrim(rtrim(number_format($computed, 6, '.', ''), '0'), '.'));
                     }
                     $itemInsert->execute([
                         $eshop,

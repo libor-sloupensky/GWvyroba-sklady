@@ -4,3 +4,6 @@ config/config.local.php
 
 # Pracovní doklady (osobní data) - necommitovat
 temporary/
+
+# Logy a cache (ČNB kurzy, cookies, import logy)
+log/
