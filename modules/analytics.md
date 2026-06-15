@@ -67,6 +67,13 @@ Modul nemá vlastní DB schema kromě:
 
 ⚠️ **Známé dluhy / gotchy / historie oprav**
 
+### 🟢 ZMĚNA 2026-06-15: popisek „Zisk %" → „Marže %" + nový sloupec „Přirážka %"
+Sloupec procentní marže v `margins_table` (režimy faktury/kontakty/produkty i v rozbaleném detailu položek) se ve `views/analytics_revenue.php` přejmenoval ze „Zisk %" na „Marže %" (resp. „Průměrná marže %"). **Výpočet marže se neměnil** — už dříve = `zisk / tržba × 100`, tedy marže z prodejní (celkové) ceny. Sloupec „Zisk (CZK)" (absolutní zisk) zůstal.
+
+Přidán nový sloupec **„Přirážka %"** (resp. „Průměrná přirážka %") vedle marže = `zisk / náklad × 100`. Klíč `prirazka_pct` doplněn ve všech agregacích `buildMarginRows()` (položka/faktura/kontakt/produkt) i v detail endpointu `invoiceItemsV2()`. Pozor na rozdíl: **marže** = zisk/tržba (jmenovatel = prodejní cena), **přirážka** = zisk/náklad (jmenovatel = nákladová cena) → přirážka je vždy vyšší číslo. Při nákladu 0 se přirážka nastaví na 0 (edge case chybějící `skl_hodnota`). Footer počítá průměry z celkových součtů (`Σzisk/Σtržba`, resp. `Σzisk/Σnáklad`), ne průměr procent.
+
+Pozn.: pozorovaný „nesoulad" souhrnného řádku faktury vs. rozbalený detail = **feature, ne bug** — souhrn (`loadInvoiceItems`) respektuje filtry (typ/značka/skupina/SKU), kdežto detailní drill-down (`invoiceItemsV2`) filtry ignoruje a ukáže všechny položky faktury. Při filtru typ=produkt tak souhrn vynechá kartony, které detail zobrazí.
+
 ### 🟢 ZMĚNA 2026-06-04: analýzy už nefiltrují na `aktivni`
 Dříve šablony **Sklady** (`stock_value_by_month`) a **Produkty** + PHP varianty pohybů filtrovaly na `p.aktivni = 1`, takže deaktivované produkty mizely z výsledků (skladová hodnota klesala po deaktivaci, i když na produktu fyzicky ležely zásoby).
 

@@ -701,6 +701,7 @@ PROMPT;
 
                 $zisk = round($trzba - $naklad, 2);
                 $ziskPct = $trzba > 0 ? round(($zisk / $trzba) * 100, 1) : 0.0;
+                $prirazkaPct = $naklad > 0 ? round(($zisk / $naklad) * 100, 1) : 0.0;
 
                 $items[] = [
                     'sku' => $sku,
@@ -710,6 +711,7 @@ PROMPT;
                     'naklad' => $naklad,
                     'zisk' => $zisk,
                     'zisk_pct' => $ziskPct,
+                    'prirazka_pct' => $prirazkaPct,
                 ];
             }
 
@@ -1743,6 +1745,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
 
                 $zisk = $trzby - $naklady;
                 $ziskPct = ($trzby > 0) ? round(($zisk / $trzby) * 100, 1) : 0;
+                $prirazkaPct = ($naklady > 0) ? round(($zisk / $naklady) * 100, 1) : 0;
 
                 $invoiceTrzby += $trzby;
                 $invoiceNaklady += $naklady;
@@ -1756,6 +1759,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                     'naklady' => round($naklady, 2),
                     'zisk' => round($zisk, 2),
                     'zisk_pct' => $ziskPct,
+                    'prirazka_pct' => $prirazkaPct,
                 ];
 
                 $invoiceItems[] = $itemData;
@@ -1780,6 +1784,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
 
             $invoiceZisk = $invoiceTrzby - $invoiceNaklady;
             $invoiceZiskPct = ($invoiceTrzby > 0) ? round(($invoiceZisk / $invoiceTrzby) * 100, 1) : 0;
+            $invoicePrirazkaPct = ($invoiceNaklady > 0) ? round(($invoiceZisk / $invoiceNaklady) * 100, 1) : 0;
 
             // Agregace dle kontaktu
             $kontaktKey = (int)($inv['kontakt_id'] ?? 0);
@@ -1825,6 +1830,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                 'naklady' => round($invoiceNaklady, 2),
                 'zisk' => round($invoiceZisk, 2),
                 'zisk_pct' => $invoiceZiskPct,
+                'prirazka_pct' => $invoicePrirazkaPct,
                 'items' => $invoiceItems,
             ];
         }
@@ -1835,6 +1841,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             foreach ($byContact as $c) {
                 $zisk = $c['trzby'] - $c['naklady'];
                 $ziskPct = ($c['trzby'] > 0) ? round(($zisk / $c['trzby']) * 100, 1) : 0;
+                $prirazkaPct = ($c['naklady'] > 0) ? round(($zisk / $c['naklady']) * 100, 1) : 0;
                 // Sestavit kontakt label
                 $parts = [];
                 if (!empty($c['firma'])) {
@@ -1859,6 +1866,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                     'naklady' => round($c['naklady'], 2),
                     'zisk' => round($zisk, 2),
                     'zisk_pct' => $ziskPct,
+                    'prirazka_pct' => $prirazkaPct,
                     'pocet_faktur' => $c['pocet_faktur'],
                 ];
             }
@@ -1871,6 +1879,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             foreach ($byProduct as $p) {
                 $zisk = $p['trzby'] - $p['naklady'];
                 $ziskPct = ($p['trzby'] > 0) ? round(($zisk / $p['trzby']) * 100, 1) : 0;
+                $prirazkaPct = ($p['naklady'] > 0) ? round(($zisk / $p['naklady']) * 100, 1) : 0;
                 $rows[] = [
                     'sku' => $p['sku'],
                     'nazev' => $p['nazev'],
@@ -1880,6 +1889,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                     'naklady' => round($p['naklady'], 2),
                     'zisk' => round($zisk, 2),
                     'zisk_pct' => $ziskPct,
+                    'prirazka_pct' => $prirazkaPct,
                     'aktivni' => $p['aktivni'] ?? 1,
                 ];
             }

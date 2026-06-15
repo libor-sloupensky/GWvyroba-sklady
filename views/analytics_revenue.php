@@ -704,7 +704,8 @@
         { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
         { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
         { key: 'zisk', label: 'Zisk (CZK)', numeric: true },
-        { key: 'zisk_pct', label: 'Zisk %', numeric: true },
+        { key: 'zisk_pct', label: 'Marže %', numeric: true },
+        { key: 'prirazka_pct', label: 'Přirážka %', numeric: true },
       ];
     } else if (mode === 'contacts') {
       cols = [
@@ -713,7 +714,8 @@
         { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
         { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
         { key: 'zisk', label: 'Zisk (CZK)', numeric: true },
-        { key: 'zisk_pct', label: 'Průměrné zisk %', numeric: true },
+        { key: 'zisk_pct', label: 'Průměrná marže %', numeric: true },
+        { key: 'prirazka_pct', label: 'Průměrná přirážka %', numeric: true },
       ];
     } else if (mode === 'products') {
       cols = [
@@ -723,7 +725,8 @@
         { key: 'trzby', label: 'Tržby (CZK)', numeric: true },
         { key: 'naklady', label: 'Náklady (CZK)', numeric: true },
         { key: 'zisk', label: 'Zisk (CZK)', numeric: true },
-        { key: 'zisk_pct', label: 'Zisk %', numeric: true },
+        { key: 'zisk_pct', label: 'Marže %', numeric: true },
+        { key: 'prirazka_pct', label: 'Přirážka %', numeric: true },
       ];
     }
 
@@ -782,7 +785,7 @@
           if (col.key === 'zisk') {
             td.classList.add(profitClass(row[col.key]));
           }
-        } else if (col.key === 'zisk_pct') {
+        } else if (col.key === 'zisk_pct' || col.key === 'prirazka_pct') {
           td.textContent = formatPct(row[col.key]);
           td.classList.add(profitClass(row.zisk));
         } else if (col.key === 'pocet_faktur' || col.key === 'mnozstvi') {
@@ -850,6 +853,10 @@
         const avgPct = (totals.zisk / totals.trzby) * 100;
         td.textContent = formatPct(avgPct);
         td.className = 'num ' + profitClass(totals.zisk);
+      } else if (col.key === 'prirazka_pct' && totals.naklady > 0) {
+        const avgPct = (totals.zisk / totals.naklady) * 100;
+        td.textContent = formatPct(avgPct);
+        td.className = 'num ' + profitClass(totals.zisk);
       } else if (col.key === 'pocet_faktur') {
         td.textContent = formatNum(rows.length);
         td.className = 'num';
@@ -882,7 +889,7 @@
       };
 
       let html = '<table class="margins-detail-table"><thead><tr>' +
-        '<th>SKU</th><th>Název</th><th>Množství</th><th>Tržba (CZK)</th><th>Náklad (CZK)</th><th>Zisk (CZK)</th><th>Zisk %</th>' +
+        '<th>SKU</th><th>Název</th><th>Množství</th><th>Tržba (CZK)</th><th>Náklad (CZK)</th><th>Zisk (CZK)</th><th>Marže %</th><th>Přirážka %</th>' +
         '</tr></thead><tbody>';
 
       items.forEach(item => {
@@ -895,6 +902,7 @@
           <td class="num">${formatNum(item.naklad)}</td>
           <td class="num ${profitClass}">${formatNum(item.zisk)}</td>
           <td class="num ${profitClass}">${Number(item.zisk_pct).toFixed(1)} %</td>
+          <td class="num ${profitClass}">${Number(item.prirazka_pct).toFixed(1)} %</td>
         </tr>`;
       });
 
