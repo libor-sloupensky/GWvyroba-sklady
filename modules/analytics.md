@@ -67,6 +67,15 @@ Modul nemá vlastní DB schema kromě:
 
 ⚠️ **Známé dluhy / gotchy / historie oprav**
 
+### 🟢 OPRAVA 2026-06-15: DPH + sleva v tržbách (Fáze 1)
+Měsíční tržby (`SUM(castka_celkem)`) byly **nadhodnocené o DPH** — `castka_celkem` se v importu plnilo z `priceLowSum` (s DPH). Marže naopak počítala tržby z `cena_jedn_czk` (bez DPH), ale **bez aplikace slevy** (`sleva_procento`), takže u dokladů se slevou nadhodnocovala tržby/marži.
+
+Oprava (Fáze 1):
+- Import: `castka_celkem` = základ položek bez DPH, po slevě (viz `import.md`). Migrace: `db/migrate_castka_celkem_bez_dph.sql`.
+- Marže (`buildMarginRows` + `invoiceItemsV2`): tržba = `cena_jedn_czk × mn. × (1 − sleva_procento/100)`. `sleva_procento` přidána do SELECTů `loadInvoiceItems` i detailu.
+
+**Fáze 2 (TODO):** EUR doklady z grig.sk mají `cena_jedn_czk`/`castka_celkem` v EUR (kurz null) → přepočet na CZK přes ČNB kurz dle DUZP. gogrig.com EUR je už v CZK (Shoptet.cz převádí při importu).
+
 ### 🟢 ZMĚNA 2026-06-15: přepínač „pouze/kromě" u výběru firem (Marže + Měsíční tržby)
 Šablony `margins` a `monthly_revenue_by_ic` mají nový enum parametr `contact_mode` (`pouze` = default / `krome`). Při výběru konkrétních firem lze přepnout, zda se zobrazí **jen vybrané firmy** (`IN`), nebo **vše kromě nich** (`NOT IN`). V režimu „kromě" se ponechávají i faktury bez kontaktu (`OR de.kontakt_id IS NULL`).
 

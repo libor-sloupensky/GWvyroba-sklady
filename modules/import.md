@@ -58,7 +58,9 @@ Cron endpoint (mimo router): `GET /cron.php?token=...`
 
 ⚠️ **Známé dluhy / gotchy**
 - **Pohoda XML parser je zastaralý** — README říká "TODO dle MASTER_PROMPT; zatím stub", většina práce jde přes Shoptet XML
-- **`castka_celkem`** — schema říká "bez DPH", ale reálně v importovaných datech je často **s DPH** (viz analytika). Pokud budeš upravovat import, zvaž co má sloupec skutečně obsahovat, ať se jiné moduly nerozbijí. 🔴 Relevantní pro `analytics.md` — historická chyba zobrazování marží.
+- **`castka_celkem`** — 🟢 OPRAVENO 2026-06-15: dříve se plnilo z `priceLowSum` (= **s DPH** a jen sníženou sazbou) → Měsíční tržby nadhodnoceny o DPH. Nově `castka_celkem` = součet základů položek **bez DPH, po slevě** (`Σ unit × qty × (1−sleva)`). Migrace existujících dat: `db/migrate_castka_celkem_bez_dph.sql`.
+- **Sleva položek** — `cena_jedn_czk` se ukládá **PŘED slevou**, sleva je zvlášť v `sleva_procento`. Skutečná tržba = `cena_jedn_czk × mn. × (1 − sleva/100)`. Kdokoli počítá tržby z `cena_jedn_czk`, musí slevu aplikovat (viz oprava v `analytics.md`).
+- **Měna (EUR)** — Shoptet.**cz** eshopy (gogrig.com, grig.cz, wormup.com, grigsupply.cz) ukládají EUR doklady **už převedené na CZK** v `cena_jedn_czk` + vyplněný `kurz_na_czk`. Shoptet.**sk** (grig.sk) ukládá `cena_jedn_czk` **v EUR** a `kurz_na_czk = NULL` → potřeba přepočet (Fáze 2, ČNB kurz dle DUZP). Diskriminátor řádků k přepočtu: `mena_puvodni <> 'CZK' AND (kurz_na_czk IS NULL OR kurz_na_czk = 0)`.
 - **Cron token v URL** — bude v access logu hostingu. Při rotaci změnit v `config.local.php` i v cron nastavení Webglobe.
 - Kontakty se cachují během importu (`ic`/`email` key) — duplikátní emaily na různé IČ = jedna osoba
 - `import_batch_id` = timestamp `YmdHis` — lze reverzovat poslední dávku

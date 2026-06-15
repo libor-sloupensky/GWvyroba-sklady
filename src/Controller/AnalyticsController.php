@@ -683,7 +683,7 @@ PROMPT;
 
             // Načíst položky faktury
             $stmt = $pdo->prepare("
-                SELECT pe.sku, pe.nazev, pe.mnozstvi, pe.cena_jedn_czk
+                SELECT pe.sku, pe.nazev, pe.mnozstvi, pe.cena_jedn_czk, pe.sleva_procento
                 FROM polozky_eshop pe
                 WHERE pe.eshop_source = ? AND pe.cislo_dokladu = ?
                   AND pe.sku IS NOT NULL AND pe.sku != ''
@@ -705,7 +705,9 @@ PROMPT;
             foreach ($rows as $row) {
                 $sku = $row['sku'];
                 $qty = (float)($row['mnozstvi'] ?? 0);
-                $trzba = round($qty * (float)($row['cena_jedn_czk'] ?? 0), 2);
+                $sleva = (float)($row['sleva_procento'] ?? 0);
+                // cena_jedn_czk je PŘED slevou; tržbu počítáme po slevě
+                $trzba = round($qty * (float)($row['cena_jedn_czk'] ?? 0) * (1 - $sleva / 100), 2);
 
                 // Vypočítat náklad
                 $naklad = $this->calculateItemCost($sku, $qty, $productCosts, $bomCache, $nonstockTypes);
@@ -1763,7 +1765,9 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
                 $sku = (string)$item['sku'];
                 $qty = (float)$item['mnozstvi'];
                 $unitPrice = (float)$item['cena_jedn_czk'];
-                $trzby = $unitPrice * $qty;
+                $sleva = (float)($item['sleva_procento'] ?? 0);
+                // cena_jedn_czk je PŘED slevou; tržbu počítáme po slevě
+                $trzby = $unitPrice * $qty * (1 - $sleva / 100);
 
                 // Náklady - pro nonstock produkty součet komponent
                 $naklady = $this->calculateItemCost($sku, $qty, $productCosts, $bomCache, $nonstockTypes);
@@ -2084,7 +2088,7 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
         $sql = "
             SELECT
                 pe.eshop_source, pe.cislo_dokladu, pe.sku, pe.nazev, pe.mnozstvi,
-                pe.merna_jednotka, pe.cena_jedn_czk,
+                pe.merna_jednotka, pe.cena_jedn_czk, pe.sleva_procento,
                 p.znacka_id, p.skupina_id, p.typ
             FROM polozky_eshop pe
             LEFT JOIN produkty p ON p.sku = pe.sku OR p.alt_sku = pe.sku

@@ -480,32 +480,35 @@ final class ImportController
                     'discount' => $this->xpathValue($xpath, './inv:discountPercentage', $itemNode),
                 ];
             }
-            // Načíst celkovou částku faktury z XML (invoiceSummary/homeCurrency/priceLowSum)
+            // castka_celkem = tržby BEZ DPH = součet základů položek × (1 − sleva).
+            // POZOR (oprava 2026-06): dříve se bralo z invoiceSummary/homeCurrency/priceLowSum,
+            // což je ale částka VČETNĚ DPH a jen za sníženou sazbu — Měsíční tržby tím byly
+            // nadhodnocené o DPH. Počítáme proto vždy ze základů položek (bez DPH), se slevou.
+            // Měna: hodnota je v měně položek (unit_price_home) — převod EUR→CZK řeší samostatný
+            // krok (Fáze 2), zde zachováváme dosavadní měnu jako u cena_jedn_czk.
+            $docRate = $this->toFloat($doc['kurz']);
+            if ($docRate <= 0) {
+                $docRate = 1.0;
+            }
             $castkaCelkem = 0.0;
-            if ($summary !== null) {
-                $priceLowSumStr = $this->xpathValue($xpath, './inv:homeCurrency/typ:priceLowSum', $summary);
-                $castkaCelkem = $this->toFloat($priceLowSumStr);
+            foreach ($doc['items'] as $item) {
+                $qty = $this->toFloat($item['quantity'] ?? '0');
+                $unitHome = $this->toFloat($item['unit_price_home'] ?? '');
+                $unitForeign = $this->toFloat($item['unit_price_foreign'] ?? '');
+                $base = 0.0;
+                if ($unitHome > 0) {
+                    $base = $unitHome;
+                } elseif ($unitForeign > 0) {
+                    $base = $unitForeign * $docRate;
+                }
+                $discount = $this->toFloat($item['discount'] ?? '') / 100.0;
+                if ($discount < 0 || $discount > 1) {
+                    $discount = 0.0;
+                }
+                $castkaCelkem += $qty * $base * (1 - $discount);
             }
 
-            // Fallback: pokud castka_celkem není v XML nebo je 0, spočítat ze součtu položek
-            if ($castkaCelkem <= 0.0) {
-                $docRate = $this->toFloat($doc['kurz']);
-                if ($docRate <= 0) {
-                    $docRate = 1.0;
-                }
-                foreach ($doc['items'] as $item) {
-                    $qty = $this->toFloat($item['quantity'] ?? '0');
-                    $unitHome = $this->toFloat($item['unit_price_home'] ?? '');
-                    $unitForeign = $this->toFloat($item['unit_price_foreign'] ?? '');
-                    if ($unitHome > 0) {
-                        $castkaCelkem += $qty * $unitHome;
-                    } elseif ($unitForeign > 0) {
-                        $castkaCelkem += $qty * $unitForeign * $docRate;
-                    }
-                }
-            }
-
-            $doc['castka_celkem'] = $castkaCelkem;
+            $doc['castka_celkem'] = round($castkaCelkem, 2);
             $docs[] = $doc;
         }
         libxml_clear_errors();

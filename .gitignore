@@ -1,3 +1,6 @@
 xml/
 config/config.local.php
 
+
+# Pracovní doklady (osobní data) - necommitovat
+temporary/
