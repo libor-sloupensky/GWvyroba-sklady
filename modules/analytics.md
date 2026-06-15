@@ -67,6 +67,9 @@ Modul nemá vlastní DB schema kromě:
 
 ⚠️ **Známé dluhy / gotchy / historie oprav**
 
+### 🟢 ZMĚNA 2026-06-15: přepínač „pouze/kromě" u výběru firem (šablona Marže)
+Šablona `margins` má nový enum parametr `contact_mode` (`pouze` = default / `krome`). Při výběru konkrétních firem lze přepnout, zda se zobrazí **jen vybrané firmy** (`IN`), nebo **vše kromě nich** (`NOT IN`). V režimu „kromě" se ponechávají i faktury bez kontaktu (`OR de.kontakt_id IS NULL`). Logika v `buildMarginRows()`. UI: přepínač (`.toggle-switch`) uvnitř pole kontaktů ve `views/analytics_revenue.php`, viditelný jen u šablon s parametrem `contact_mode` **a** když je vybraná aspoň jedna firma; default „pouze", reset při změně šablony, stav v `state.contactMode`, ukládá/obnovuje se v oblíbených. Zatím jen pro `margins` (ne pro `monthly_revenue_by_ic`, kde kontakt řídí i grupování sérií).
+
 ### 🟢 ZMĚNA 2026-06-15: popisek „Zisk %" → „Marže %" + nový sloupec „Přirážka %"
 Sloupec procentní marže v `margins_table` (režimy faktury/kontakty/produkty i v rozbaleném detailu položek) se ve `views/analytics_revenue.php` přejmenoval ze „Zisk %" na „Marže %" (resp. „Průměrná marže %"). **Výpočet marže se neměnil** — už dříve = `zisk / tržba × 100`, tedy marže z prodejní (celkové) ceny. Sloupec „Zisk (CZK)" (absolutní zisk) zůstal.
 

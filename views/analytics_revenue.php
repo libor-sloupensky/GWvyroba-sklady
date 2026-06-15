@@ -120,6 +120,13 @@
         <input type="text" id="contact-search" placeholder="Hledat..." autocomplete="off" />
         <div id="contact-dropdown" class="dropdown" style="display:none;"></div>
         <div class="chips" id="contact-chips"></div>
+        <div id="contact-mode-wrap" style="display:none; margin-top:0.4rem;">
+          <div class="toggle-switch" id="contact-mode-toggle">
+            <button type="button" data-value="pouze" class="active">Pouze</button>
+            <button type="button" data-value="krome">Kromě</button>
+          </div>
+          <p class="muted">„Pouze" = jen vybrané firmy. „Kromě" = vše mimo vybrané firmy.</p>
+        </div>
         <p class="muted">Vyberte 0–N kontaktů; prázdné = všechny.</p>
       </div>
 
@@ -210,7 +217,31 @@
     lastRows: [],
     marginSort: { key: null, dir: null }, // key: column key, dir: 'asc' or 'desc'
     marginMode: null,
+    contactMode: 'pouze', // 'pouze' = jen vybrané firmy, 'krome' = vše mimo vybrané
   };
+
+  // Přepínač pouze/kromě u výběru firem (dostupný jen u šablon s parametrem contact_mode)
+  let contactModeAvailable = false;
+  const contactModeWrap = document.getElementById('contact-mode-wrap');
+  const contactModeToggle = document.getElementById('contact-mode-toggle');
+  function setContactMode(mode, notify = true) {
+    const m = (mode === 'krome') ? 'krome' : 'pouze';
+    state.contactMode = m;
+    if (contactModeToggle) {
+      Array.from(contactModeToggle.querySelectorAll('button')).forEach((b) => {
+        b.classList.toggle('active', b.dataset.value === m);
+      });
+    }
+  }
+  function updateContactModeVisibility() {
+    if (!contactModeWrap) return;
+    contactModeWrap.style.display = (contactModeAvailable && state.contacts.length > 0) ? 'block' : 'none';
+  }
+  if (contactModeToggle) {
+    contactModeToggle.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => setContactMode(btn.dataset.value));
+    });
+  }
 
   // Populate template select
   Object.entries(templates).forEach(([id, tpl]) => {
@@ -227,6 +258,7 @@
     let hasContact = false;
     let hasProduct = false;
     let hasEshop = false;
+    let hasContactMode = false;
     let dateRow = null;
     let toggleRow = null;
 
@@ -240,6 +272,7 @@
     };
 
     (tpl?.params || []).forEach((p) => {
+      if (p.name === 'contact_mode') { hasContactMode = true; return; } // renderuje se u pole kontaktů
       const wrap = document.createElement('div');
       wrap.className = 'field';
       const useDateRow = p.type === 'date' && (p.name === 'start_date' || p.name === 'end_date');
@@ -431,6 +464,9 @@
     });
 
     contactField.style.display = hasContact ? 'block' : 'none';
+    contactModeAvailable = hasContactMode;
+    setContactMode('pouze', false); // default "pouze" při změně šablony
+    updateContactModeVisibility();
     productField.style.display = hasProduct ? 'block' : 'none';
     eshopField.style.display = hasEshop ? 'block' : 'none';
     if (!hasEshop) {
@@ -491,6 +527,10 @@
     const tpl = templates[selectTpl.value];
     const params = {};
     (tpl?.params || []).forEach((p) => {
+      if (p.name === 'contact_mode') {
+        params[p.name] = state.contactMode || 'pouze';
+        return;
+      }
       if (p.type === 'contact_multi') {
         params[p.name] = state.contacts.map(c => c.id);
         return;
@@ -1084,7 +1124,9 @@
     const contactIds = [];
     let productSkus = [];
     tplParams.forEach((param) => {
-      if (param.type === 'contact_multi') {
+      if (param.name === 'contact_mode') {
+        setContactMode(p[param.name] || 'pouze', false);
+      } else if (param.type === 'contact_multi') {
         (p[param.name] || []).forEach(id => contactIds.push(id));
       } else if (param.type === 'product_multi') {
         productSkus = Array.isArray(p[param.name]) ? p[param.name] : [];
@@ -1214,6 +1256,7 @@
       chip.appendChild(btn);
       productChips.appendChild(chip);
     });
+    updateContactModeVisibility();
   }
 
   let suggestTimeout;

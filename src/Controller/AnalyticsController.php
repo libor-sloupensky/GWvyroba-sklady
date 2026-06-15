@@ -995,6 +995,10 @@ ORDER BY m.month_end, serie_label
                     ]],
                     ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
                     ['name' => 'contact_ids', 'label' => 'Kontakt', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'contact_mode', 'label' => 'Režim kontaktů', 'type' => 'enum', 'required' => false, 'default' => 'pouze', 'values' => [
+                        ['value' => 'pouze', 'label' => 'Pouze'],
+                        ['value' => 'krome', 'label' => 'Kromě'],
+                    ]],
                     ['name' => 'sku', 'label' => 'SKU', 'type' => 'product_multi', 'required' => false, 'default' => []],
                     ['name' => 'znacka_id', 'label' => 'Značka', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $brands],
                     ['name' => 'skupina_id', 'label' => 'Skupina', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $groups],
@@ -1665,13 +1669,19 @@ private function selectionLabel(array $paramsDef, string $name, $selected): stri
             }
         }
 
-        // Filtr kontakt
+        // Filtr kontakt — režim "pouze" (IN) / "kromě" (NOT IN)
         $contacts = $params['contact_ids'] ?? [];
+        $contactMode = ((string)($params['contact_mode'] ?? 'pouze') === 'krome') ? 'krome' : 'pouze';
         if (!empty($contacts) && is_array($contacts)) {
             $contacts = array_filter(array_map('intval', $contacts), fn($v) => $v > 0);
             if (!empty($contacts)) {
                 $placeholders = implode(',', array_fill(0, count($contacts), '?'));
-                $sql .= " AND de.kontakt_id IN ({$placeholders})";
+                if ($contactMode === 'krome') {
+                    // Vše mimo vybrané firmy; faktury bez kontaktu (NULL) ponechat
+                    $sql .= " AND (de.kontakt_id NOT IN ({$placeholders}) OR de.kontakt_id IS NULL)";
+                } else {
+                    $sql .= " AND de.kontakt_id IN ({$placeholders})";
+                }
                 $binds = array_merge($binds, $contacts);
             }
         }
