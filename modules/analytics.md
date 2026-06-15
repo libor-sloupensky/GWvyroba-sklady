@@ -67,6 +67,9 @@ Modul nemá vlastní DB schema kromě:
 
 ⚠️ **Známé dluhy / gotchy / historie oprav**
 
+### ✅ Migrace provedena na produkci 2026-06-15
+Historická data opravena (přes dočasný token-chráněný endpoint, poté smazán): **163 EUR dokladů** (grig.sk) přepočteno na CZK přes ČNB kurz dle DUZP, **9 978 dokladů** přepočítaná `castka_celkem` (bez DPH, po slevě). Ověřeno na vzorku (2026900227→18 755, 2026900108→118 613,26, grig.sk 1126000008 24,41 €→594,14 CZK). Drobné haléřové rozdíly = zaokrouhlení po jednotce (zanedbatelné). Import + Marže opraveny v kódu (viz níže), nová data už chodí správně.
+
 ### 🟢 OPRAVA 2026-06-15: DPH + sleva v tržbách (Fáze 1)
 Měsíční tržby (`SUM(castka_celkem)`) byly **nadhodnocené o DPH** — `castka_celkem` se v importu plnilo z `priceLowSum` (s DPH). Marže naopak počítala tržby z `cena_jedn_czk` (bez DPH), ale **bez aplikace slevy** (`sleva_procento`), takže u dokladů se slevou nadhodnocovala tržby/marži.
 
