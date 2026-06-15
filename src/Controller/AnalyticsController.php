@@ -303,7 +303,7 @@ Dostupne tabulky a sloupce:
 
 Tipy a aliasy:
 - Datum objednavky: polozky_eshop.duzp (datum/DUZP).
-- Obrat/tr?by: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi), ceny jsou bez DPH, pouzivej ceny v CZK.
+- Obrat/tr?by: sum(polozky_eshop.cena_jedn_czk * polozky_eshop.mnozstvi * (1 - COALESCE(polozky_eshop.sleva_procento,0)/100)), ceny jsou bez DPH a v CZK; cena_jedn_czk je PRED slevou, proto vzdy aplikuj sleva_procento.
 - Vyroba: polozky_pohyby s typ_pohybu = 'vyroba', suma mnozstvi podle sku a casu.
 - Kanaly (eshop_source): velkoobchod=b2b.wormup.com, gogrig.com; maloobchod GRIG=grig.cz; maloobchod SK=grig.sk; maloobchod WormUP=wormup.com; stranky=grigsupply.cz.
 - Aktualni skladova hodnota: pocitej stejne jako ve Vyrobe = snapshot posledni uzavrene inventury + pohyby po inventure - platne rezervace, pak vynasob skl_hodnota. Postup:
@@ -769,7 +769,7 @@ PROMPT;
         return [
             'monthly_revenue_by_ic' => [
                 'title' => 'Měsíční tržby',
-                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál. Používá celkovou částku faktury (vč. slev/dopravného).',
+                'description' => 'Součet tržeb bez DPH podle DUZP po měsících; filtry kontakt (IČ/e-mail/firma) a kanál. Tržby = základ položek bez DPH po slevě (vč. dopravy), v CZK.',
                 'sql' => "
 SELECT DATE_FORMAT(de.duzp, '%Y-%m') AS `měsíc`,
        CASE
