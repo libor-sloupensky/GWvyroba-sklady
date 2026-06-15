@@ -9,7 +9,7 @@ declare(strict_types=1);
  *
  * Idempotentní: EUR přepočet jen u řádků bez kurzu; castka se přepočítává z položek.
  */
-require __DIR__ . '/../src/bootstrap.php';
+require __DIR__ . '/src/bootstrap.php';
 
 use App\Support\DB;
 use App\Service\CnbRateService;
@@ -17,7 +17,7 @@ use App\Service\CnbRateService;
 header('Content-Type: text/plain; charset=utf-8');
 
 // Autorizace stejně jako cron.php — token z config (žádný secret v repu)
-$cfg = include __DIR__ . '/../config/config.php';
+$cfg = include __DIR__ . '/config/config.php';
 $cronToken = (string)($cfg['cron_token'] ?? '');
 $providedToken = trim((string)($_GET['token'] ?? ''));
 if ($cronToken === '' || $providedToken === '' || !hash_equals($cronToken, $providedToken)) {
