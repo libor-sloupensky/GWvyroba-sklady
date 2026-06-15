@@ -494,6 +494,17 @@ PROMPT;
             }
             return;
         }
+        // Režim kontaktů "pouze" (IN) / "kromě" (NOT IN) pro SQL šablony s tokeny @CONTACT_OP@ / @CONTACT_NULL@.
+        // contact_only = 1 jen v režimu "pouze" s vybranými kontakty → rozpad na série po firmách;
+        // v režimu "kromě" se série nedrobí (agreguje se vše mimo vybrané firmy).
+        $contactMode = ((string)($validated['contact_mode'] ?? 'pouze') === 'krome') ? 'krome' : 'pouze';
+        $validated['contact_only'] = ($contactMode === 'pouze' && !empty($validated['has_contacts'])) ? 1 : 0;
+        $template['sql'] = str_replace(
+            ['@CONTACT_OP@', '@CONTACT_NULL@'],
+            [$contactMode === 'krome' ? 'NOT IN' : 'IN', $contactMode === 'krome' ? ' OR de.kontakt_id IS NULL' : ''],
+            $template['sql']
+        );
+
         $sql = $this->expandArrayParams($template['sql'], $validated);
 
         try {
@@ -760,17 +771,17 @@ PROMPT;
                 'sql' => "
 SELECT DATE_FORMAT(de.duzp, '%Y-%m') AS `měsíc`,
        CASE
-         WHEN :has_contacts = 1 THEN CAST(COALESCE(c.id, -1) AS CHAR)
+         WHEN :contact_only = 1 THEN CAST(COALESCE(c.id, -1) AS CHAR)
          WHEN :has_eshops = 1 THEN de.eshop_source
          ELSE 'all'
        END AS serie_key,
   CASE
-    WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
+    WHEN :contact_only = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
     WHEN :has_eshops = 1 THEN de.eshop_source
     ELSE 'Celkem'
   END AS serie_label,
   CASE
-    WHEN :has_contacts = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
+    WHEN :contact_only = 1 THEN TRIM(CONCAT(COALESCE(c.firma, ''), ' ', COALESCE(c.ic, '')))
     ELSE NULL
   END AS kontakt,
   ROUND(SUM(de.castka_celkem), 0) AS `tržby`,
@@ -778,7 +789,7 @@ SELECT DATE_FORMAT(de.duzp, '%Y-%m') AS `měsíc`,
 FROM doklady_eshop de
 LEFT JOIN kontakty c ON c.id = de.kontakt_id
 WHERE de.duzp BETWEEN :start_date AND :end_date
-  AND (:has_contacts = 0 OR de.kontakt_id IN (%contact_ids%))
+  AND (:has_contacts = 0 OR (de.kontakt_id @CONTACT_OP@ (%contact_ids%)@CONTACT_NULL@))
   AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
 GROUP BY DATE_FORMAT(de.duzp, '%Y-%m'), serie_key, serie_label
 ORDER BY `měsíc`, serie_label
@@ -787,6 +798,10 @@ ORDER BY `měsíc`, serie_label
                     ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
                     ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
                     ['name' => 'contact_ids', 'label' => 'Kontakt', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'contact_mode', 'label' => 'Režim kontaktů', 'type' => 'enum', 'required' => false, 'default' => 'pouze', 'values' => [
+                        ['value' => 'pouze', 'label' => 'Pouze'],
+                        ['value' => 'krome', 'label' => 'Kromě'],
+                    ]],
                     ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
                 ],
                 'suggested_render' => 'table',
