@@ -14,8 +14,20 @@ final class SettingsController
         $this->requireAdmin();
         $pdo = DB::pdo();
         // Stav auto-importu se odvozuje z posledního běhu (import_history) vs. poslední změna řady (updated_at).
-        try { $pdo->exec("ALTER TABLE nastaveni_rady ADD COLUMN IF NOT EXISTS updated_at DATETIME NULL DEFAULT NULL"); } catch (\Throwable $e) {}
-        $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do,nr.admin_url,nr.admin_email,nr.admin_password_enc,nr.updated_at,
+        // Portable přidání sloupce (MySQL nezná ADD COLUMN IF NOT EXISTS) — nejdřív ověřit přes information_schema.
+        $hasUpdatedAt = false;
+        try {
+            $hasUpdatedAt = (bool)$pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'nastaveni_rady' AND COLUMN_NAME = 'updated_at'")->fetchColumn();
+            if (!$hasUpdatedAt) {
+                $pdo->exec("ALTER TABLE nastaveni_rady ADD COLUMN updated_at DATETIME NULL DEFAULT NULL");
+                $hasUpdatedAt = true;
+            }
+        } catch (\Throwable $e) {
+            $hasUpdatedAt = false;
+        }
+        // Kdyby sloupec z jakéhokoli důvodu nešel přidat, /settings nesmí spadnout → NULL fallback.
+        $updatedCol = $hasUpdatedAt ? 'nr.updated_at' : 'NULL AS updated_at';
+        $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do,nr.admin_url,nr.admin_email,nr.admin_password_enc,{$updatedCol},
             EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports,
             (SELECT ih.status FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_status,
             (SELECT ih.created_at FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_at
