@@ -13,7 +13,17 @@ final class SettingsController
     {
         $this->requireAdmin();
         $pdo = DB::pdo();
-        $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do,nr.admin_url,nr.admin_email,nr.admin_password_enc, EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports FROM nastaveni_rady nr ORDER BY nr.eshop_source")->fetchAll();
+        // Stav auto-importu se odvozuje z posledního běhu (import_history) vs. poslední změna řady (updated_at).
+        try { $pdo->exec("ALTER TABLE nastaveni_rady ADD COLUMN IF NOT EXISTS updated_at DATETIME NULL DEFAULT NULL"); } catch (\Throwable $e) {}
+        $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do,nr.admin_url,nr.admin_email,nr.admin_password_enc,nr.updated_at,
+            EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports,
+            (SELECT ih.status FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_status,
+            (SELECT ih.created_at FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_at
+            FROM nastaveni_rady nr ORDER BY nr.eshop_source")->fetchAll();
+        foreach ($series as &$sRow) {
+            $sRow['import_state'] = $this->seriesImportState($sRow);
+        }
+        unset($sRow);
         $ignores = $pdo->query('SELECT id,vzor FROM nastaveni_ignorovane_polozky ORDER BY id DESC')->fetchAll();
         $glob = $pdo->query('SELECT okno_pro_prumer_dni,spotreba_prumer_dni,zasoba_cil_dni,mena_zakladni,zaokrouhleni,timezone FROM nastaveni_global WHERE id=1')->fetch() ?: [];
         $brands = $pdo->query('SELECT z.id,z.nazev,(SELECT COUNT(*) FROM produkty p WHERE p.znacka_id=z.id) AS used_count FROM produkty_znacky z ORDER BY z.nazev')->fetchAll();
@@ -39,6 +49,27 @@ final class SettingsController
             'flashError' => $flashError,
             'flashMessage' => $flashMessage,
         ]);
+    }
+
+    /**
+     * Stav auto-importu řady: neaktivni | neovereno | chybne | overeno.
+     * @param array<string,mixed> $s
+     */
+    private function seriesImportState(array $s): string
+    {
+        $hasCredentials = !empty($s['admin_url']) && !empty($s['admin_email']) && !empty($s['admin_password_enc']);
+        if (!$hasCredentials) {
+            return 'neaktivni'; // auto-import vypnutý (chybí přihlašovací údaje)
+        }
+        $lastAt = (string)($s['last_import_at'] ?? '');
+        if ($lastAt === '') {
+            return 'neovereno'; // nikdy neproběhl import
+        }
+        $updatedAt = (string)($s['updated_at'] ?? '');
+        if ($updatedAt !== '' && strtotime($updatedAt) > strtotime($lastAt)) {
+            return 'neovereno'; // řada změněna po posledním importu → čeká na další stažení
+        }
+        return ((string)($s['last_import_status'] ?? '') === 'error') ? 'chybne' : 'overeno';
     }
 
     public function saveSeries(): void
@@ -74,16 +105,16 @@ final class SettingsController
 
         if ($targetId > 0) {
             if ($passwordEnc !== null) {
-                $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=?,admin_url=?,admin_email=?,admin_password_enc=? WHERE id=?');
+                $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=?,admin_url=?,admin_email=?,admin_password_enc=?,updated_at=NOW() WHERE id=?');
                 $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $passwordEnc, $targetId]);
             } else {
                 // Keep existing password
-                $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=?,admin_url=?,admin_email=? WHERE id=?');
+                $st = $pdo->prepare('UPDATE nastaveni_rady SET eshop_source=?,prefix=?,cislo_od=?,cislo_do=?,admin_url=?,admin_email=?,updated_at=NOW() WHERE id=?');
                 $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $targetId]);
             }
             $_SESSION['settings_message'] = "E-shop {$eshop} byl upraven.";
         } else {
-            $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do,admin_url,admin_email,admin_password_enc) VALUES (?,?,?,?,?,?,?)');
+            $st = $pdo->prepare('INSERT INTO nastaveni_rady (eshop_source,prefix,cislo_od,cislo_do,admin_url,admin_email,admin_password_enc,updated_at) VALUES (?,?,?,?,?,?,?,NOW())');
             $st->execute([$eshop, $prefix, $from, $to, $adminUrl ?: null, $adminEmail ?: null, $passwordEnc]);
             $_SESSION['settings_message'] = "E-shop {$eshop} byl přidán.";
         }

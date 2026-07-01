@@ -34,7 +34,8 @@ Všechny POST endpointy vrací JSON nebo redirect:
 
 ## Tabulky
 
-- `nastaveni_rady` (id, eshop_source, prefix, cislo_od, cislo_do, admin_url, admin_email, admin_password_enc, aktivni)
+- `nastaveni_rady` (id, eshop_source, prefix, cislo_od, cislo_do, admin_url, admin_email, admin_password_enc, aktivni, login_ok, `updated_at`)
+  - `updated_at` (DATETIME) — čas poslední změny řady; slouží ke stavu auto-importu (změna po importu → „neověřeno"). Přidán idempotentně přes `ADD COLUMN IF NOT EXISTS` v `SettingsController::index`.
 - `nastaveni_ignorovane_polozky` (id, vzor)
 - `nastaveni_global` (id=1, okno_pro_prumer_dni, spotreba_prumer_dni, zasoba_cil_dni, mena_zakladni, zaokrouhleni, timezone) — single-row tabulka
 - `produkty_znacky` (id, nazev UNIQUE)
@@ -60,6 +61,12 @@ Všechny POST endpointy vrací JSON nebo redirect:
   - `zaokrouhleni` — strategy (např. `half_up`)
   - `timezone` — IANA (Europe/Prague default)
 - Uživatelská správa (superadmin): add, edit role, deactivate
+- **Stav auto-importu ve výpisu řad** (sloupec „Auto-import") se odvozuje z posledního běhu v `import_history` vs. `nastaveni_rady.updated_at`:
+  - **ověřeno** — poslední `import_history.status` je `ok`/`warning`
+  - **chybně** — poslední status je `error`
+  - **neověřeno** — nikdy neimportováno, nebo řada změněna po posledním importu (`updated_at > last_import_at`)
+  - **neaktivní** — chybí přihlašovací údaje (auto-import vypnutý)
+  - Logika: `SettingsController::seriesImportState()`; badge ve `views/settings.php`. Pozn.: `wasImportedToday` může po editaci odložit re-import až na další den (pak zůstane „neověřeno" do dalšího stažení).
 
 ⚠️ **Známé dluhy / gotchy**
 - **`ENCRYPTION_KEY` default** je slabá (`'gw0rm-s3cr3t-k3y-ch4ng3-m3'`) — pokud není v env, Shoptet hesla jsou de-facto čitelná. Nastavit silný klíč v `config/config.local.php` (`encryption_key`) nebo env.

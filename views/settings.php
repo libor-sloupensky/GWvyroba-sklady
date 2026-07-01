@@ -37,8 +37,15 @@
   <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Auto-import</th><th>Akce</th></tr>
   <?php foreach (($series ?? []) as $s): ?>
   <?php
-    $hasCredentials = !empty($s['admin_url']) && !empty($s['admin_email']) && !empty($s['admin_password_enc']);
-    $loginOk = (int)($s['login_ok'] ?? 0);
+    $importState = (string)($s['import_state'] ?? 'neovereno');
+    $lastImportAt = !empty($s['last_import_at']) ? date('j.n.Y H:i', strtotime((string)$s['last_import_at'])) : '';
+    $stateMap = [
+      'overeno'   => ['label' => 'ověřeno',   'bg' => '#e8f5e9', 'fg' => '#2e7d32', 'title' => 'Poslední stažení proběhlo v pořádku' . ($lastImportAt !== '' ? ' (' . $lastImportAt . ')' : '')],
+      'chybne'    => ['label' => 'chybně',    'bg' => '#ffebee', 'fg' => '#c62828', 'title' => 'Poslední stažení selhalo' . ($lastImportAt !== '' ? ' (' . $lastImportAt . ')' : '')],
+      'neovereno' => ['label' => 'neověřeno', 'bg' => '#fff8e1', 'fg' => '#e65100', 'title' => 'Od poslední změny řady ještě neproběhlo stažení'],
+      'neaktivni' => ['label' => 'neaktivní', 'bg' => '#eceff1', 'fg' => '#78909c', 'title' => 'Auto-import vypnutý (chybí přihlašovací údaje)'],
+    ];
+    $stateCfg = $stateMap[$importState] ?? $stateMap['neovereno'];
   ?>
   <tr>
     <td><?= htmlspecialchars((string)$s['eshop_source'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -46,15 +53,7 @@
     <td><?= htmlspecialchars((string)$s['cislo_od'], ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$s['cislo_do'], ENT_QUOTES, 'UTF-8') ?></td>
     <td>
-      <?php if (!$hasCredentials): ?>
-        <span class="series-badge series-badge-no" title="Prihlasovaci udaje chybi" style="background:#ffebee;color:#c62828;">neaktivni</span>
-      <?php elseif ($loginOk === 1): ?>
-        <span class="series-badge series-badge-ok" title="Prihlaseni overeno">aktivni</span>
-      <?php elseif ($loginOk === -1): ?>
-        <span class="series-badge" title="Prihlaseni selhalo" style="background:#ffebee;color:#c62828;">chyba prihlaseni</span>
-      <?php else: ?>
-        <span class="series-badge" title="Udaje vyplneny, prihlaseni neovereno" style="background:#fff8e1;color:#e65100;">neovereno</span>
-      <?php endif; ?>
+      <span class="series-badge" title="<?= htmlspecialchars($stateCfg['title'], ENT_QUOTES, 'UTF-8') ?>" style="background:<?= $stateCfg['bg'] ?>;color:<?= $stateCfg['fg'] ?>;"><?= htmlspecialchars($stateCfg['label'], ENT_QUOTES, 'UTF-8') ?></span>
     </td>
     <td>
       <button type="button"
