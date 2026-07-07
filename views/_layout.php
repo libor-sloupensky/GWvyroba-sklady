@@ -42,8 +42,9 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
   <style>
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7f9; }
     header { background:#263238; color:#fff; padding:10px 16px; }
-    nav { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
-    nav a { color:#fff; text-decoration:none; padding:2px 8px; border-radius:999px; }
+    nav { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    nav a { display:inline-block; color:#fff; text-decoration:none; padding:8px 12px; border-radius:999px; }
+    nav a:hover { background:rgba(255,255,255,0.12); }
     nav a.active { background:#fff; color:#263238; font-weight:600; }
     .container { max-width: 1200px; margin: 1rem auto; background:#fff; border:1px solid #e5e5e5; border-radius: 12px; padding: 14px 16px; }
     .footer { position: fixed; right: 1rem; bottom: 1rem; background:#fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color:#333; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
