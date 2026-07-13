@@ -77,6 +77,7 @@ $router->get('/products', [ProductsController::class, 'index']);
 $router->get('/products/export', [ProductsController::class, 'exportCsv']);
 $router->post('/products/import', [ProductsController::class, 'importCsv']);
 $router->post('/products/create', [ProductsController::class, 'create']);
+$router->post('/products/delete', [ProductsController::class, 'delete']);
 $router->post('/products/update', [ProductsController::class, 'inlineUpdate']);
 $router->get('/products/search', [ProductsController::class, 'search']);
 $router->get('/products/bom-tree', [ProductsController::class, 'bomTree']);

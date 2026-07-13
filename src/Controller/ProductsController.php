@@ -118,6 +118,8 @@ final class ProductsController
 
             'bomOrphans' => $this->fetchBomOrphans(),
 
+            'isSuperadmin' => (($_SESSION['user']['role'] ?? '') === 'superadmin'),
+
         ]);
 
     }
@@ -1507,8 +1509,36 @@ final class ProductsController
 
         $stmt->execute($params);
 
-        return $stmt->fetchAll();
+        return $this->annotateDeletable($stmt->fetchAll());
 
+    }
+
+    /**
+     * Doplní příznak can_delete: produkt lze smazat, pokud NENÍ v BOM (rodič ani potomek)
+     * a nemá žádné pohyby. Kontroluje sku i alt_sku.
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<int,array<string,mixed>>
+     */
+    private function annotateDeletable(array $rows): array
+    {
+        if (!$rows) {
+            return $rows;
+        }
+        $pdo = DB::pdo();
+        $used = [];
+        foreach (['SELECT DISTINCT rodic_sku FROM bom', 'SELECT DISTINCT potomek_sku FROM bom', 'SELECT DISTINCT sku FROM polozky_pohyby'] as $q) {
+            foreach ($pdo->query($q)->fetchAll(\PDO::FETCH_COLUMN) as $v) {
+                $used[(string)$v] = true;
+            }
+        }
+        foreach ($rows as &$r) {
+            $sku = (string)($r['sku'] ?? '');
+            $alt = (string)($r['alt_sku'] ?? '');
+            $blocked = ($sku !== '' && isset($used[$sku])) || ($alt !== '' && isset($used[$alt]));
+            $r['can_delete'] = $blocked ? 0 : 1;
+        }
+        unset($r);
+        return $rows;
     }
 
 
@@ -2251,6 +2281,52 @@ final class ProductsController
             $this->forbidden('Přístup jen pro administrátory.');
         }
 
+    }
+
+    private function requireSuperadmin(): void
+    {
+        $this->requireAuth();
+        if (($_SESSION['user']['role'] ?? '') !== 'superadmin') {
+            $this->forbidden('Mazání produktů je jen pro superadmina.');
+        }
+    }
+
+    /**
+     * Smazání produktu (jen superadmin). Server znovu ověří, že produkt není v BOM
+     * (rodič ani potomek) a nemá žádné pohyby — kritéria se nesmí spoléhat na klienta.
+     */
+    public function delete(): void
+    {
+        $this->requireSuperadmin();
+        $pdo = DB::pdo();
+        $sku = trim((string)($_POST['sku'] ?? ''));
+        if ($sku === '') {
+            $_SESSION['products_error'] = 'Chybí SKU produktu.';
+            header('Location: /products');
+            return;
+        }
+        $st = $pdo->prepare('SELECT sku, alt_sku FROM produkty WHERE sku = ? LIMIT 1');
+        $st->execute([$sku]);
+        $prod = $st->fetch();
+        if (!$prod) {
+            $_SESSION['products_error'] = 'Produkt nenalezen.';
+            header('Location: /products');
+            return;
+        }
+        $skus = array_values(array_filter([(string)$prod['sku'], (string)($prod['alt_sku'] ?? '')], static fn($v) => $v !== ''));
+        $ph = implode(',', array_fill(0, count($skus), '?'));
+        $bomStmt = $pdo->prepare("SELECT 1 FROM bom WHERE rodic_sku IN ($ph) OR potomek_sku IN ($ph) LIMIT 1");
+        $bomStmt->execute(array_merge($skus, $skus));
+        $moveStmt = $pdo->prepare("SELECT 1 FROM polozky_pohyby WHERE sku IN ($ph) LIMIT 1");
+        $moveStmt->execute($skus);
+        if ($bomStmt->fetchColumn() || $moveStmt->fetchColumn()) {
+            $_SESSION['products_error'] = "Produkt {$sku} nelze smazat — je v kusovníku (BOM) nebo má historické pohyby.";
+            header('Location: /products');
+            return;
+        }
+        $pdo->prepare('DELETE FROM produkty WHERE sku = ?')->execute([$sku]);
+        $_SESSION['products_message'] = "Produkt {$sku} byl smazán.";
+        header('Location: /products');
     }
 
 

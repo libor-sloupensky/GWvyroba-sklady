@@ -111,6 +111,9 @@
 .products-table th,
 .products-table td { border:1px solid #ddd; padding:0.45rem 0.55rem; vertical-align:top; }
 .products-table th { background:#f3f6f9; }
+.del-btn { border:none; background:transparent; color:#c62828; cursor:pointer; font-size:16px; line-height:1; padding:2px 6px; border-radius:4px; }
+.del-btn:hover { background:#ffebee; }
+.del-disabled { color:#cfd8dc; }
 .inactive-sku { text-decoration: line-through; }
 .sku-cell {
   cursor: pointer;
@@ -952,6 +955,7 @@ document.addEventListener('DOMContentLoaded', function () {
     <th>Skladová hodnota</th>
     <th>Aktivní</th>
     <th>Poznámka</th>
+    <?php if (!empty($isSuperadmin)): ?><th>Smazat</th><?php endif; ?>
   </tr>
   <?php foreach (($items ?? []) as $it): ?>
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
@@ -977,6 +981,18 @@ document.addEventListener('DOMContentLoaded', function () {
     <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '✓' : '✕' ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
+    <?php if (!empty($isSuperadmin)): ?>
+    <td class="del-cell" style="text-align:center;">
+      <?php if ((int)($it['can_delete'] ?? 0) === 1): ?>
+        <form method="post" action="/products/delete" style="margin:0;" onsubmit="return confirm('Opravdu smazat produkt <?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>? Akce je nevratná.');">
+          <input type="hidden" name="sku" value="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
+          <button type="submit" class="del-btn" title="Smazat produkt (není v kusovníku a nemá pohyby)">✕</button>
+        </form>
+      <?php else: ?>
+        <span class="del-disabled" title="Nelze smazat — produkt je v kusovníku (BOM) nebo má historické pohyby">–</span>
+      <?php endif; ?>
+    </td>
+    <?php endif; ?>
   </tr>
   <?php endforeach; ?>
 </table>

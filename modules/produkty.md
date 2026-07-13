@@ -20,6 +20,7 @@ Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy
 | GET | `/products/export` | `ProductsController::exportCsv` |
 | POST | `/products/import` | `ProductsController::importCsv` |
 | POST | `/products/create` | `ProductsController::create` |
+| POST | `/products/delete` | `ProductsController::delete` (jen superadmin) |
 | POST | `/products/update` | `ProductsController::inlineUpdate` |
 | GET | `/products/search` | `ProductsController::search` |
 | GET | `/products/bom-tree` | `ProductsController::bomTree` |
@@ -46,6 +47,7 @@ Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy
 - Search endpoint pro autocomplete (používá např. modul `rezervace`)
 - Zobrazení aktuální zásoby, rezervací, dovyrobit
 - Filtr aktivní/neaktivní, značka, skupina, typ
+- **Mazání produktů** (jen superadmin): křížek ✕ v tabulce jen u produktů, které **nejsou v BOM** (rodič ani potomek) a **nemají žádné pohyby** (`polozky_pohyby`) — kontrola přes `sku` i `alt_sku`. Flag `can_delete` počítá `annotateDeletable()`, server v `delete()` kritéria znovu ověří (nespoléhat na klienta). Pozn.: BOM/pohyby jsou string reference bez FK, takže gate je logický, ne přes FK.
 
 ⚠️ **Známé dluhy / gotchy**
 - **`skl_hodnota` je aktuální, ne historická** (jednotková skladová/nákladová hodnota pro oceňování). Mění se v čase (např. při změně výrobní ceny). **Analytics to používá jako náklad i pro staré prodeje** → zkreslení historických marží. Viz `analytics.md`.
