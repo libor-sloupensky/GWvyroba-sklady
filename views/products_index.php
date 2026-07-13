@@ -514,6 +514,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const coefInput = form.querySelector('.bom-input-koef');
       const errorBox = form.querySelector('.bom-add-error');
       const cancelBtn = form.querySelector('.bom-add-cancel');
+      const parentSku = (rowData && rowData.node && rowData.node.sku) ? String(rowData.node.sku) : '';
 
       let searchTimer = null;
       searchInput.addEventListener('input', () => {
@@ -536,6 +537,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
       function renderSearchResults(items) {
         resultsBox.innerHTML = '';
+        // nenabízet potomka, který je totožný s rodičem (self-reference)
+        if (parentSku) items = items.filter((it) => String(it.sku) !== parentSku);
         if (!items.length) {
           const empty = document.createElement('span');
           empty.className = 'bom-search-empty';
