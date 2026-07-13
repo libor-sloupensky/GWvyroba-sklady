@@ -114,6 +114,13 @@
 .del-btn { border:none; background:transparent; color:#c62828; cursor:pointer; font-size:16px; line-height:1; padding:2px 6px; border-radius:4px; }
 .del-btn:hover { background:#ffebee; }
 .del-disabled { color:#cfd8dc; }
+.product-create-form { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:10px 14px; align-items:end; margin-top:0.6rem; }
+.product-create-form .fld { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.product-create-form .fld label { font-size:12px; color:#555; font-weight:600; }
+.product-create-form .fld input, .product-create-form .fld select, .product-create-form .fld textarea { width:100%; box-sizing:border-box; }
+.product-create-form .fld-wide { grid-column:span 2; }
+.product-create-form .form-actions { grid-column:1 / -1; margin-top:0.2rem; }
+@media (max-width:760px){ .product-create-form { grid-template-columns:repeat(2, minmax(0,1fr)); } .product-create-form .fld-wide { grid-column:span 2; } }
 .inactive-sku { text-decoration: line-through; }
 .sku-cell {
   cursor: pointer;
@@ -730,48 +737,57 @@ document.addEventListener('DOMContentLoaded', function () {
     <section class="collapsible-block">
       <h3 class="collapsible-heading">Nový produkt</h3>
       <form method="post" action="/products/create" class="product-create-form">
-        <label>SKU*</label><input type="text" name="sku" value="<?= htmlspecialchars((string)($formOld['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
-        <label>Alt SKU</label><input type="text" name="alt_sku" value="<?= htmlspecialchars((string)($formOld['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>EAN</label><input type="text" name="ean" value="<?= htmlspecialchars((string)($formOld['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Značka</label>
-        <select name="znacka_id">
-          <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
-          <?php foreach (($brands ?? []) as $b): $id=(int)$b['id']; ?>
-            <option value="<?= $id ?>"<?= (int)($formOld['znacka_id'] ?? 0) === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
-          <?php endforeach; ?>
-        </select>
-        <label>Skupina</label>
-        <select name="skupina_id">
-          <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
-          <?php foreach (($groups ?? []) as $g): $gid=(int)$g['id']; ?>
-            <option value="<?= $gid ?>"<?= (int)($formOld['skupina_id'] ?? 0) === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
-          <?php endforeach; ?>
-        </select>
-        <label>Typ*</label>
-        <select name="typ" required>
-          <?php foreach (($types ?? []) as $t): $selected = ((string)($formOld['typ'] ?? '') === (string)$t) ? ' selected' : ''; ?>
-            <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $selected ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
-          <?php endforeach; ?>
-        </select>
-        <label>Měrná jednotka*</label>
-        <select name="merna_jednotka" required>
-          <?php foreach (($units ?? []) as $u): $code = (string)$u['kod']; ?>
-            <option value="<?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?>"<?= ((string)($formOld['merna_jednotka'] ?? '') === $code) ? ' selected' : '' ?>><?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?></option>
-          <?php endforeach; ?>
-        </select>
-        <label>Název*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required />
-        <label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Skladová hodnota</label><input type="number" step="0.01" name="skl_hodnota" value="<?= htmlspecialchars((string)($formOld['skl_hodnota'] ?? ''),ENT_QUOTES,'UTF-8') ?>" />
-        <label>Aktivní*</label>
-        <select name="aktivni">
-          <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
-          <option value="0"<?= (string)($formOld['aktivni'] ?? '1') === '0' ? ' selected' : '' ?>>Skryto</option>
-        </select>
-        <label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea>
-        <button type="submit">Uložit produkt</button>
+        <!-- 1. řádek: identifikace -->
+        <div class="fld"><label>SKU*</label><input type="text" name="sku" value="<?= htmlspecialchars((string)($formOld['sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required /></div>
+        <div class="fld"><label>Alt SKU</label><input type="text" name="alt_sku" value="<?= htmlspecialchars((string)($formOld['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label>EAN</label><input type="text" name="ean" value="<?= htmlspecialchars((string)($formOld['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label>Název*</label><input type="text" name="nazev" value="<?= htmlspecialchars((string)($formOld['nazev'] ?? ''),ENT_QUOTES,'UTF-8') ?>" required /></div>
+        <!-- 2. řádek: zařazení -->
+        <div class="fld"><label>Značka</label>
+          <select name="znacka_id">
+            <option value=""<?= empty($formOld['znacka_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
+            <?php foreach (($brands ?? []) as $b): $id=(int)$b['id']; ?>
+              <option value="<?= $id ?>"<?= (int)($formOld['znacka_id'] ?? 0) === $id ? ' selected' : '' ?>><?= htmlspecialchars((string)$b['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="fld"><label>Skupina</label>
+          <select name="skupina_id">
+            <option value=""<?= empty($formOld['skupina_id'] ?? 0) ? ' selected' : '' ?>>Všechny</option>
+            <?php foreach (($groups ?? []) as $g): $gid=(int)$g['id']; ?>
+              <option value="<?= $gid ?>"<?= (int)($formOld['skupina_id'] ?? 0) === $gid ? ' selected' : '' ?>><?= htmlspecialchars((string)$g['nazev'],ENT_QUOTES,'UTF-8') ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="fld"><label>Typ*</label>
+          <select name="typ" required>
+            <?php foreach (($types ?? []) as $t): $selected = ((string)($formOld['typ'] ?? '') === (string)$t) ? ' selected' : ''; ?>
+              <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $selected ?>><?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="fld"><label>Měrná jednotka*</label>
+          <select name="merna_jednotka" required>
+            <?php foreach (($units ?? []) as $u): $code = (string)$u['kod']; ?>
+              <option value="<?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?>"<?= ((string)($formOld['merna_jednotka'] ?? '') === $code) ? ' selected' : '' ?>><?= htmlspecialchars($code,ENT_QUOTES,'UTF-8') ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <!-- 3. řádek: výrobní parametry -->
+        <div class="fld"><label>Min. zásoba</label><input type="number" step="0.001" name="min_zasoba" value="<?= htmlspecialchars((string)($formOld['min_zasoba'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label>Min. dávka</label><input type="number" step="0.001" name="min_davka" value="<?= htmlspecialchars((string)($formOld['min_davka'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <!-- 4. řádek: ostatní -->
+        <div class="fld"><label>Skladová hodnota</label><input type="number" step="0.01" name="skl_hodnota" value="<?= htmlspecialchars((string)($formOld['skl_hodnota'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label>Aktivní*</label>
+          <select name="aktivni">
+            <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>
+            <option value="0"<?= (string)($formOld['aktivni'] ?? '1') === '0' ? ' selected' : '' ?>>Skryto</option>
+          </select>
+        </div>
+        <div class="fld fld-wide"><label>Poznámka</label><textarea name="poznamka" rows="2"><?= htmlspecialchars((string)($formOld['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></textarea></div>
+        <div class="form-actions"><button type="submit">Uložit produkt</button></div>
       </form>
     </section>
 
