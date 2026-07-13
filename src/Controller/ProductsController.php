@@ -1006,7 +1006,7 @@ final class ProductsController
 
         }
 
-        $sql .= ' ORDER BY nazev LIMIT 20';
+        $sql .= ' ORDER BY aktivni DESC, nazev LIMIT 20';
 
         $stmt = DB::pdo()->prepare($sql);
 
