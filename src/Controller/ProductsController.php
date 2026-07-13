@@ -998,7 +998,7 @@ final class ProductsController
 
         );
 
-        $sql = 'SELECT sku, alt_sku, nazev, ean, merna_jednotka, typ FROM produkty';
+        $sql = 'SELECT sku, alt_sku, nazev, ean, merna_jednotka, typ, aktivni FROM produkty';
 
         if ($searchCondition !== '') {
 
@@ -1029,6 +1029,8 @@ final class ProductsController
                 'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
 
                 'typ' => (string)($row['typ'] ?? ''),
+
+                'aktivni' => (int)($row['aktivni'] ?? 1),
 
             ];
 

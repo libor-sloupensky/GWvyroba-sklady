@@ -547,7 +547,11 @@ document.addEventListener('DOMContentLoaded', function () {
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'bom-search-option';
-          btn.textContent = `${item.sku} – ${item.nazev}`;
+          const skuSpan = document.createElement('span');
+          skuSpan.textContent = item.sku;
+          if (Number(item.aktivni) === 0) skuSpan.className = 'inactive-sku';
+          btn.appendChild(skuSpan);
+          btn.appendChild(document.createTextNode(` – ${item.nazev}`));
           btn.addEventListener('click', () => {
             skuInput.value = item.sku;
             searchInput.value = `${item.sku} – ${item.nazev}`;
