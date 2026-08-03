@@ -10,11 +10,13 @@ final class ReservationsController
         $this->requireAuth();
         $this->ensureReservationSchema();
         $pdo = DB::pdo();
-        $rows = $pdo->query('SELECT id,sku,typ,mnozstvi,platna_do,poznamka FROM rezervace ORDER BY platna_do DESC, id DESC')->fetchAll();
+        $rows = $pdo->query('SELECT r.id, r.sku, r.typ, r.mnozstvi, r.platna_do, r.poznamka, p.nazev
+                             FROM rezervace r
+                             LEFT JOIN produkty p ON p.sku = r.sku
+                             ORDER BY r.platna_do DESC, r.id DESC')->fetchAll();
         $this->render('reservations.php', [
             'title' => 'Rezervace',
             'rows'  => $rows,
-            'types' => $this->productTypes(),
         ]);
     }
 
@@ -23,10 +25,9 @@ final class ReservationsController
         $this->requireAuth();
         $id = (int)($_POST['id'] ?? 0);
         $sku = trim((string)($_POST['sku'] ?? ''));
-        $type = trim((string)($_POST['typ'] ?? 'produkt'));
-        if (!in_array($type, $this->productTypes(), true)) {
-            $type = 'produkt';
-        }
+        // Typ se neposílá z formuláře – vždy se odvodí ze zvolené položky,
+        // aby nemohl vzniknout nesoulad (rezervace kartonu vedená jako produkt).
+        $type = $this->resolveTypeForSku($sku);
         $qty = (float)($_POST['mnozstvi'] ?? 0);
         $to  = trim((string)($_POST['platna_do'] ?? ''));
         $note= trim((string)($_POST['poznamka'] ?? ''));
@@ -64,7 +65,7 @@ final class ReservationsController
             $term,
             ['sku','alt_sku','nazev','ean']
         );
-        $sql = 'SELECT sku, alt_sku, nazev, ean, merna_jednotka FROM produkty';
+        $sql = 'SELECT sku, alt_sku, nazev, ean, merna_jednotka, typ FROM produkty';
         if ($searchCondition !== '') {
             $sql .= ' WHERE ' . $searchCondition;
         }
@@ -79,6 +80,7 @@ final class ReservationsController
                 'nazev' => (string)$row['nazev'],
                 'ean' => (string)($row['ean'] ?? ''),
                 'merna_jednotka' => (string)($row['merna_jednotka'] ?? ''),
+                'typ' => (string)($row['typ'] ?? ''),
             ];
         }
         echo json_encode(['items' => $items]);
@@ -98,6 +100,20 @@ final class ReservationsController
         return array_map('strval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 
+    /**
+     * Typ rezervace = typ zvolené položky v katalogu. Neznámé SKU spadne na 'produkt'.
+     */
+    private function resolveTypeForSku(string $sku): string
+    {
+        if ($sku === '') {
+            return 'produkt';
+        }
+        $stmt = DB::pdo()->prepare('SELECT typ FROM produkty WHERE sku = ? LIMIT 1');
+        $stmt->execute([$sku]);
+        $type = (string)($stmt->fetchColumn() ?: '');
+        return in_array($type, $this->productTypes(), true) ? $type : 'produkt';
+    }
+
     private function ensureReservationSchema(): void
     {
         static $checked = false;
@@ -108,7 +124,8 @@ final class ReservationsController
         $pdo = DB::pdo();
         $stmt = $pdo->query("SHOW COLUMNS FROM rezervace LIKE 'typ'");
         if (!$stmt->fetch()) {
-            $pdo->exec("ALTER TABLE `rezervace` ADD COLUMN `typ` ENUM('produkt','obal','etiketa','surovina','baleni','karton') NOT NULL DEFAULT 'produkt' AFTER `sku`");
+            // VARCHAR, ne ENUM – typ se odvozuje z produkty.typ, který je řízen číselníkem product_types
+            $pdo->exec("ALTER TABLE `rezervace` ADD COLUMN `typ` VARCHAR(32) NOT NULL DEFAULT 'produkt' AFTER `sku`");
             try { $pdo->exec('ALTER TABLE `rezervace` ADD KEY idx_rez_typ (typ)'); } catch (\Throwable $e) {}
         }
     }

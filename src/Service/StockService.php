@@ -10,6 +10,7 @@ final class StockService
     // noop refresh marker
     private static array $demandCache = [];
     private static ?array $bomCache = null;
+    private static ?array $nonstockCache = null;
     private static bool $settingsColumnsVerified = false;
     private static array $baselineCache = [];
 
@@ -726,21 +727,88 @@ final class StockService
     private static function loadReservationMap(?array $skuFilter, ?string $asOf): array
     {
         $asOfDate = $asOf ? substr($asOf, 0, 10) : (new DateTimeImmutable('today'))->format('Y-m-d');
-        $sql = 'SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE 1=1 AND platna_do >= ?';
-        $params = [$asOfDate];
-        if ($skuFilter && count($skuFilter) > 0) {
-            $placeholders = implode(',', array_fill(0, count($skuFilter), '?'));
-            $sql .= " AND sku IN ({$placeholders})";
-            $params = array_merge($params, $skuFilter);
-        }
-        $sql .= ' GROUP BY sku';
-        $stmt = DB::pdo()->prepare($sql);
-        $stmt->execute($params);
+        // Načítáme vždy celou tabulku (je malá) – rezervace neskladové položky se musí
+        // rozpustit i do potomků, kteří v $skuFilter být nemusí. Filtr se aplikuje až na výsledek.
+        $stmt = DB::pdo()->prepare('SELECT sku, SUM(mnozstvi) AS qty FROM rezervace WHERE platna_do >= ? GROUP BY sku');
+        $stmt->execute([$asOfDate]);
         $map = [];
         foreach ($stmt as $row) {
             $sku = (string)$row['sku'];
+            if ($sku === '') {
+                continue;
+            }
             $map[$sku] = (float)$row['qty'];
         }
+        $map = self::cascadeNonstockReservations($map);
+        if ($skuFilter && count($skuFilter) > 0) {
+            $map = array_intersect_key($map, array_flip(array_map('strval', array_values($skuFilter))));
+        }
+        return $map;
+    }
+
+    /**
+     * Rezervace neskladové položky (karton, balení) se rozpustí přes BOM do skladových
+     * potomků – stejnou kaskádou jako poptávka z prodejů v buildDemandMap().
+     *
+     * Neskladová položka se sama nevyrábí ani neskladuje (target=0, dovyrobit=0), takže
+     * rezervace zadaná na kartonu by se jinak nikde neprojevila. Kaskáda se zastaví na
+     * prvním skladovém potomkovi – tam se rezervace chová jako vlastní. Hlouběji se
+     * potřeba propaguje běžnou BOM logikou v recalcDovyrobit() (jinak by se počítala dvakrát).
+     *
+     * @param array<string,float> $map
+     * @return array<string,float>
+     */
+    private static function cascadeNonstockReservations(array $map): array
+    {
+        $nonstock = self::getNonstockSkus();
+        if (empty($nonstock)) {
+            return $map;
+        }
+        $children = self::getBomGraph()['children'];
+        $queue = [];
+        foreach ($map as $sku => $qty) {
+            if ($qty > 0.0 && isset($nonstock[$sku])) {
+                $queue[] = [$sku, (float)$qty, [$sku => true]];
+            }
+        }
+        $guard = 0;
+        while ($queue && $guard++ < 100000) {
+            [$sku, $qty, $path] = array_shift($queue);
+            foreach ($children[$sku] ?? [] as $edge) {
+                $child = (string)$edge['sku'];
+                $coef = (float)$edge['koeficient'];
+                // ochrana proti cyklickému BOM
+                if ($child === '' || $coef <= 0.0 || isset($path[$child])) {
+                    continue;
+                }
+                $childQty = $qty * $coef;
+                if (isset($nonstock[$child])) {
+                    $queue[] = [$child, $childQty, $path + [$child => true]];
+                    continue;
+                }
+                $map[$child] = ($map[$child] ?? 0.0) + $childQty;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * @return array<string,bool> SKU neskladových typů (is_nonstock=1)
+     */
+    private static function getNonstockSkus(): array
+    {
+        if (self::$nonstockCache !== null) {
+            return self::$nonstockCache;
+        }
+        $map = [];
+        $stmt = DB::pdo()->query('SELECT p.sku FROM produkty p JOIN product_types pt ON pt.code = p.typ WHERE pt.is_nonstock = 1');
+        foreach ($stmt as $row) {
+            $sku = (string)$row['sku'];
+            if ($sku !== '') {
+                $map[$sku] = true;
+            }
+        }
+        self::$nonstockCache = $map;
         return $map;
     }
 

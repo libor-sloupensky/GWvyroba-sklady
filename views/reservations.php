@@ -52,21 +52,12 @@
   font-size: 0.9rem;
 }
 </style>
-<p class="muted">Rezervace platí do 23:59:59 zvoleného dne. Nejdříve vyhledejte produkt, poté zadejte množství.</p>
+<p class="muted">Rezervace platí do 23:59:59 zvoleného dne. Nejdříve vyhledejte položku, poté zadejte množství. Typ se převezme ze zvolené položky.</p>
 <form method="post" action="/reservations" class="reservation-form" id="reservation-form" autocomplete="off">
   <input type="hidden" name="id" value="" />
   <input type="hidden" name="sku" id="reservation-sku" />
 
-  <label>Typ</label>
-  <select name="typ" id="reservation-type">
-    <?php foreach (($types ?? []) as $t): ?>
-      <option value="<?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>"<?= $t === 'produkt' ? ' selected' : '' ?>>
-        <?= htmlspecialchars((string)$t,ENT_QUOTES,'UTF-8') ?>
-      </option>
-    <?php endforeach; ?>
-  </select>
-
-  <label>Produkt</label>
+  <label>Položka</label>
   <div class="product-search">
     <input type="text" id="product-search-input" placeholder="Hledejte podle SKU, názvu nebo EAN" autocomplete="off" />
     <div class="product-search-results" id="product-search-results"></div>
@@ -88,10 +79,17 @@
 
 <hr>
 <table>
-  <tr><th>SKU</th><th>Typ</th><th>Množství</th><th>Platná do</th><th>Poznámka</th><th>Akce</th></tr>
+  <tr><th>SKU</th><th>Název</th><th>Typ</th><th>Množství</th><th>Platná do</th><th>Poznámka</th><th>Akce</th></tr>
   <?php foreach (($rows ?? []) as $r): ?>
   <tr>
     <td><?= htmlspecialchars((string)$r['sku'],ENT_QUOTES,'UTF-8') ?></td>
+    <td>
+      <?php if (($r['nazev'] ?? null) === null): ?>
+        <span class="muted-note">SKU není v katalogu</span>
+      <?php else: ?>
+        <?= htmlspecialchars((string)$r['nazev'],ENT_QUOTES,'UTF-8') ?>
+      <?php endif; ?>
+    </td>
     <td><?= htmlspecialchars((string)($r['typ'] ?? 'produkt'),ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$r['mnozstvi'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)$r['platna_do'],ENT_QUOTES,'UTF-8') ?></td>
@@ -124,7 +122,9 @@
   function selectProduct(item) {
     skuInput.value = item.sku;
     searchInput.value = item.sku + ' – ' + item.nazev;
-    hint.textContent = 'Vybráno: ' + item.sku + ' · ' + item.nazev + (item.ean ? ' (EAN ' + item.ean + ')' : '');
+    hint.textContent = 'Vybráno: ' + item.sku + ' · ' + item.nazev
+      + (item.typ ? ' · typ: ' + item.typ : '')
+      + (item.ean ? ' (EAN ' + item.ean + ')' : '');
     unitLabel.textContent = item.merna_jednotka ? '(MJ: ' + item.merna_jednotka + ')' : '';
     hideResults();
   }
@@ -138,8 +138,9 @@
     items.forEach((item) => {
       const btn = document.createElement('button');
       btn.type = 'button';
+      const typ = item.typ ? ' · ' + item.typ : '';
       const ean = item.ean ? ' · EAN ' + item.ean : '';
-      btn.textContent = item.sku + ' – ' + item.nazev + ean;
+      btn.textContent = item.sku + ' – ' + item.nazev + typ + ean;
       btn.addEventListener('click', () => selectProduct(item));
       resultsBox.appendChild(btn);
     });
@@ -177,7 +178,7 @@
   form.addEventListener('submit', (event) => {
     if (!skuInput.value) {
       event.preventDefault();
-      alert('Vyberte produkt ze seznamu.');
+      alert('Vyberte položku ze seznamu.');
       searchInput.focus();
     }
   });
