@@ -20,8 +20,8 @@ final class ProductionController
     {
 
         $this->requireAuth();
-        // Přepočet dovyrobit při načtení plánů
-        $this->recalcDovyrobit();
+        // Přepočet dovyrobit při načtení plánů; vrací skutečné kaskádové cílové stavy
+        $targetMap = $this->recalcDovyrobit();
 
         $pdo = DB::pdo();
 
@@ -157,9 +157,9 @@ final class ProductionController
 
                     $item['deficit'] = (float)($status['deficit'] ?? 0.0);
 
-                    // Cílový stav = dovyrobit + available (vypočteno za běhu)
-                    // Vztah: dovyrobit = cilovy_stav + rezervace - dostupne
-                    $item['target'] = $item['deficit'] + $item['available'];
+                    // Skutečný kaskádový cíl z recalcDovyrobit (potřeba rodičů + vlastní cíl u kořenů).
+                    // Dřívější dopočet dovyrobit + dostupné ukazoval při nulovém dovyrobit jen stav skladu.
+                    $item['target'] = (float)($targetMap[$sku] ?? 0.0);
 
                     $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['available']);
 
@@ -619,9 +619,12 @@ final class ProductionController
         return $map;
     }
 
-    private function recalcDovyrobit(): void
+    /**
+     * @return array<string,float> sku => skutečný kaskádový cílový stav
+     */
+    private function recalcDovyrobit(): array
     {
-        StockService::recalcDovyrobit();
+        return StockService::recalcDovyrobit();
     }
 
 

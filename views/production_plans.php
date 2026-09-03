@@ -2107,13 +2107,13 @@
 
 
 
-        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje celkovou poptávku po produktu z BOM kaskády&#10;• Pro finální výrobky: denní spotřeba × cílové dny zásoby&#10;• Pro komponenty: součet poptávky od všech rodičovských produktů&#10;• Pokud existují rezervace, jsou zobrazeny v závorce&#10;• Vztah: Dovyrobit = Cílový stav + rezervace - dostupné">i</span></th>
+        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje celkovou poptávku po produktu z BOM kaskády&#10;• Pro finální výrobky: denní spotřeba × cílové dny zásoby&#10;• Pro komponenty: součet poptávky od všech rodičovských produktů&#10;• Pokud existují rezervace, jsou zobrazeny v závorce&#10;• Vztah: Dovyrobit = max(0, Cílový stav − dostupné), dostupné = stav − rezervace">i</span></th>
 
 
 
 
 
-        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit':&#10;• Vycházíme z průměrné denní poptávky za nastavený počet dnů&#10;• U auto režimu násobíme cílovým počtem dní zásoby a výrobní dobou&#10;• Odečteme aktuální zásoby mínus rezervace&#10;• U neskladových sad a čistých komponent je cíl nula&#10;&#10;Barevná stupnice (priorita):&#10;• Červená = vysoká priorita výroby (velký deficit)&#10;• Oranžová = střední priorita&#10;• Zelená = nízká priorita / dostatek zásob">i</span></th><!-- noop refresh -->
+        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit':&#10;• Vycházíme z průměrné denní poptávky za nastavený počet dnů&#10;• U kořenových položek v auto režimu násobíme cílovým počtem dní zásoby&#10;• U komponent je cíl jen potřeba rodičů (dovyrobit rodiče × koeficient)&#10;• Odečteme aktuální zásoby mínus rezervace&#10;• U neskladových typů se cíl nekrátí o stav, jen se propaguje dál&#10;&#10;Barevná stupnice (priorita):&#10;• Červená = vysoká priorita výroby (velký deficit)&#10;• Oranžová = střední priorita&#10;• Zelená = nízká priorita / dostatek zásob">i</span></th><!-- noop refresh -->
 
 
 

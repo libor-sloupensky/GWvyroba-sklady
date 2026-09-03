@@ -409,9 +409,14 @@ final class StockService
     }
 
     /**
+     * Přepočítá produkty.dovyrobit a vrátí mapu skutečných kaskádových cílových stavů
+     * (sku => cilovy_stav = potřeba rodičů + vlastní cíl u kořenů). Cíl se do DB neukládá,
+     * slouží jen pro zobrazení v plánech výroby.
+     *
      * @param array<int,string>|null $skuFilter
+     * @return array<string,float>
      */
-    public static function recalcDovyrobit(?array $skuFilter = null): int
+    public static function recalcDovyrobit(?array $skuFilter = null): array
     {
         $pdo = DB::pdo();
         $pdo->beginTransaction();
@@ -427,7 +432,7 @@ final class StockService
             $meta = self::loadDovyrobitMeta($skuFilter);
             if (empty($meta)) {
                 $pdo->commit();
-                return 0;
+                return [];
             }
             $allProducts = array_keys($meta);
             $status = self::getStatusForSkus($allProducts);
@@ -439,6 +444,7 @@ final class StockService
             $roots = self::findDovyrobitRoots($allProducts, $parents, $meta);
 
             $updateRows = [];
+            $targetRows = [];
             $incomingSum = [];
             $queue = $roots;
             $processed = [];
@@ -463,6 +469,7 @@ final class StockService
                 $needs = self::calculateProductionNeeds($incoming, $baseTarget, $available, $isNonstock);
                 $needHere = $needs['dovyrobit'];
                 $updateRows[$sku] = $needHere;
+                $targetRows[$sku] = $needs['cilovy_stav'];
 
                 foreach ($children[$sku] ?? [] as $edge) {
                     $coef = (float)$edge['coef'];
@@ -494,6 +501,7 @@ final class StockService
                 $incoming = (float)$inc;
                 $needs = self::calculateProductionNeeds($incoming, $baseTarget, $available, $isNonstock);
                 $updateRows[$sku] = $needs['dovyrobit'];
+                $targetRows[$sku] = $needs['cilovy_stav'];
             }
 
             $upd = $pdo->prepare('UPDATE produkty SET dovyrobit=? WHERE sku=?');
@@ -501,7 +509,7 @@ final class StockService
                 $upd->execute([round($need, 0), $sku]);
             }
             $pdo->commit();
-            return count($updateRows);
+            return $targetRows;
         } catch (\Throwable $e) {
             $pdo->rollBack();
             throw $e;

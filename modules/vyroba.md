@@ -52,6 +52,7 @@ Modul nemá vlastní tabulky — píše do:
 ✅ **Hotovo**
 - Demand tree — rekurzivní rozpad potřeby z root produktu na komponenty
 - Výpočet `dovyrobit` z historie spotřeby (`buildDemandMap`, kaskáda prodejů přes BOM) mínus dostupný stav
+- **Cílový stav v plánech** — `recalcDovyrobit()` vrací mapu `sku => cilovy_stav` (potřeba rodičů + vlastní cíl u kořenů), `plans()` ji zobrazí ve sloupci „Cílový stav". Cíl se do DB neukládá. Dříve se dopočítával jako `dovyrobit + dostupné`, což při nulovém dovyrobit ukazovalo jen stav skladu.
 - **Kaskáda rezervací neskladových položek** (`cascadeNonstockReservations`) — rezervace kartonu/balení se rozpustí přes BOM na první skladové potomky a chová se tam jako vlastní rezervace; hlouběji se potřeba šíří běžnou BOM propagací v `recalcDovyrobit()` (jinak by se počítala dvakrát). Stejná logika jako u kaskády prodejů.
 - `nast_zasob = 'auto'` vs `'manual'` — u auto počítá systém min_zasoba z průměrné spotřeby (okno dle `nastaveni_global`)
 - `min_davka` a `krok_vyroby` — zaokrouhlení výrobních dávek
