@@ -808,6 +808,38 @@ ORDER BY `měsíc`, serie_label
                 ],
                 'suggested_render' => 'table',
             ],
+            'invoice_list' => [
+                'title' => 'Seznam faktur',
+                'description' => 'Jednotlivé faktury podle DUZP: datum, číslo dokladu, e-shop, IČ, odběratel a částka bez DPH (CZK, po slevě, vč. dopravy). Čte jen hlavičky dokladů, nezávisí na napojení položek na SKU — funguje i pro b2b.wormup.com, kde položky SKU nemají. Součet sedí s Měsíčními tržbami.',
+                'hide_chart' => true,
+                // Patička sčítá jen částku — číslo dokladu a IČ jsou čísla jen naoko.
+                'sum_columns' => ['částka bez DPH'],
+                'sql' => "
+SELECT de.duzp AS `datum`,
+       de.cislo_dokladu AS `číslo dokladu`,
+       de.eshop_source AS `e-shop`,
+       COALESCE(c.ic, '') AS `IČ`,
+       COALESCE(NULLIF(TRIM(c.firma), ''), NULLIF(TRIM(c.jmeno), ''), c.email, '') AS `odběratel`,
+       ROUND(de.castka_celkem, 2) AS `částka bez DPH`
+FROM doklady_eshop de
+LEFT JOIN kontakty c ON c.id = de.kontakt_id
+WHERE de.duzp BETWEEN :start_date AND :end_date
+  AND (:has_contacts = 0 OR (de.kontakt_id @CONTACT_OP@ (%contact_ids%)@CONTACT_NULL@))
+  AND (:has_eshops = 0 OR de.eshop_source IN (%eshop_source%))
+ORDER BY de.duzp, de.eshop_source, de.cislo_dokladu
+",
+                'params' => [
+                    ['name' => 'start_date', 'label' => 'Od', 'type' => 'date', 'required' => true, 'default' => $defaultStart],
+                    ['name' => 'end_date', 'label' => 'Do', 'type' => 'date', 'required' => true, 'default' => $defaultEnd],
+                    ['name' => 'contact_ids', 'label' => 'Kontakt', 'type' => 'contact_multi', 'required' => false, 'default' => []],
+                    ['name' => 'contact_mode', 'label' => 'Režim kontaktů', 'type' => 'enum', 'required' => false, 'default' => 'pouze', 'values' => [
+                        ['value' => 'pouze', 'label' => 'Pouze'],
+                        ['value' => 'krome', 'label' => 'Kromě'],
+                    ]],
+                    ['name' => 'eshop_source', 'label' => 'E-shop', 'type' => 'enum_multi', 'required' => false, 'default' => [], 'values' => $eshops],
+                ],
+                'suggested_render' => 'table',
+            ],
             'products' => [
                 'title' => 'Produkty',
                 'description' => 'Pohyby skladu podle produktu (odpisy a spotřeba z výroby), bez inventury a korekcí.',

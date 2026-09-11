@@ -175,6 +175,9 @@
   <div class="chart-box">
     <canvas id="v2-chart" height="200"></canvas>
   </div>
+  <div id="v2-toolbar" style="display:none; margin: 0 0 .6rem; text-align: right;">
+    <button type="button" id="v2-csv" title="Stáhne aktuálně zobrazenou tabulku jako CSV (oddělovač středník, desetinná čárka — otevře se rovnou v českém Excelu).">Stáhnout CSV</button>
+  </div>
   <div id="v2-result"></div>
 </div>
 
@@ -628,6 +631,9 @@
     table.appendChild(thead);
     const tbody = document.createElement('tbody');
     const totals = {};
+    // Šablona může vyjmenovat, které sloupce se v patičce sčítají (např. Seznam
+    // faktur: číslo dokladu a IČ vypadají jako čísla, ale součet nedává smysl).
+    const sumCols = Array.isArray(templates[tplId]?.sum_columns) ? templates[tplId].sum_columns : null;
     const productUnits = isProducts ? new Set(rows.map(r => r.mj).filter(Boolean)) : null;
     rows.forEach((r) => {
       const tr = document.createElement('tr');
@@ -647,7 +653,7 @@
         }
         tr.appendChild(td);
         const val = Number(r[c]);
-        if (!Number.isNaN(val)) {
+        if (!Number.isNaN(val) && (!sumCols || sumCols.includes(c))) {
           totals[c] = (totals[c] || 0) + val;
         }
       });
@@ -1098,7 +1104,43 @@
     } else {
       renderTable(state.lastRows, tplId);
     }
+    if (csvToolbar) csvToolbar.style.display = state.lastRows.length ? '' : 'none';
   }
+
+  // Export zobrazené tabulky do CSV. Bere data z state.lastRows (tedy přesně to,
+  // co vrátil server), ne z DOM — tabulka může mít formátované buňky.
+  // Formát pro český Excel: UTF-8 s BOM, oddělovač středník, desetinná čárka.
+  function downloadCsv() {
+    const rows = state.lastRows || [];
+    if (!rows.length) return;
+    const skip = ['serie_key', 'serie_label'];
+    const cols = Object.keys(rows[0]).filter((c) => !skip.includes(c) && (rows[0][c] === null || typeof rows[0][c] !== 'object'));
+    const cell = (v) => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'object') return '';
+      let s = String(v);
+      if (typeof v === 'number' || (/^-?\d+(\.\d+)?$/.test(s) && s.length < 16)) {
+        s = s.replace('.', ',');
+      }
+      return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    const lines = [cols.map(cell).join(';')];
+    rows.forEach((r) => lines.push(cols.map((c) => cell(r[c])).join(';')));
+    const csv = '﻿' + lines.join('\r\n') + '\r\n';
+    const params = toParams();
+    const name = ['analyza', selectTpl.value, params.start_date || '', params.end_date || ''].filter(Boolean).join('_') + '.csv';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  const csvToolbar = document.getElementById('v2-toolbar');
+  const csvButton = document.getElementById('v2-csv');
+  if (csvButton) csvButton.addEventListener('click', downloadCsv);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

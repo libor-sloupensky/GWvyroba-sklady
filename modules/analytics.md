@@ -49,6 +49,16 @@ Modul nemá vlastní DB schema kromě:
 - **Zisk** = Tržby − Náklady
 - **Marže %** = Zisk / Tržby × 100
 
+## Šablona `invoice_list` — Seznam faktur (2026-09-11)
+
+Jednotlivé faktury podle DUZP: datum, číslo dokladu, e-shop, IČ, odběratel (firma → jméno → e-mail), částka bez DPH = hlavičková `doklady_eshop.castka_celkem` (po slevě, vč. dopravy, CZK). Filtry období, e-shop, kontakt s režimem pouze/kromě (tokeny `@CONTACT_OP@`/`@CONTACT_NULL@` jako u Měsíčních tržeb). Bez grafu (`hide_chart`).
+
+**Proč existuje:** Marže čte jen položky se SKU, takže faktury bez napojených položek úplně vynechá. U **b2b.wormup.com nemá SKU žádná položka** (2022–2025, 1 567 dokladů, e-shop ukončen 9/2025), u grig.cz má napojení jen ~45 % dokladů. Seznam faktur čte jen hlavičky, takže funguje všude a jeho součet sedí s Měsíčními tržbami (ověřeno: b2b 2022–2025 = 9 446 636,51 Kč v obou).
+
+Klíč šablony `sum_columns` říká `renderTable()`, které sloupce se sčítají v patičce (jinak by se sečetlo i číslo dokladu a IČ). Ostatní šablony klíč nemají a sčítají všechny číselné sloupce jako dřív.
+
+**Export CSV:** tlačítko „Stáhnout CSV" nad výsledkem (`#v2-toolbar`, funkce `downloadCsv()` ve `views/analytics_revenue.php`) exportuje `state.lastRows` u všech šablon včetně Marží (vnořené položky faktur se přeskočí). Formát pro český Excel: UTF-8 s BOM, středník, desetinná čárka. Data bere ze serverové odpovědi, ne z DOM.
+
 ## Závislosti
 
 - Konzumuje: `import` (doklady, položky), `produkty`, `bom`, `nastaveni` (číselníky)
