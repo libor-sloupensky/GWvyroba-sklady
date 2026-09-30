@@ -64,9 +64,6 @@ final class MovementsController
         }
         $user = $this->currentUser();
         $lock = MovementDocService::lockReason($doc, $user);
-        $filters = $this->productFilters();
-        $hasSearch = isset($_GET['search']);
-        $products = $hasSearch ? $this->searchProducts($filters) : [];
 
         $this->render('movements.php', [
             'title' => 'Doklad ' . $doc['cislo'],
@@ -75,9 +72,6 @@ final class MovementsController
             'lock' => $lock,
             'lines' => MovementDocService::loadLines($id),
             'log' => MovementDocService::loadLog($id),
-            'filters' => $filters,
-            'hasSearch' => $hasSearch,
-            'products' => $products,
             'brands' => DB::pdo()->query('SELECT id,nazev FROM produkty_znacky ORDER BY nazev')->fetchAll(),
             'groups' => DB::pdo()->query('SELECT id,nazev FROM produkty_skupiny ORDER BY nazev')->fetchAll(),
             'types' => $this->productTypes(),
@@ -193,6 +187,23 @@ final class MovementsController
 
     // ------------------------------------------------------- vyhledávání
 
+    /** Živé vyhledávání produktů pro vložení do dokladu (max 10 výsledků + příznak, že je jich víc). */
+    public function search(): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json; charset=utf-8');
+        $f = $this->productFilters();
+        if ($f['search'] === '' && $f['brand'] === 0 && $f['group'] === 0 && $f['type'] === '') {
+            echo json_encode(['ok' => true, 'items' => [], 'more' => false], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $rows = $this->searchProducts($f, self::SEARCH_LIMIT + 1);
+        $more = count($rows) > self::SEARCH_LIMIT;
+        echo json_encode(['ok' => true, 'items' => array_slice($rows, 0, self::SEARCH_LIMIT), 'more' => $more, 'limit' => self::SEARCH_LIMIT], JSON_UNESCAPED_UNICODE);
+    }
+
+    private const SEARCH_LIMIT = 10;
+
     /** @return array{brand:int,group:int,type:string,search:string} */
     private function productFilters(): array
     {
@@ -206,7 +217,7 @@ final class MovementsController
     }
 
     /** @return array<int,array<string,mixed>> */
-    private function searchProducts(array $f): array
+    private function searchProducts(array $f, int $limit = 300): array
     {
         $conditions = ['1=1'];
         $params = [];
@@ -230,7 +241,7 @@ final class MovementsController
         }
         $sql = 'SELECT p.sku, p.nazev, p.typ, p.aktivni, p.merna_jednotka, COALESCE(pt.is_nonstock,0) AS is_nonstock
                 FROM produkty p LEFT JOIN product_types pt ON pt.code = p.typ
-                WHERE ' . implode(' AND ', $conditions) . ' ORDER BY p.aktivni DESC, p.nazev LIMIT 300';
+                WHERE ' . implode(' AND ', $conditions) . ' ORDER BY p.aktivni DESC, p.nazev LIMIT ' . (int)$limit;
         $stmt = DB::pdo()->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];

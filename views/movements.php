@@ -51,7 +51,12 @@
 .mv-badge.locked { background:#eceff1; color:#546e7a; }
 .mv-badge.vyroba { background:#e3f2fd; color:#0d47a1; }
 .mv-badge.korekce { background:#fff3e0; color:#e65100; }
-.mv-help { display:inline-block; width:1em; height:1em; line-height:1em; text-align:center; border-radius:50%; background:#cfd8dc; color:#263238; font-size:.75rem; cursor:help; margin-left:.3rem; }
+.mv-help { display:inline-block; position:relative; width:1.1em; height:1.1em; line-height:1.1em; text-align:center; border-radius:50%; background:#cfd8dc; color:#263238; font-size:.75rem; cursor:help; margin-left:.3rem; vertical-align:middle; }
+.mv-help .mv-tip { display:none; position:absolute; left:0; top:1.5em; z-index:20; width:22rem; max-width:80vw; background:#263238; color:#eceff1; text-align:left; font-size:.85rem; line-height:1.45; padding:.6rem .8rem; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.25); white-space:normal; font-weight:normal; }
+.mv-help:hover .mv-tip, .mv-help:focus .mv-tip { display:block; }
+.mv-help .mv-tip b { color:#fff; }
+.mv-toolbar .create { margin-left:auto; }
+.mv-search-more { color:#78909c; font-size:.9rem; margin:.4rem 0 0; }
 </style>
 
 <?php if (!empty($message)): ?><div class="mv-msg"><?= $h($message) ?></div><?php endif; ?>
@@ -62,15 +67,6 @@
 <p class="mv-muted">Doklad typu <strong>Výroba</strong> přičte hotový produkt a odepíše jeho skladové komponenty podle kusovníku. Doklad typu <strong>Korekce</strong> mění jen zvolenou položku, bez dopadu na komponenty (slouží i pro likvidaci, odpis a opravu stavu). Režim lze změnit i u jednotlivé položky.</p>
 
 <div class="mv-toolbar">
-  <form method="post" action="/movements/create">
-    <label>Nový doklad
-      <select name="typ">
-        <option value="vyroba">Výroba</option>
-        <option value="korekce">Korekce</option>
-      </select>
-    </label>
-    <button type="submit">Založit doklad</button>
-  </form>
   <form method="get" action="/movements">
     <label>Od <input type="date" name="od" value="<?= $h($filters['od']) ?>" /></label>
     <label>Do <input type="date" name="do" value="<?= $h($filters['do']) ?>" /></label>
@@ -83,6 +79,9 @@
     </label>
     <label>Hledat <input type="text" name="q" value="<?= $h($filters['q']) ?>" placeholder="číslo, SKU, poznámka, uživatel" /></label>
     <button type="submit">Filtrovat</button>
+  </form>
+  <form method="post" action="/movements/create" class="create" title="Založí nový doklad (typ Výroba / Korekce se volí uvnitř dokladu).">
+    <button type="submit">＋ Založit doklad</button>
   </form>
 </div>
 
@@ -110,10 +109,6 @@
 <?php else: ?>
 <?php
   $canEdit = ($lock === null);
-  $filterBrand = (int)($filters['brand'] ?? 0);
-  $filterGroup = (int)($filters['group'] ?? 0);
-  $filterType  = (string)($filters['type'] ?? '');
-  $filterSearch= (string)($filters['search'] ?? '');
   $docId = (int)$doc['id'];
 ?>
 <p><a href="/movements">← Seznam dokladů</a></p>
@@ -126,7 +121,7 @@
 <div class="mv-head">
   <div class="field">Datum<strong><?= $h(date('j. n. Y', strtotime((string)$doc['datum']))) ?></strong></div>
   <div class="field">Založil<strong><?= $h($doc['user_email']) ?></strong></div>
-  <div class="field">Typ dokladu <span class="mv-help" title="Výroba: přičte produkt a odepíše skladové komponenty podle kusovníku. Korekce: mění jen zvolenou položku, bez dopadu na komponenty – slouží i pro likvidaci, odpis a opravu stavu. Typ dokladu je výchozí režim pro nově vkládané položky; u každé položky jde režim změnit.">?</span>
+  <div class="field"><span>Typ dokladu <span class="mv-help" tabindex="0">?<span class="mv-tip"><b>Výroba</b> – přičte produkt a odepíše jeho skladové komponenty podle kusovníku.<br><br><b>Korekce</b> – mění jen zvolenou položku, bez dopadu na komponenty. Slouží i pro likvidaci, odpis a opravu stavu.<br><br>Typ dokladu je výchozí režim pro nově vkládané položky, u každé položky jde režim změnit.</span></span></span>
     <?php if ($canEdit): ?>
       <select id="mv-typ">
         <option value="vyroba"<?= $doc['typ'] === 'vyroba' ? ' selected' : '' ?>>Výroba</option>
@@ -155,38 +150,22 @@
   </div>
 </div>
 
-<h2>Položky dokladu</h2>
-<div id="mv-line-error" class="mv-err" style="display:none"></div>
-<table class="mv-lines" id="mv-lines">
-  <thead>
-    <tr>
-      <th>SKU</th><th>Název</th><th>Režim</th>
-      <th class="num">Množství</th><th>MJ</th>
-      <th class="num">Stav před</th><th class="num">Stav po <span class="mv-help" title="Aktuální fyzický stav skladu po zapsání tohoto řádku. Červeně = záporný stav, položka je vyskladněná do mínusu.">?</span></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
 <?php if ($canEdit): ?>
 <h2>Přidat položku</h2>
-<form method="get" action="/movements/doc" class="mv-filter">
-  <input type="hidden" name="id" value="<?= $docId ?>" />
-  <input type="hidden" name="search" value="1" />
+<form class="mv-filter" id="mv-search" onsubmit="return false;">
   <label>Značka
     <select name="znacka_id">
       <option value="">Všechny</option>
-      <?php foreach (($brands ?? []) as $b): $bid = (int)$b['id']; ?>
-        <option value="<?= $bid ?>"<?= $filterBrand === $bid ? ' selected' : '' ?>><?= $h($b['nazev']) ?></option>
+      <?php foreach (($brands ?? []) as $b): ?>
+        <option value="<?= (int)$b['id'] ?>"><?= $h($b['nazev']) ?></option>
       <?php endforeach; ?>
     </select>
   </label>
   <label>Skupina
     <select name="skupina_id">
       <option value="">Všechny</option>
-      <?php foreach (($groups ?? []) as $g): $gid = (int)$g['id']; ?>
-        <option value="<?= $gid ?>"<?= $filterGroup === $gid ? ' selected' : '' ?>><?= $h($g['nazev']) ?></option>
+      <?php foreach (($groups ?? []) as $g): ?>
+        <option value="<?= (int)$g['id'] ?>"><?= $h($g['nazev']) ?></option>
       <?php endforeach; ?>
     </select>
   </label>
@@ -194,36 +173,28 @@
     <select name="typ">
       <option value="">Všechny</option>
       <?php foreach (($types ?? []) as $t): ?>
-        <option value="<?= $h($t) ?>"<?= $filterType === $t ? ' selected' : '' ?>><?= $h($t) ?></option>
+        <option value="<?= $h($t) ?>"><?= $h($t) ?></option>
       <?php endforeach; ?>
     </select>
   </label>
-  <label>Hledat <input type="text" name="q" value="<?= $h($filterSearch) ?>" placeholder="SKU, název, alt. SKU, EAN" autofocus /></label>
-  <button type="submit">Vyhledat</button>
+  <label>Hledat <input type="text" name="q" value="" placeholder="SKU, název, alt. SKU, EAN – hledá se průběžně" autocomplete="off" autofocus /></label>
 </form>
+<div id="mv-search-results"></div>
+<?php endif; ?>
 
-<?php if (!empty($hasSearch)): ?>
-  <?php if (empty($products)): ?>
-    <p class="mv-muted">Pro zadané podmínky nejsou žádné produkty.</p>
-  <?php else: ?>
-  <table class="mv-products">
-    <thead><tr><th>SKU</th><th>Název</th><th>Typ</th><th class="num">Stav</th><th>MJ</th><th></th></tr></thead>
-    <tbody>
-    <?php foreach ($products as $p): $ns = !empty($p['is_nonstock']); $inactive = (int)($p['aktivni'] ?? 1) === 0; ?>
-      <tr class="<?= $ns ? 'nonstock' : '' ?><?= $inactive ? ' inactive' : '' ?>"<?= $ns ? ' title="Neskladová položka – nevyrábí se ani neskladuje, do dokladu ji nelze vložit. Vložte její skladové komponenty."' : ($inactive ? ' title="Neaktivní produkt (lze použít např. pro odpis zbytku)."' : '') ?>>
-        <td class="sku"><?= $h($p['sku']) ?></td>
-        <td><?= $h($p['nazev']) ?></td>
-        <td><?= $h($p['typ']) ?></td>
-        <td class="num"><?= $fmtQty($p['stav']) ?></td>
-        <td><?= $h($p['merna_jednotka'] ?? '') ?></td>
-        <td><button type="button" class="add" data-sku="<?= $h($p['sku']) ?>"<?= $ns ? ' disabled' : '' ?>>Vložit</button></td>
-      </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
-  <?php endif; ?>
-<?php endif; ?>
-<?php endif; ?>
+<h2>Položky dokladu</h2>
+<div id="mv-line-error" class="mv-err" style="display:none"></div>
+<table class="mv-lines" id="mv-lines">
+  <thead>
+    <tr>
+      <th>SKU</th><th>Název</th><th>Režim</th>
+      <th class="num">Množství</th><th>MJ</th>
+      <th class="num">Stav před</th><th class="num">Stav po <span class="mv-help" tabindex="0">?<span class="mv-tip">Aktuální fyzický stav skladu po zapsání tohoto řádku. <b>Červeně</b> = záporný stav, položka je vyskladněná do mínusu.</span></span></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
 <details class="mv-log" id="mv-log-wrap">
   <summary>Historie změn dokladu (<span id="mv-log-count"><?= count($log ?? []) ?></span>)</summary>
@@ -332,21 +303,58 @@
   pozn.addEventListener('input', () => { clearTimeout(headTimer); headTimer = setTimeout(saveHeader, 700); });
   pozn.addEventListener('blur', () => { clearTimeout(headTimer); saveHeader(); });
 
-  // Vložení produktu
-  document.querySelectorAll('.mv-products .add').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      showError('');
-      try {
-        const data = await call('/movements/line/add', { sku: btn.dataset.sku, mnozstvi: 1, rezim: typSel.value });
-        const input = tbody.querySelector(`input.qty[data-id="${data.line_id}"]`);
-        if (input) { input.focus(); input.select(); input.scrollIntoView({ block: 'center' }); }
-      } catch (e) {
-        showError(e.message);
-      } finally {
-        btn.disabled = false;
-      }
+  // Živé vyhledávání produktů (bez tlačítka) – max 10 výsledků
+  const searchForm = document.getElementById('mv-search');
+  const resultsBox = document.getElementById('mv-search-results');
+  let searchTimer = null;
+  let searchSeq = 0;
+  function renderSearch(data) {
+    const items = data.items || [];
+    if (!items.length) {
+      resultsBox.innerHTML = data.empty ? '' : '<p class="mv-muted">Pro zadané podmínky nejsou žádné produkty.</p>';
+      return;
+    }
+    const rows = items.map((p) => {
+      const ns = Number(p.is_nonstock) === 1;
+      const inactive = Number(p.aktivni) === 0;
+      const title = ns ? 'Neskladová položka – nevyrábí se ani neskladuje, do dokladu ji nelze vložit. Vložte její skladové komponenty.' : (inactive ? 'Neaktivní produkt (lze použít např. pro odpis zbytku).' : '');
+      return `<tr class="${ns ? 'nonstock' : ''}${inactive ? ' inactive' : ''}"${title ? ` title="${esc(title)}"` : ''}><td class="sku">${esc(p.sku)}</td><td>${esc(p.nazev)}</td><td>${esc(p.typ)}</td><td class="num">${fmt(p.stav)}</td><td>${esc(p.merna_jednotka || '')}</td><td><button type="button" class="add" data-sku="${esc(p.sku)}"${ns ? ' disabled' : ''}>Vložit</button></td></tr>`;
     });
+    const more = data.more ? `<p class="mv-search-more">Zobrazeno prvních ${data.limit || items.length} položek, nalezeno více – upřesněte hledání.</p>` : '';
+    resultsBox.innerHTML = `<table class="mv-products"><thead><tr><th>SKU</th><th>Název</th><th>Typ</th><th class="num">Stav</th><th>MJ</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>${more}`;
+  }
+  async function runSearch() {
+    const params = new URLSearchParams(new FormData(searchForm));
+    const seq = ++searchSeq;
+    const hasAny = Array.from(params.values()).some((v) => String(v).trim() !== '');
+    if (!hasAny) { resultsBox.innerHTML = ''; return; }
+    try {
+      const res = await fetch('/movements/search?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+      const data = await res.json();
+      if (seq !== searchSeq) return; // mezitím přišel novější dotaz
+      renderSearch(data);
+    } catch (_) {
+      if (seq === searchSeq) resultsBox.innerHTML = '<p class="mv-err">Vyhledávání selhalo.</p>';
+    }
+  }
+  searchForm.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
+  searchForm.addEventListener('change', () => { clearTimeout(searchTimer); runSearch(); });
+
+  // Vložení produktu (delegace – výsledky se překreslují)
+  resultsBox.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('button.add');
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    showError('');
+    try {
+      const data = await call('/movements/line/add', { sku: btn.dataset.sku, mnozstvi: 1, rezim: typSel.value });
+      const input = tbody.querySelector(`input.qty[data-id="${data.line_id}"]`);
+      if (input) { input.focus(); input.select(); input.scrollIntoView({ block: 'center' }); }
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   // Řádky – množství, režim, smazání (delegace)

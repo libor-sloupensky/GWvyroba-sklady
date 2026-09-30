@@ -118,6 +118,7 @@ $router->post('/production/recent-limit', [ProductionController::class, 'updateR
 $router->get('/movements', [MovementsController::class, 'index']);
 $router->post('/movements/create', [MovementsController::class, 'create']);
 $router->get('/movements/doc', [MovementsController::class, 'doc']);
+$router->get('/movements/search', [MovementsController::class, 'search']);
 $router->post('/movements/delete', [MovementsController::class, 'delete']);
 $router->post('/movements/header', [MovementsController::class, 'header']);
 $router->post('/movements/line/add', [MovementsController::class, 'lineAdd']);

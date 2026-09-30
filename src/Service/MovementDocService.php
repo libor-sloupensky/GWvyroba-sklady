@@ -460,8 +460,28 @@ final class MovementDocService
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    /** Změny množství téhož řádku od téhož uživatele do této doby se slučují do jednoho záznamu. */
+    private const LOG_MERGE_SECONDS = 180;
+
     private static function log(PDO $pdo, int $docId, ?int $lineId, ?string $sku, string $akce, ?float $old, ?float $new, ?string $detail, string $email): void
     {
+        if ($akce === 'zmena_mnozstvi' && $lineId !== null) {
+            // Klikání na šipky u množství vyvolá sérii uložení – v logu má být jedna
+            // změna "z původního na výsledné", ne deset mezikroků.
+            $last = $pdo->prepare('SELECT id, akce, stare_mnozstvi, user_email, datum FROM sklad_doklady_log WHERE doklad_id = ? AND pohyb_id = ? ORDER BY id DESC LIMIT 1');
+            $last->execute([$docId, $lineId]);
+            $prev = $last->fetch(PDO::FETCH_ASSOC);
+            if ($prev && $prev['akce'] === 'zmena_mnozstvi' && (string)$prev['user_email'] === $email
+                && (time() - strtotime((string)$prev['datum'])) <= self::LOG_MERGE_SECONDS) {
+                if ($new !== null && abs((float)$prev['stare_mnozstvi'] - $new) < 0.0000001) {
+                    // vrátil se na původní hodnotu – změna se v součtu nestala
+                    $pdo->prepare('DELETE FROM sklad_doklady_log WHERE id = ?')->execute([(int)$prev['id']]);
+                } else {
+                    $pdo->prepare('UPDATE sklad_doklady_log SET nove_mnozstvi = ?, datum = NOW() WHERE id = ?')->execute([$new, (int)$prev['id']]);
+                }
+                return;
+            }
+        }
         $pdo->prepare('INSERT INTO sklad_doklady_log (doklad_id, pohyb_id, sku, akce, stare_mnozstvi, nove_mnozstvi, detail, user_email) VALUES (?,?,?,?,?,?,?,?)')
             ->execute([$docId, $lineId, $sku, $akce, $old, $new, $detail, $email]);
     }
