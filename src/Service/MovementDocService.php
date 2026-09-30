@@ -74,6 +74,9 @@ final class MovementDocService
         self::ensureColumn($pdo, 'polozky_pohyby', 'doklad_id', 'INT NULL AFTER `ref_id`');
         self::ensureColumn($pdo, 'polozky_pohyby', 'parent_pohyb_id', 'INT NULL AFTER `doklad_id`');
         self::ensureColumn($pdo, 'polozky_pohyby', 'user_id', 'INT NULL AFTER `parent_pohyb_id`');
+        // Snímek skladové hodnoty za jednotku v okamžiku zápisu / poslední změny řádku.
+        // skl_hodnota v produktech se mění, hodnota pohybu má zůstat taková, jaká byla při jeho vzniku.
+        self::ensureColumn($pdo, 'polozky_pohyby', 'skl_hodnota_jedn', 'DECIMAL(18,4) NULL AFTER `user_id`');
         $idx = $pdo->query("SHOW INDEX FROM polozky_pohyby WHERE Key_name = 'idx_pohyby_doklad'")->fetch();
         if (!$idx) {
             $pdo->exec('ALTER TABLE polozky_pohyby ADD KEY idx_pohyby_doklad (doklad_id)');
@@ -182,6 +185,8 @@ final class MovementDocService
             self::log($pdo, $docId, null, null, 'vytvoreni', null, null, 'Doklad ' . $cislo . ' – uzavření inventury #' . $inventoryId . ' ' . substr($closedAt, 0, 16), (string)$user['email']);
         }
         $pdo->prepare("UPDATE polozky_pohyby SET doklad_id = ? WHERE ref_id LIKE ?")->execute([$docId, sprintf('inv:%d:%%', $inventoryId)]);
+        // Hodnota rozdílu se oceňuje skladovou hodnotou platnou při uzavření (řádky bez snímku)
+        $pdo->prepare('UPDATE polozky_pohyby pp JOIN produkty p ON p.sku = pp.sku SET pp.skl_hodnota_jedn = p.skl_hodnota WHERE pp.doklad_id = ? AND pp.skl_hodnota_jedn IS NULL')->execute([$docId]);
         return $docId;
     }
 
@@ -393,8 +398,8 @@ final class MovementDocService
         $datum = (string)$doc['datum'] . ' ' . date('H:i:s');
         $pdo->beginTransaction();
         try {
-            $ins = $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id, doklad_id, parent_pohyb_id, user_id) VALUES (?,?,?,?,?,?,?,?,NULL,?)');
-            $ins->execute([$datum, $sku, $qty, $meta['merna_jednotka'], $rezim, null, null, (int)$doc['id'], (int)$user['id']]);
+            $ins = $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id, doklad_id, parent_pohyb_id, user_id, skl_hodnota_jedn) VALUES (?,?,?,?,?,?,?,?,NULL,?,?)');
+            $ins->execute([$datum, $sku, $qty, $meta['merna_jednotka'], $rezim, null, null, (int)$doc['id'], (int)$user['id'], $meta['skl_hodnota']]);
             $lineId = (int)$pdo->lastInsertId();
             $ref = 'dok-' . (int)$doc['id'] . '-' . $lineId;
             $pdo->prepare('UPDATE polozky_pohyby SET ref_id = ? WHERE id = ?')->execute([$ref, $lineId]);
@@ -430,8 +435,9 @@ final class MovementDocService
         }
         $pdo->beginTransaction();
         try {
-            $pdo->prepare('UPDATE polozky_pohyby SET mnozstvi = ?, typ_pohybu = ?, user_id = ? WHERE id = ?')
-                ->execute([$qty, $rezim, (int)$user['id'], $lineId]);
+            // Při změně se snímek skladové hodnoty obnoví – hodnota řádku odpovídá době poslední změny
+            $pdo->prepare('UPDATE polozky_pohyby SET mnozstvi = ?, typ_pohybu = ?, user_id = ?, skl_hodnota_jedn = ? WHERE id = ?')
+                ->execute([$qty, $rezim, (int)$user['id'], self::productMeta((string)$line['sku'])['skl_hodnota'] ?? null, $lineId]);
             self::regenerateChildren($pdo, $doc, $user, $lineId, (string)$line['sku'], $qty, $rezim, (string)$line['datum'], (string)$line['ref_id']);
             if ($oldRezim !== $rezim) {
                 self::log($pdo, (int)$doc['id'], $lineId, (string)$line['sku'], 'zmena_rezimu', $oldQty, $qty, $oldRezim . ' → ' . $rezim, (string)$user['email']);
@@ -482,10 +488,11 @@ final class MovementDocService
         if ($rezim !== 'vyroba' || $qty == 0.0) {
             return;
         }
-        $ins = $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id, doklad_id, parent_pohyb_id, user_id) VALUES (?,?,?,?,?,?,?,?,?,?)');
+        $ins = $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id, doklad_id, parent_pohyb_id, user_id, skl_hodnota_jedn) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
         foreach (self::stockComponents($sku, $qty) as $comp) {
-            $unit = $comp['merna_jednotka'] ?? (self::productMeta($comp['sku'])['merna_jednotka'] ?? null);
-            $ins->execute([$datum, $comp['sku'], -1 * $comp['mnozstvi'], $unit, 'vyroba', 'odečet komponenty', $ref, (int)$doc['id'], $lineId, (int)$user['id']]);
+            $compMeta = self::productMeta($comp['sku']);
+            $unit = $comp['merna_jednotka'] ?? ($compMeta['merna_jednotka'] ?? null);
+            $ins->execute([$datum, $comp['sku'], -1 * $comp['mnozstvi'], $unit, 'vyroba', 'odečet komponenty', $ref, (int)$doc['id'], $lineId, (int)$user['id'], $compMeta['skl_hodnota'] ?? null]);
         }
     }
 
@@ -498,10 +505,10 @@ final class MovementDocService
         return $row ?: null;
     }
 
-    /** @return array{nazev:string,merna_jednotka:?string,typ:string}|null */
+    /** @return array{nazev:string,merna_jednotka:?string,typ:string,skl_hodnota:?float}|null */
     private static function productMeta(string $sku): ?array
     {
-        $stmt = DB::pdo()->prepare('SELECT nazev, merna_jednotka, typ FROM produkty WHERE sku = ? LIMIT 1');
+        $stmt = DB::pdo()->prepare('SELECT nazev, merna_jednotka, typ, skl_hodnota FROM produkty WHERE sku = ? LIMIT 1');
         $stmt->execute([$sku]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
@@ -511,6 +518,7 @@ final class MovementDocService
             'nazev' => (string)$row['nazev'],
             'merna_jednotka' => ($row['merna_jednotka'] ?? '') !== '' ? (string)$row['merna_jednotka'] : null,
             'typ' => (string)$row['typ'],
+            'skl_hodnota' => $row['skl_hodnota'] === null ? null : (float)$row['skl_hodnota'],
         ];
     }
 
@@ -528,7 +536,7 @@ final class MovementDocService
         if ($headRow && (string)$headRow['typ'] === 'inventura') {
             return self::loadInventoryLines($docId, (int)$headRow['inventura_id']);
         }
-        $stmt = DB::pdo()->prepare('SELECT pp.id, pp.datum, pp.sku, pp.mnozstvi, pp.merna_jednotka, pp.typ_pohybu, pp.parent_pohyb_id, p.nazev, p.merna_jednotka AS p_mj
+        $stmt = DB::pdo()->prepare('SELECT pp.id, pp.datum, pp.sku, pp.mnozstvi, pp.merna_jednotka, pp.typ_pohybu, pp.parent_pohyb_id, pp.skl_hodnota_jedn, p.nazev, p.merna_jednotka AS p_mj
             FROM polozky_pohyby pp LEFT JOIN produkty p ON p.sku = pp.sku
             WHERE pp.doklad_id = ? ORDER BY COALESCE(pp.parent_pohyb_id, pp.id), pp.parent_pohyb_id IS NOT NULL, pp.id');
         $stmt->execute([$docId]);
@@ -543,6 +551,7 @@ final class MovementDocService
         foreach ($rows as $r) {
             $qty = (float)$r['mnozstvi'];
             $after = (float)($stock[(string)$r['sku']] ?? 0.0);
+            $unitVal = $r['skl_hodnota_jedn'] === null ? null : (float)$r['skl_hodnota_jedn'];
             $item = [
                 'id' => (int)$r['id'],
                 'sku' => (string)$r['sku'],
@@ -553,6 +562,9 @@ final class MovementDocService
                 'stav_po' => $after,
                 'stav_pred' => $after - $qty,
                 'datum' => (string)$r['datum'],
+                // hodnota = množství × skladová hodnota v době zápisu / poslední změny (záporný pohyb = záporná hodnota)
+                'hodnota_jedn' => $unitVal,
+                'hodnota' => $unitVal === null ? null : round($qty * $unitVal, 2),
                 'children' => [],
             ];
             if ($r['parent_pohyb_id'] === null) {
@@ -582,6 +594,7 @@ final class MovementDocService
     private static function loadInventoryLines(int $docId, int $inventoryId): array
     {
         $stmt = DB::pdo()->prepare('SELECT pp.sku, SUM(pp.mnozstvi) AS delta, MIN(pp.id) AS id, MIN(pp.datum) AS datum,
+                SUM(pp.mnozstvi * COALESCE(pp.skl_hodnota_jedn, 0)) AS hodnota, MAX(pp.skl_hodnota_jedn) AS hodnota_jedn,
                 MAX(pp.merna_jednotka) AS mj, p.nazev, p.merna_jednotka AS p_mj, s.stav
             FROM polozky_pohyby pp
             LEFT JOIN produkty p ON p.sku = pp.sku
@@ -605,6 +618,8 @@ final class MovementDocService
                 'stav_po' => $after,
                 'stav_pred' => $after - $delta,
                 'datum' => (string)$r['datum'],
+                'hodnota_jedn' => $r['hodnota_jedn'] === null ? null : (float)$r['hodnota_jedn'],
+                'hodnota' => $r['hodnota_jedn'] === null ? null : round((float)$r['hodnota'], 2),
                 'children' => [],
             ];
         }
@@ -675,6 +690,7 @@ final class MovementDocService
         }
         $sql = 'SELECT d.*,
                 ' . self::SQL_RADKU . ' AS radku,
+                (SELECT ROUND(SUM(pp.mnozstvi * COALESCE(pp.skl_hodnota_jedn, 0)), 2) FROM polozky_pohyby pp WHERE pp.doklad_id = d.id) AS hodnota,
                 (SELECT GROUP_CONCAT(DISTINCT pp.sku ORDER BY pp.id SEPARATOR ", ") FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) AS skus
                 FROM sklad_doklady d WHERE ' . implode(' AND ', $where) . ' ORDER BY d.datum DESC, d.id DESC LIMIT ' . (int)$limit;
         $stmt = DB::pdo()->prepare($sql);

@@ -63,6 +63,7 @@ Schéma si při prvním použití doplní `MovementDocService::ensureSchema()` (
 - **Neskladové položky** ve vyhledávání šedé s tooltipem, nelze vložit (server odmítne). Neaktivní produkty vložit lze (odpis zbytku), SKU přeškrtnuté.
 - **Mínus**: žádný blokující dialog — řádek se uloží a stav „po" svítí červeně (u rodiče i potomků). Vložená položka dostane množství 1 a fokus do inputu.
 - **Autosave**: poznámka po 700 ms od psaní / při opuštění pole, množství po 600 ms / při změně / Enter. Konflikt dvou uživatelů = poslední zápis vyhrává.
+- **Hodnota řádku** = množství × `polozky_pohyby.skl_hodnota_jedn` (snímek `produkty.skl_hodnota` uložený při zápisu řádku; při změně množství/režimu se snímek **obnoví na aktuální hodnotu**, potomci se regenerují s aktuální). Záporný pohyb = záporná hodnota. Doklad ukazuje součet (rodiče + komponenty), seznam sloupec Hodnota. Inventární doklad oceňuje rozdíl hodnotou při uzavření; u 9 zpětně doplněných dokladů je snímek z 2026-09-30 (historie `skl_hodnota` neexistuje). Řádky bez `skl_hodnota` mají hodnotu prázdnou.
 - **Log slučuje změny množství** téhož řádku od téhož uživatele do 3 minut (`LOG_MERGE_SECONDS`) do jednoho záznamu „z původního na výsledné"; návrat na původní hodnotu záznam smaže. Klikání na šipky u množství tak nevyrobí deset řádků v historii.
 - **Vyhledávání položek** je živé (debounce 250 ms, změna selectu hned), max 10 výsledků, při více výsledcích hláška pod tabulkou. Založení dokladu je jedním tlačítkem vpravo nahoře, typ se volí až v dokladu (výchozí Výroba).
 

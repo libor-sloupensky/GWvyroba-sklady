@@ -93,7 +93,7 @@
   <p class="mv-muted">Žádné doklady.</p>
 <?php else: ?>
 <table>
-  <thead><tr><th>Číslo</th><th>Datum</th><th>Typ</th><th>Uživatel</th><th>Položky</th><th>Poznámka</th><th>Stav</th></tr></thead>
+  <thead><tr><th>Číslo</th><th>Datum</th><th>Typ</th><th>Uživatel</th><th>Položky</th><th class="num" style="text-align:right;">Hodnota (CZK)</th><th>Poznámka</th><th>Stav</th></tr></thead>
   <tbody>
   <?php foreach ($docs as $d): ?>
     <tr>
@@ -102,6 +102,7 @@
       <td><span class="mv-badge <?= $h($d['typ']) ?>"><?= $h($typLabel[$d['typ']] ?? $d['typ']) ?></span></td>
       <td><?= $h($d['user_email']) ?></td>
       <td title="<?= $h($d['skus'] ?? '') ?>"><?= (int)$d['radku'] ?><?php if (!empty($d['skus'])): ?> <span class="mv-muted"><?= $h(mb_strimwidth((string)$d['skus'], 0, 40, '…')) ?></span><?php endif; ?></td>
+      <td style="text-align:right; white-space:nowrap;<?= (float)($d['hodnota'] ?? 0) < 0 ? ' color:#c62828;' : '' ?>"><?= $d['hodnota'] === null ? '<span class="mv-muted">—</span>' : $h(number_format((float)$d['hodnota'], 2, ',', ' ')) ?></td>
       <td><?= $h(mb_strimwidth((string)($d['poznamka'] ?? ''), 0, 60, '…')) ?></td>
       <td><?php if ($d['lock'] === null): ?><span class="mv-badge open">otevřený</span><?php else: ?><span class="mv-badge locked" title="<?= $h($d['lock']) ?>">uzamčený</span><?php endif; ?></td>
     </tr>
@@ -204,12 +205,14 @@
       <th class="num">Očekávaný stav</th><th class="num">Zjištěný stav</th>
       <th class="num">Rozdíl <span class="mv-help" tabindex="0">?<span class="mv-tip">Zjištěný stav − očekávaný stav v okamžiku uzavření inventury. Zobrazují se jen položky s nenulovým rozdílem; položky beze změny doklad neobsahuje.</span></span></th>
       <th>MJ</th>
+      <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0">?<span class="mv-tip">Rozdíl × skladová hodnota položky platná při uzavření inventury (u dokladů doplněných zpětně 30. 9. 2026 hodnota z toho dne). Záporný rozdíl = záporná hodnota.</span></span></th>
     </tr>
     <?php else: ?>
     <tr>
       <th>SKU</th><th>Název</th><th>Režim</th>
       <th class="num">Množství</th><th>MJ</th>
       <th class="num">Stav před</th><th class="num">Stav po <span class="mv-help" tabindex="0">?<span class="mv-tip">Aktuální fyzický stav skladu po zapsání tohoto řádku. <b>Červeně</b> = záporný stav, položka je vyskladněná do mínusu.</span></span></th>
+      <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0">?<span class="mv-tip">Množství × skladová hodnota položky. Skladová hodnota se ukládá v okamžiku zápisu řádku; při pozdější změně množství se převezme hodnota platná v době změny. <b>Záporný pohyb = záporná hodnota.</b> Řádek Celkem sčítá rodiče i odepsané komponenty.</span></span></th>
       <th></th>
     </tr>
     <?php endif; ?>
@@ -246,21 +249,41 @@
     const n = Number(v);
     return `<td class="num${n < 0 ? ' neg' : ''}">${fmt(n)}</td>`;
   }
+  const fmtCzk = (v) => {
+    const n = Number(v);
+    if (v === null || v === undefined || !Number.isFinite(n)) return '';
+    return n.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+  function valueCell(v, strong) {
+    const n = Number(v);
+    const txt = fmtCzk(v);
+    return `<td class="num${n < 0 ? ' neg' : ''}" title="${v === null ? 'Položka nemá skladovou hodnotu' : ''}">${strong ? '<strong>' + txt + '</strong>' : txt}</td>`;
+  }
+  function totalRow(colspan) {
+    let total = 0;
+    lines.forEach((l) => {
+      if (l.hodnota !== null && l.hodnota !== undefined) total += Number(l.hodnota);
+      (l.children || []).forEach((c) => { if (c.hodnota !== null && c.hodnota !== undefined) total += Number(c.hodnota); });
+    });
+    return `<tr class="total" style="background:#f1f5f9; font-weight:600;"><td colspan="${colspan}" style="text-align:right;">Celkem hodnota</td>${valueCell(Math.round(total * 100) / 100, true)}<td></td></tr>`;
+  }
 
   function renderLines() {
     if (DOC_TYP === 'inventura') {
       if (!lines.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="mv-muted">Inventura nemá žádné položky s rozdílem (nebo je znovu otevřená – položky se připojí při jejím uzavření).</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="mv-muted">Inventura nemá žádné položky s rozdílem (nebo je znovu otevřená – položky se připojí při jejím uzavření).</td></tr>';
         return;
       }
-      tbody.innerHTML = lines.map((l) => {
+      const rows = lines.map((l) => {
         const d = Number(l.mnozstvi);
-        return `<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}<td class="num${d < 0 ? ' neg' : ''}">${d > 0 ? '+' : ''}${fmt(d)}</td><td>${esc(l.mj)}</td></tr>`;
-      }).join('');
+        return `<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}<td class="num${d < 0 ? ' neg' : ''}">${d > 0 ? '+' : ''}${fmt(d)}</td><td>${esc(l.mj)}</td>${valueCell(l.hodnota, false)}</tr>`;
+      });
+      rows.push(totalRow(6).replace(/<td><\/td><\/tr>$/, '</tr>'));
+      tbody.innerHTML = rows.join('');
       return;
     }
     if (!lines.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="mv-muted">Doklad zatím nemá položky' + (CAN_EDIT ? ' – vyhledejte produkt níže a klikněte na Vložit.' : '.') + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="mv-muted">Doklad zatím nemá položky' + (CAN_EDIT ? ' – vyhledejte produkt níže a klikněte na Vložit.' : '.') + '</td></tr>';
       return;
     }
     const html = [];
@@ -272,16 +295,17 @@
         ? `<input type="number" step="any" class="qty" data-id="${l.id}" value="${l.mnozstvi}" />`
         : fmt(l.mnozstvi);
       const del = CAN_EDIT ? `<button type="button" class="del" data-id="${l.id}" title="Smazat položku včetně odepsaných komponent">✕</button>` : '';
-      html.push(`<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td><td>${rezimCtl}</td><td class="num">${qtyCtl}</td><td>${esc(l.mj)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}<td>${del}</td></tr>`);
+      html.push(`<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td><td>${rezimCtl}</td><td class="num">${qtyCtl}</td><td>${esc(l.mj)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}${valueCell(l.hodnota, false)}<td>${del}</td></tr>`);
       const kids = l.children || [];
       kids.forEach((c, i) => {
         const branch = i === kids.length - 1 ? '└──' : '├──';
-        html.push(`<tr class="child"><td class="tree">${branch} ${esc(c.sku)}</td><td>${esc(c.nazev)}</td><td class="mv-muted">komponenta</td><td class="num">${fmt(c.mnozstvi)}</td><td>${esc(c.mj)}</td>${stockCell(c.stav_pred)}${stockCell(c.stav_po)}<td></td></tr>`);
+        html.push(`<tr class="child"><td class="tree">${branch} ${esc(c.sku)}</td><td>${esc(c.nazev)}</td><td class="mv-muted">komponenta</td><td class="num">${fmt(c.mnozstvi)}</td><td>${esc(c.mj)}</td>${stockCell(c.stav_pred)}${stockCell(c.stav_po)}${valueCell(c.hodnota, false)}<td></td></tr>`);
       });
       if (l.rezim === 'vyroba' && !kids.length && Number(l.mnozstvi) !== 0) {
-        html.push(`<tr class="child"><td class="tree">└──</td><td colspan="7" class="mv-muted">Produkt nemá v kusovníku žádné skladové komponenty, nic se neodepsalo.</td></tr>`);
+        html.push(`<tr class="child"><td class="tree">└──</td><td colspan="8" class="mv-muted">Produkt nemá v kusovníku žádné skladové komponenty, nic se neodepsalo.</td></tr>`);
       }
     });
+    html.push(totalRow(7));
     tbody.innerHTML = html.join('');
   }
 
