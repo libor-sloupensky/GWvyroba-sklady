@@ -153,6 +153,8 @@ $router->post('/settings/type', [SettingsController::class, 'saveProductType']);
 $router->post('/settings/type/delete', [SettingsController::class, 'deleteProductType']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 $router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
+$router->post('/settings/users/role', [SettingsController::class, 'updateUserRole']);
+$router->post('/settings/users/delete', [SettingsController::class, 'deleteUser']);
 
 // Admin
 $router->get('/admin/history', [AdminController::class, 'history']);

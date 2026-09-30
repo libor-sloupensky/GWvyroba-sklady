@@ -443,66 +443,84 @@
 </div>
 
 <?php if (!empty($canManageUsers)): ?>
-<h2 class="settings-toggle"><span class="tri">▸</span> Uživatelé (superadmin)</h2>
+<h2 class="settings-toggle"><span class="tri">▸</span> Uživatelé</h2>
 <div class="settings-section" style="display:none;">
-<p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu jej povolíte, odebrání provedete deaktivací účtu. U každého vidíte aktuální roli.</p>
-<form method="post" action="/settings/users/save" id="user-form">
-  <input type="hidden" name="id" value="" />
-  <label>E-mail</label>
-  <input type="email" name="email" required />
-  <label>Role</label>
-  <select name="role">
-    <option value="admin">Admin</option>
-    <option value="superadmin">Superadmin</option>
-    <option value="user">Čtenář (jen prohlížení + Analýza)</option>
-  </select>
-  <label>
-    <input type="checkbox" name="active" checked /> Aktivní
+<p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu přístup povolíte, křížkem ho odeberete. Roli měníte přímo v seznamu, uloží se sama. Vlastní účet měnit ani mazat nelze.</p>
+<?php
+  $roleOptions = ['admin' => 'Admin', 'superadmin' => 'Superadmin', 'user' => 'Čtenář (jen prohlížení + Analýza)'];
+  $meId = (int)($_SESSION['user']['id'] ?? 0);
+  $meEmail = (string)($_SESSION['user']['email'] ?? '');
+?>
+<form method="post" action="/settings/users/save" id="user-form" style="display:flex; flex-wrap:wrap; gap:.6rem; align-items:flex-end; margin-bottom:1rem;">
+  <label style="display:flex; flex-direction:column; gap:.2rem;">E-mail
+    <input type="email" name="email" required placeholder="jmeno@firma.cz" />
   </label>
-  <button type="submit">Uložit uživatele</button>
+  <label style="display:flex; flex-direction:column; gap:.2rem;">Role
+    <select name="role">
+      <?php foreach ($roleOptions as $val => $label): ?>
+        <option value="<?= $val ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+      <?php endforeach; ?>
+    </select>
+  </label>
+  <button type="submit">＋ Přidat uživatele</button>
 </form>
-<table>
-  <tr><th>E-mail</th><th>Role</th><th>Stav</th><th>Vytvořen</th><th>Poslední návštěva</th><th>Akce</th></tr>
-  <?php foreach (($users ?? []) as $user): ?>
-  <tr>
-    <td><?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?></td>
-    <td><?= htmlspecialchars(\App\Support\Auth::label((string)$user['role']), ENT_QUOTES, 'UTF-8') ?></td>
-    <td><?= (int)$user['active'] ? 'aktivní' : 'blokován' ?></td>
-    <td><?= htmlspecialchars((string)$user['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
-    <td><?= !empty($user['last_visit_at']) ? htmlspecialchars(date('j. n. Y H:i', strtotime((string)$user['last_visit_at'])), ENT_QUOTES, 'UTF-8') : '<span class="muted">—</span>' ?></td>
+<div id="user-status" class="muted" style="min-height:1.2em;"></div>
+<table id="user-table">
+  <tr><th>E-mail</th><th>Role</th><th>Vytvořen</th><th>Poslední návštěva</th><th></th></tr>
+  <?php foreach (($users ?? []) as $user): $isMe = ((int)$user['id'] === $meId && (string)$user['email'] === $meEmail); ?>
+  <tr data-id="<?= (int)$user['id'] ?>">
+    <td><?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?><?= $isMe ? ' <span class="muted">(vy)</span>' : '' ?></td>
     <td>
-      <button type="button" class="js-edit-user"
-        data-id="<?= (int)$user['id'] ?>"
-        data-email="<?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?>"
-        data-role="<?= htmlspecialchars((string)$user['role'], ENT_QUOTES, 'UTF-8') ?>"
-        data-active="<?= (int)$user['active'] ?>"
-      >Upravit</button>
+      <?php if ($isMe): ?>
+        <?= htmlspecialchars(\App\Support\Auth::label((string)$user['role']), ENT_QUOTES, 'UTF-8') ?>
+      <?php else: ?>
+        <select class="js-user-role" data-id="<?= (int)$user['id'] ?>" title="Změna role se uloží automaticky">
+          <?php foreach ($roleOptions as $val => $label): ?>
+            <option value="<?= $val ?>"<?= (string)$user['role'] === $val ? ' selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
+          <?php endforeach; ?>
+        </select>
+      <?php endif; ?>
+    </td>
+    <td><?= htmlspecialchars(date('j. n. Y', strtotime((string)$user['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
+    <td><?= !empty($user['last_visit_at']) ? htmlspecialchars(date('j. n. Y H:i', strtotime((string)$user['last_visit_at'])), ENT_QUOTES, 'UTF-8') : '<span class="muted">—</span>' ?></td>
+    <td style="text-align:right;">
+      <?php if (!$isMe): ?>
+      <form method="post" action="/settings/users/delete" style="display:inline;" onsubmit="return confirm('Opravdu odebrat přístup uživateli <?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?>? Účet bude smazán.');">
+        <input type="hidden" name="id" value="<?= (int)$user['id'] ?>" />
+        <button type="submit" title="Smazat uživatele" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:1.1rem; line-height:1;">✕</button>
+      </form>
+      <?php endif; ?>
     </td>
   </tr>
   <?php endforeach; ?>
 </table>
 <script>
 (function(){
-  const form = document.getElementById('user-form');
-  if (!form) return;
-  const fields = {
-    id: form.querySelector('input[name="id"]'),
-    email: form.querySelector('input[name="email"]'),
-    role: form.querySelector('select[name="role"]'),
-    active: form.querySelector('input[name="active"]'),
-  };
-  document.querySelectorAll('.js-edit-user').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      fields.id.value = btn.dataset.id || '';
-      fields.email.value = btn.dataset.email || '';
-      fields.email.readOnly = true;
-      fields.role.value = btn.dataset.role || 'admin';
-      fields.active.checked = btn.dataset.active === '1';
-      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  });
-  form.addEventListener('submit', () => {
-    fields.email.readOnly = false;
+  const table = document.getElementById('user-table');
+  const status = document.getElementById('user-status');
+  if (!table) return;
+  table.addEventListener('change', async (ev) => {
+    const sel = ev.target.closest('select.js-user-role');
+    if (!sel) return;
+    const prev = sel.dataset.prev || Array.from(sel.options).find((o) => o.defaultSelected)?.value;
+    sel.disabled = true;
+    status.textContent = 'Ukládám…';
+    try {
+      const res = await fetch('/settings/users/role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ id: Number(sel.dataset.id), role: sel.value }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Uložení selhalo.');
+      sel.dataset.prev = sel.value;
+      status.textContent = 'Role uložena ' + new Date().toLocaleTimeString('cs-CZ') + '.';
+    } catch (e) {
+      status.textContent = 'Chyba: ' + e.message;
+      if (prev) sel.value = prev;
+    } finally {
+      sel.disabled = false;
+    }
   });
 })();
 </script>

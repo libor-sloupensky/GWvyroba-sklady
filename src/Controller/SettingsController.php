@@ -426,54 +426,93 @@ final class SettingsController
         header('Location: /settings');
     }
 
+    /** 'user' = čtenář (jen prohlížení + Analýza). Dřívější hodnota 'employee' v DB ENUM neexistovala. */
+    private const ALLOWED_ROLES = ['superadmin', 'admin', 'user'];
+
+    /** Přidání uživatele (formulář). Úprava role je inline přes updateUserRole(), mazání přes deleteUser(). */
     public function saveUser(): void
     {
         $this->requireSuperAdmin();
         $pdo = DB::pdo();
-        $id = max(0, (int)($_POST['id'] ?? 0));
         $email = strtolower(trim((string)($_POST['email'] ?? '')));
         $role = (string)($_POST['role'] ?? 'admin');
-        $active = isset($_POST['active']) ? 1 : 0;
-        // 'user' = čtenář (jen prohlížení + Analýza). Dřívější hodnota 'employee' v DB ENUM neexistovala.
-        $allowedRoles = ['superadmin', 'admin', 'user'];
 
-        // Vlastní účet může upravit jen jiný superadmin
-        if ($id > 0 && $this->currentUserId() === $id) {
-            $_SESSION['settings_error'] = 'Nelze upravit vlastní účet. Požádejte jiného superadmina.';
-            header('Location: /settings');
-            return;
-        }
-
-        if (!in_array($role, $allowedRoles, true)) {
+        if (!in_array($role, self::ALLOWED_ROLES, true)) {
             $_SESSION['settings_error'] = 'Neznámá role.';
             header('Location: /settings');
             return;
         }
-
-        if ($id > 0) {
-            $stmt = $pdo->prepare('UPDATE users SET role=?, active=? WHERE id=?');
-            $stmt->execute([$role, $active, $id]);
-            $_SESSION['settings_message'] = 'Uživatel byl upraven.';
-        } else {
-            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $_SESSION['settings_error'] = 'Zadejte platný e-mail.';
-                header('Location: /settings');
-                return;
-            }
-
-            $exists = $pdo->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
-            $exists->execute([$email]);
-            if ($exists->fetchColumn()) {
-                $_SESSION['settings_error'] = 'Uživatel s tímto e-mailem již existuje.';
-                header('Location: /settings');
-                return;
-            }
-
-            $stmt = $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?,?,?)');
-            $stmt->execute([$email, $role, $active ?: 1]);
-            $_SESSION['settings_message'] = 'Uživatel byl přidán.';
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $_SESSION['settings_error'] = 'Zadejte platný e-mail.';
+            header('Location: /settings');
+            return;
         }
+        $exists = $pdo->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
+        $exists->execute([$email]);
+        if ($exists->fetchColumn()) {
+            $_SESSION['settings_error'] = 'Uživatel s tímto e-mailem již existuje.';
+            header('Location: /settings');
+            return;
+        }
+        $pdo->prepare('INSERT INTO users (email, role, active) VALUES (?,?,1)')->execute([$email, $role]);
+        $_SESSION['settings_message'] = 'Uživatel ' . $email . ' byl přidán.';
+        header('Location: /settings');
+    }
 
+    /** JSON: {id, role} – změna role přímo v seznamu (autosave). */
+    public function updateUserRole(): void
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        if (!$this->isSuperAdmin()) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'Jen superadmin může měnit role.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $raw = file_get_contents('php://input');
+        $in = is_string($raw) && $raw !== '' ? (json_decode($raw, true) ?: []) : [];
+        $id = (int)($in['id'] ?? 0);
+        $role = (string)($in['role'] ?? '');
+        if ($id <= 0 || !in_array($role, self::ALLOWED_ROLES, true)) {
+            echo json_encode(['ok' => false, 'error' => 'Neplatný uživatel nebo role.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        if ($this->currentUserId() === $id) {
+            echo json_encode(['ok' => false, 'error' => 'Vlastní roli nelze měnit. Požádejte jiného superadmina.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        $stmt = DB::pdo()->prepare('UPDATE users SET role=? WHERE id=?');
+        $stmt->execute([$role, $id]);
+        if ($stmt->rowCount() === 0) {
+            $chk = DB::pdo()->prepare('SELECT COUNT(*) FROM users WHERE id=?');
+            $chk->execute([$id]);
+            if (!(int)$chk->fetchColumn()) {
+                echo json_encode(['ok' => false, 'error' => 'Uživatel neexistuje.'], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+        }
+        echo json_encode(['ok' => true, 'id' => $id, 'role' => $role], JSON_UNESCAPED_UNICODE);
+    }
+
+    /** Smazání uživatele (formulář s potvrzením). Vlastní účet smazat nelze. */
+    public function deleteUser(): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            $_SESSION['settings_error'] = 'Neplatný uživatel.';
+            header('Location: /settings');
+            return;
+        }
+        if ($this->currentUserId() === $id) {
+            $_SESSION['settings_error'] = 'Vlastní účet nelze smazat. Požádejte jiného superadmina.';
+            header('Location: /settings');
+            return;
+        }
+        $sel = DB::pdo()->prepare('SELECT email FROM users WHERE id=? LIMIT 1');
+        $sel->execute([$id]);
+        $email = (string)($sel->fetchColumn() ?: '');
+        DB::pdo()->prepare('DELETE FROM users WHERE id=?')->execute([$id]);
+        $_SESSION['settings_message'] = $email !== '' ? 'Uživatel ' . $email . ' byl smazán.' : 'Uživatel byl smazán.';
         header('Location: /settings');
     }
 

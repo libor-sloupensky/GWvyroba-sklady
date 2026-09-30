@@ -54,7 +54,8 @@ Všechny POST endpointy vrací JSON nebo redirect:
 - Všechny číselníky mají CRUD (add/delete, s kontrolou používání — nedovolí smazat značku použitou v produktech)
 - Šifrování Shoptet hesel (`CryptoService::encrypt` — AES-256-CBC s `ENCRYPTION_KEY`)
 - Globální parametry:
-  - `okno_pro_prumer_dni` — kolik dní nazpět se bere pro výpočet průměrné denní spotřeby (`min_zasoba` auto)
+  - **Uživatelé (2026-09-30):** sekce jen pro superadmina. Formulář nahoře jen přidává (e-mail + role, `POST /settings/users/save`). Role se mění **přímo v seznamu** (select, autosave přes JSON `POST /settings/users/role` `{id, role}`), mazání křížkem s potvrzením (`POST /settings/users/delete`). Vlastní účet nelze měnit ani mazat. Blokování (`users.active`) z UI odstraněno – sloupec zůstal, login ho dál respektuje, blokované účty se prostě smažou. Sloupec „Poslední návštěva" = `users.last_visit_at`. Role: superadmin / admin / user = Čtenář (viz `auth.md`).
+- `okno_pro_prumer_dni` — kolik dní nazpět se bere pro výpočet průměrné denní spotřeby (`min_zasoba` auto)
   - `spotreba_prumer_dni` — alternativní okno (TODO: ověřit rozdíl)
   - `zasoba_cil_dni` — na kolik dní dopředu se má držet zásoba
   - `mena_zakladni` — default CZK
