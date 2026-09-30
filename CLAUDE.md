@@ -28,6 +28,13 @@
 - Lokální dev: `public/` jako web root, přihlášení `admin@local` / `dokola` (pokud není Google OAuth aktivní)
 - Po změně views/JS: otevřít stránku v prohlížeči a projít scénář — čistý syntax check nestačí
 
+## Vzhled — tokeny podle Kalkulia / Projektovny (od 2026-09-30)
+- Zdroj pravdy: `:root` v `views/_layout.php`. **Brand oranžová nikdy hexem**, vždy tokenem: `--c-primary` (#dd5500, dekorace, linka pod menu, ikony), `--c-primary-text` (#c14a00, text a odkazy na světlém), `--c-primary-akcent` (#c14a00, plocha tlačítek s bílým textem), `--c-primary-akcent-hover` (#aa4400), `--c-primary-tint` (jemný podklad badge).
+- Neutrály teplé, ne modrošedé: `--c-surface` #f6f5f2 (podklad stránky), `--c-surface-2` #faf9f7 (hlavičky tabulek), `--c-text` #111, `--c-text-secondary` #5f5e5a, `--c-text-muted` #8a8985, `--c-border` #e5e5e5, `--c-border-strong` #d6d4cf. Staré modrošedé hexy (#263238 #455a64 #546e7a #607d8b #78909c #90a4ae #cfd8dc #eceff1 #f1f5f9 #1565c0 #e3f2fd) byly hromadně nahrazeny – **nezavádět je znovu**.
+- Font **Nunito** (Google Fonts, 600 body / 700 tlačítka / 800 nadpisy), načtený v layoutu. Zaoblení 4 / 8 / 12 px.
+- Pravidlo 10 % oranžová, 90 % neutrály: oranžová jen pro akce (submit tlačítka, aktivní položka menu, odkazy). Nebezpečí zůstává červené (`--c-danger`), potvrzení zelené (`--c-ok`).
+- Globální styl tlačítek, inputů, tabulek a odkazů je v layoutu; view přidávají jen výjimky.
+
 ## Ikony — Lucide (od 2026-09-30, stejný přístup jako Kalkulio / TupTuDu Office)
 - **Vždy Lucide** přes `ikona('nazev', velikost, 'css-trida')` (helper v `src/bootstrap.php`, sada v `src/Support/Lucide.php`, vložené SVG, žádná závislost ani CDN). V JavaScriptu `LUCIDE['chevron-down']`, `LUCIDE.x` … (mapa vložená v `views/_layout.php`).
 - **Nikdy emoji ani ručně psané znaky** (✕ ▸ ▾ × ✓ ⚠ 🔒 ＋ ←) jako UI ikony. Textové značky ✓/✕ u stavu nahrazuje slovo Ano/Ne. Stromové čáry `└── ├──` u komponent zůstávají (nejsou ikona).

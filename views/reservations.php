@@ -33,7 +33,7 @@
 }
 .product-search-results button:hover,
 .product-search-results button:focus {
-  background: #f1f5f9;
+  background: #faf9f7;
 }
 .reservation-form label {
   font-weight: 600;
@@ -48,7 +48,7 @@
   max-width: 100%;
 }
 .muted-note {
-  color: #607d8b;
+  color: #5f5e5a;
   font-size: 0.9rem;
 }
 </style>

@@ -2,11 +2,11 @@
 <style>
 .status-matched { background:#e6f4ea; }
 .status-ignored { background:#fdecea; }
-.status-note { font-size:12px; color:#607d8b; display:block; }
+.status-note { font-size:12px; color:#5f5e5a; display:block; }
 .cell-matched { background:#e6f4ea; }
 .cell-ignored { background:#fdecea; }
 .invoice-table { border-collapse:collapse; width:100%; margin-top:0.5rem; }
-.invoice-table th, .invoice-table td { padding:6px 8px; border-bottom:1px solid #e0e0e0; text-align:left; }
+.invoice-table th, .invoice-table td { padding:6px 8px; border-bottom:1px solid #e5e5e5; text-align:left; }
 .invoice-table th { background:#fafafa; }
 .invoice-actions { width:1%; white-space:nowrap; text-align:right; }
 .invoice-delete { background:transparent; border:1px solid #d32f2f; color:#d32f2f; border-radius:4px; padding:0 6px; cursor:pointer; }
@@ -15,13 +15,13 @@
 .invoice-detail-row { display:none; }
 .invoice-detail-row.expanded { display:table-row; }
 .invoice-detail { padding:1rem; background:#f9f9f9; }
-.invoice-header-info { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem; margin-bottom:1rem; padding:0.75rem; background:#fff; border-radius:4px; border:1px solid #e0e0e0; }
+.invoice-header-info { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem; margin-bottom:1rem; padding:0.75rem; background:#fff; border-radius:4px; border:1px solid #e5e5e5; }
 .invoice-header-field { font-size:13px; }
-.invoice-header-field label { font-weight:600; color:#455a64; display:block; margin-bottom:2px; }
-.invoice-header-field span { color:#263238; }
+.invoice-header-field label { font-weight:600; color:#5f5e5a; display:block; margin-bottom:2px; }
+.invoice-header-field span { color:#111111; }
 .invoice-items-table { width:100%; border-collapse:collapse; font-size:13px; }
-.invoice-items-table th { background:#eceff1; padding:6px 8px; text-align:left; border-bottom:2px solid #cfd8dc; }
-.invoice-items-table td { padding:6px 8px; border-bottom:1px solid #e0e0e0; }
+.invoice-items-table th { background:#f6f5f2; padding:6px 8px; text-align:left; border-bottom:2px solid #d6d4cf; }
+.invoice-items-table td { padding:6px 8px; border-bottom:1px solid #e5e5e5; }
 .item-not-deducted { background:#ffebee; }
 .item-not-deducted td { color:#c62828; }
 </style>
@@ -343,7 +343,7 @@ function renderInvoiceDetail(data) {
           }
         } else {
           // Nonstock - rozpad na potomky
-          html += '<div style="font-size:11px;color:#607d8b;" title="Nonstock produkt - odepsány komponenty">';
+          html += '<div style="font-size:11px;color:#5f5e5a;" title="Nonstock produkt - odepsány komponenty">';
           item.odpis_info.forEach((mov, i) => {
             if (i > 0) html += '<br>';
             html += escapeHtml(mov.sku) + ': ' + formatQty(Math.abs(mov.mnozstvi));

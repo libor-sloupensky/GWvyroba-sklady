@@ -13,25 +13,25 @@
 
 <style>
 .settings-toggle { cursor:pointer; user-select:none; }
-.settings-toggle:hover { color:#1565c0; }
-.settings-toggle .tri { display:inline-block; width:1.2em; color:#607d8b; vertical-align:-0.1em; }
+.settings-toggle:hover { color:#c14a00; }
+.settings-toggle .tri { display:inline-block; width:1.2em; color:#5f5e5a; vertical-align:-0.1em; }
 </style>
 
 <h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> E-shopy a fakturační řady</h2>
 <div class="settings-section" style="display:none;">
 <style>
-.series-form fieldset { border:1px solid #cfd8dc; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.75rem; }
+.series-form fieldset { border:1px solid #d6d4cf; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.75rem; }
 .series-form legend { font-weight:600; font-size:0.95rem; padding:0 0.4rem; }
 .series-form .field-row { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:0.5rem; }
 .series-form .field-row > div { display:flex; flex-direction:column; }
-.series-form .field-row label { font-size:0.85rem; color:#455a64; margin-bottom:2px; }
+.series-form .field-row label { font-size:0.85rem; color:#5f5e5a; margin-bottom:2px; }
 .series-form .field-row input { min-width:120px; }
 .series-form .field-row input[name="eshop_source"] { min-width:180px; }
 .series-form .field-row input[name="admin_url"] { min-width:240px; }
 .series-form .field-row input[name="admin_email"] { min-width:200px; }
 .series-badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:0.8rem; }
 .series-badge-ok { background:#e6f4ea; color:#1b5e20; }
-.series-badge-no { background:#eceff1; color:#78909c; }
+.series-badge-no { background:#f6f5f2; color:#5f5e5a; }
 </style>
 <table>
   <tr><th>E-shop</th><th>Prefix</th><th>Od</th><th>Do</th><th>Auto-import</th><th>Akce</th></tr>
@@ -43,7 +43,7 @@
       'overeno'   => ['label' => 'ověřeno',   'bg' => '#e8f5e9', 'fg' => '#2e7d32', 'title' => 'Poslední stažení proběhlo v pořádku' . ($lastImportAt !== '' ? ' (' . $lastImportAt . ')' : '')],
       'chybne'    => ['label' => 'chybně',    'bg' => '#ffebee', 'fg' => '#c62828', 'title' => 'Poslední stažení selhalo' . ($lastImportAt !== '' ? ' (' . $lastImportAt . ')' : '')],
       'neovereno' => ['label' => 'neověřeno', 'bg' => '#fff8e1', 'fg' => '#e65100', 'title' => 'Od poslední změny řady ještě neproběhlo stažení'],
-      'neaktivni' => ['label' => 'neaktivní', 'bg' => '#eceff1', 'fg' => '#78909c', 'title' => 'Auto-import vypnutý (chybí přihlašovací údaje)'],
+      'neaktivni' => ['label' => 'neaktivní', 'bg' => '#f6f5f2', 'fg' => '#5f5e5a', 'title' => 'Auto-import vypnutý (chybí přihlašovací údaje)'],
     ];
     $stateCfg = $stateMap[$importState] ?? $stateMap['neovereno'];
   ?>
@@ -89,9 +89,9 @@
   $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
   $cronUrl = $scheme . '://' . $host . '/cron.php' . ($cronToken !== '' ? '?token=' . urlencode($cronToken) : '');
 ?>
-<div style="margin-top:0.75rem;padding:0.75rem 1rem;background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;font-size:0.85rem;">
+<div style="margin-top:0.75rem;padding:0.75rem 1rem;background:#fbeee6;border:1px solid #f1c4a8;border-radius:6px;font-size:0.85rem;">
   <strong>Automaticky import (CRON)</strong><br>
-  <span style="color:#455a64;">
+  <span style="color:#5f5e5a;">
     Pro automaticke stahovani faktur ze Shoptetu nastavte v hostingu (Webglobe: HOSTING &rarr; WEB &rarr; CRON)
     pravidelne spousteni nasledujici adresy. Doporuceny interval je kazdych 15&ndash;30 minut.
     Vzdy se zpracuje pouze jeden e-shop na jedno spusteni, takze nehrozí pretizeni serveru.
@@ -99,12 +99,12 @@
   <div style="margin-top:0.5rem;padding:0.4rem 0.6rem;background:#fff;border:1px solid #bbdefb;border-radius:4px;font-family:monospace;word-break:break-all;user-select:all;cursor:text;">
     <?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?>
   </div>
-  <span style="color:#78909c;font-size:0.8rem;">Kliknete do pole a zkopirujte celou adresu.</span>
+  <span style="color:#5f5e5a;font-size:0.8rem;">Kliknete do pole a zkopirujte celou adresu.</span>
 </div>
-<div id="series-form-wrapper" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;background:#f5f5f5;border:1px solid #cfd8dc;border-radius:6px;">
+<div id="series-form-wrapper" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;background:#f5f5f5;border:1px solid #d6d4cf;border-radius:6px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
     <strong id="series-form-title">Novy e-shop</strong>
-    <button type="button" id="btn-cancel-series" style="cursor:pointer;background:none;border:none;font-size:1.2rem;color:#78909c;" title="Zavřít"><?= ikona('x', 16) ?></button>
+    <button type="button" id="btn-cancel-series" style="cursor:pointer;background:none;border:none;font-size:1.2rem;color:#5f5e5a;" title="Zavřít"><?= ikona('x', 16) ?></button>
   </div>
   <form method="post" action="/settings/series" id="series-form" class="series-form">
     <input type="hidden" name="id" value="" />
@@ -383,7 +383,7 @@
 <h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Globální nastavení</h2>
 <div class="settings-section" style="display:none;">
 <style>
-.info-icon { display:inline-flex; align-items:center; color:#607d8b; cursor:help; margin-left:.25rem; }\n.info-icon:hover { color:#263238; }
+.info-icon { display:inline-flex; align-items:center; color:#5f5e5a; cursor:help; margin-left:.25rem; }\n.info-icon:hover { color:#111111; }
 .global-settings-form label {
   font-weight: 600;
   display: flex;

@@ -2,7 +2,7 @@
 <style>
 .status-matched { background:#e6f4ea; }
 .status-ignored { background:#fdecea; }
-.status-note { font-size:12px; color:#607d8b; display:block; }
+.status-note { font-size:12px; color:#5f5e5a; display:block; }
 .cell-matched { background:#e6f4ea; }
 .cell-ignored { background:#fdecea; }
 </style>

@@ -129,10 +129,10 @@
 
 
 
-.page-note { margin-top:-0.2rem; color:#546e7a; }
+.page-note { margin-top:-0.2rem; color:#5f5e5a; }
 .with-tooltip { display:inline-flex; align-items:center; gap:0.35rem; white-space:nowrap; font-weight:inherit; }
-.info-icon { display:inline-flex; align-items:center; color:#607d8b; cursor:help; }
-.info-icon:hover { color:#263238; }
+.info-icon { display:inline-flex; align-items:center; color:#5f5e5a; cursor:help; }
+.info-icon:hover { color:#111111; }
 
 
 
@@ -143,7 +143,7 @@
 
 
 
-  border:1px solid #dfe6eb;
+  border:1px solid #e5e5e5;
 
 
 
@@ -258,7 +258,7 @@
 
 
 
-  border:1px solid #cfd8dc;
+  border:1px solid #d6d4cf;
 
 
 
@@ -355,7 +355,7 @@
 
 
 
-  color:#546e7a;
+  color:#5f5e5a;
 
 
 
@@ -451,7 +451,7 @@
 
 
 
-  border:1px solid #e0e7ef;
+  border:1px solid #e5e5e5;
 
 
 
@@ -505,7 +505,7 @@
 
 
 
-  border:1px solid #e0e7ef;
+  border:1px solid #e5e5e5;
 
 
 
@@ -633,7 +633,7 @@
 
 
 
-  color:#455a64;
+  color:#5f5e5a;
 
 
 
@@ -681,7 +681,7 @@
   max-width:100px;
   height:6px;
   border-radius:999px;
-  background:#e0e7ef;
+  background:#e5e5e5;
   overflow:hidden;
   margin-left:auto;
   margin-right:auto;
@@ -749,7 +749,7 @@
 
 
 
-  background:#e0e7ef;
+  background:#e5e5e5;
 
 
 
@@ -969,7 +969,7 @@
 
 
 
-  border:1px solid #e0e7ef;
+  border:1px solid #e5e5e5;
 
 
 
@@ -1008,7 +1008,7 @@
 .movement-table th,
 .movement-table td {
 
-  border:1px solid #e0e7ef;
+  border:1px solid #e5e5e5;
 
   padding:0.35rem 0.45rem;
 
@@ -1094,7 +1094,7 @@
 
 
 
-  color:#90a4ae;
+  color:#8a8985;
 
 
 
@@ -1178,7 +1178,7 @@
 
 
 
-  color:#455a64;
+  color:#5f5e5a;
 
 
 
@@ -1202,7 +1202,7 @@
 
   font-size:0.9rem;
 
-  color:#455a64;
+  color:#5f5e5a;
 
   width:1rem;
 
@@ -1312,7 +1312,7 @@
 
 
 
-  border:1px dashed #cfd8dc;
+  border:1px dashed #d6d4cf;
 
 
 
@@ -1336,7 +1336,7 @@
 
 
 
-  color:#546e7a;
+  color:#5f5e5a;
 
 
 
@@ -1468,7 +1468,7 @@
 
 
 
-.production-modal small { color:#607d8b; display:block; margin-top:0.4rem; }
+.production-modal small { color:#5f5e5a; display:block; margin-top:0.4rem; }
 
 
 
@@ -1660,7 +1660,7 @@
 
 
 
-  border:1px solid #dfe6eb;
+  border:1px solid #e5e5e5;
 
 
 
@@ -1723,13 +1723,13 @@
 
 .production-log-row--vyroba { background:#e8f5e9; }
 .production-log-row--korekce { background:#ffebee; }
-.production-log-row--inventura { background:#e3f2fd; color:#1565c0; font-weight:600; }
+.production-log-row--inventura { background:#fbeee6; color:#c14a00; font-weight:600; }
 .production-log-type { font-weight:600; }
 
 /* Toggle switch pro filtr */
 .toggle-switch {
   display: inline-flex;
-  border: 1px solid #cfd8dc;
+  border: 1px solid #d6d4cf;
   border-radius: 999px;
   overflow: hidden;
   background: #f5f7fa;
@@ -1740,7 +1740,7 @@
   padding: 0.2rem 0.65rem;
   font-weight: 600;
   font-size: 0.85rem;
-  color: #455a64;
+  color: #5f5e5a;
   cursor: pointer;
 }
 .toggle-switch button.active {
@@ -1759,7 +1759,7 @@
 }
 .filter-toggle-label {
   font-size: 0.9rem;
-  color: #546e7a;
+  color: #5f5e5a;
 }
 
 </style>
@@ -2321,7 +2321,7 @@
         <td class="qty-cell">
           <?= $formatQty($item['target'] ?? 0, 0) ?>
           <?php if (($item['reservations'] ?? 0) > 0): ?>
-            <br><span style="font-size: 0.85em; color: #607d8b;">(<?= $formatQty($item['reservations']) ?>)</span>
+            <br><span style="font-size: 0.85em; color: #5f5e5a;">(<?= $formatQty($item['reservations']) ?>)</span>
           <?php endif; ?>
         </td>
 
@@ -2466,8 +2466,8 @@
 
 
 
-<hr style="margin: 2rem 0; border: none; border-top: 1px solid #cfd8dc;">
-<h2 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #37474f;">Pohyby skladů</h2>
+<hr style="margin: 2rem 0; border: none; border-top: 1px solid #d6d4cf;">
+<h2 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #111111;">Pohyby skladů</h2>
 
 <div class="production-log-controls">
 

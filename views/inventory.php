@@ -19,7 +19,7 @@
 <h1>Inventura</h1>
 <style>
 .inventory-meta {
-  border: 1px solid #e0e0e0;
+  border: 1px solid #e5e5e5;
   border-radius: 6px;
   padding: 0.85rem;
   margin-bottom: 1rem;
@@ -27,7 +27,7 @@
   flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
-  background:#f8fbff;
+  background:#faf9f7;
 }
 .inventory-meta strong { font-size:1.1rem; }
 .inventory-actions form { display:inline-flex; flex-direction:column; gap:0.4rem; margin-right:0.5rem; }
@@ -46,7 +46,7 @@
   display:inline-block;
   margin-left:0.3rem;
   font-size:0.85rem;
-  background:#eceff1;
+  background:#f6f5f2;
   border-radius:50%;
   width:1.2rem;
   height:1.2rem;
@@ -83,7 +83,7 @@
   align-items:center;
   gap:0.5rem;
 }
-.inventory-pill { color:#607d8b; font-size:0.9rem; }
+.inventory-pill { color:#5f5e5a; font-size:0.9rem; }
 .inventory-reset { text-decoration:none; font-size:1.3rem; color:#b00020; }
 .inventory-reset:hover { color:#d32f2f; }
 .inventory-table { width:100%; border-collapse:collapse; }
@@ -92,19 +92,19 @@
 .inventory-table th { background:#f3f6f9; }
 .inventory-row--active td { background:#f5f5f5; }
 .inventory-expression { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; }
-.inventory-expected { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; color:#37474f; }
+.inventory-expected { font-family:"Fira Mono","Consolas",monospace; white-space:nowrap; color:#111111; }
 .inventory-diff { font-weight:600; }
 .inventory-input { display:flex; align-items:center; gap:0.35rem; }
 .inventory-input input { width:140px; padding:0.3rem 0.4rem; }
-.inventory-input span { color:#607d8b; }
+.inventory-input span { color:#5f5e5a; }
 .inventory-print-blank {
   display:none;
-  border:1px dashed #cfd8dc;
+  border:1px dashed #d6d4cf;
   height:2.2rem;
   margin-top:0.35rem;
 }
 .inventory-empty {
-  border:1px dashed #b0bec5;
+  border:1px dashed #c9c7c1;
   padding:1rem;
   border-radius:6px;
   background:#f9fcff;
@@ -124,13 +124,13 @@
 }
 .inventory-history {
   margin-top:2rem;
-  border:1px solid #e0e0e0;
+  border:1px solid #e5e5e5;
   border-radius:6px;
   padding:0.8rem;
 }
 .inventory-history table { width:100%; border-collapse:collapse; margin-top:0.6rem; }
 .inventory-history th,
-.inventory-history td { border:1px solid #e0e0e0; padding:0.4rem 0.5rem; }
+.inventory-history td { border:1px solid #e5e5e5; padding:0.4rem 0.5rem; }
 .inventory-history th { background:#f7f9fb; }
 .inventory-history-row--selected { background:#fff8e1; }
 .inventory-history-row--active { font-weight:600; }
@@ -163,7 +163,7 @@
 .inventory-history-modal-buttons button { flex:1 1 auto; padding:0.45rem 0.7rem; }
 button.disabled { opacity:0.5; cursor:not-allowed; }
 .inventory-print-btn {
-  border:1px solid #b0bec5;
+  border:1px solid #c9c7c1;
   background:#fff;
   border-radius:4px;
   padding:0.25rem 0.5rem;
@@ -180,7 +180,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
   body { background:#fff; color:#000; }
   .no-print { display:none !important; }
   .inventory-input { display:none !important; }
-  .inventory-print-blank { display:block !important; border:1px solid #90a4ae; height:2.6rem; }
+  .inventory-print-blank { display:block !important; border:1px solid #8a8985; height:2.6rem; }
   .inventory-table { font-size:12px; }
   .notice { display:none !important; }
   .print-only { display:block !important; }

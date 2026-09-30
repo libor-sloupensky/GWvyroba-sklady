@@ -39,34 +39,74 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><?= htmlspecialchars((string)$title, ENT_QUOTES, 'UTF-8') ?> | Gworm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f6f7f9; }
-    header { background:#263238; color:#fff; padding:10px 16px; }
-    nav { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-    nav a { display:inline-block; color:#fff; text-decoration:none; padding:8px 12px; border-radius:999px; }
-    nav a:hover { background:rgba(255,255,255,0.12); }
-    nav a.active { background:#fff; color:#263238; font-weight:600; }
-    .container { max-width: 1200px; margin: 1rem auto; background:#fff; border:1px solid #e5e5e5; border-radius: 12px; padding: 14px 16px; }
-    .footer { position: fixed; right: 1rem; bottom: 1rem; background:#fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; color:#333; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    .notice { padding:8px 10px; border:1px solid #ddd; background:#f9f9f9; border-radius:8px; }
+    /* Vizuální identita – tokeny převzaté z Kalkulia / Projektovny (viz CLAUDE.md, sekce Vzhled) */
+    :root {
+      --c-primary: #dd5500;            /* oranžová na tmavém podkladu + dekorace, linky, ikony */
+      --c-primary-text: #c14a00;       /* oranžová pro text a odkazy na světlém (kontrast 4,9:1) */
+      --c-primary-akcent: #c14a00;     /* plocha tlačítek s bílým textem */
+      --c-primary-akcent-hover: #aa4400;
+      --c-primary-tint: #fbeee6;       /* jemný oranžový podklad (badge, aktivní řádek) */
+      --c-bg: #ffffff;
+      --c-surface: #f6f5f2;            /* podklad stránky – teplá, ne modrošedá */
+      --c-surface-2: #faf9f7;          /* hlavičky tabulek, panely */
+      --c-text: #111111;
+      --c-text-secondary: #5f5e5a;
+      --c-text-muted: #8a8985;
+      --c-border: #e5e5e5;
+      --c-border-strong: #d6d4cf;
+      --c-danger: #c62828;
+      --c-ok: #2e7d32;
+      --radius-s: 4px; --radius-m: 8px; --radius-l: 12px;
+      --shadow-s: 0 4px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
+    }
+    body { margin:0; font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; font-weight:600; font-size:15px; color:var(--c-text); background:var(--c-surface); }
+    h1, h2, h3 { font-weight:800; color:var(--c-text); letter-spacing:-0.01em; }
+    h1 { font-size:1.6rem; margin:.2rem 0 1rem; }
+    h2 { font-size:1.2rem; margin:1.4rem 0 .7rem; }
+    a { color:var(--c-primary-text); text-decoration:underline; text-decoration-color:color-mix(in srgb, var(--c-primary-text) 35%, transparent); text-underline-offset:2px; }
+    a:hover { color:var(--c-primary-akcent-hover); text-decoration-color:currentColor; }
+    /* Hlavička: bílá, menu podtržené oranžovou linkou */
+    header { background:var(--c-bg); color:var(--c-text); padding:0 16px; border-bottom:3px solid var(--c-primary); box-shadow:0 1px 0 var(--c-border); }
+    nav { display:flex; flex-wrap:wrap; gap:2px; align-items:center; max-width:1200px; margin:0 auto; }
+    nav .brand { display:inline-flex; align-items:center; gap:.4rem; font-weight:800; font-size:1.15rem; color:var(--c-text); text-decoration:none; padding:10px 14px 10px 0; margin-right:.4rem; border-bottom:3px solid transparent; }
+    nav .brand::before { content:''; width:.7em; height:.7em; border-radius:2px; background:var(--c-primary); display:inline-block; }
+    nav a:not(.brand) { display:inline-block; color:var(--c-text); text-decoration:none; font-weight:700; padding:12px 12px 9px; margin-bottom:-3px; border-bottom:3px solid transparent; border-radius:0; }
+    nav a:not(.brand):hover { color:var(--c-primary-text); }
+    nav a:not(.brand).active { color:var(--c-primary-text); border-bottom-color:var(--c-primary); }
+    .container { max-width: 1200px; margin: 1rem auto; background:var(--c-bg); border:1px solid var(--c-border); border-radius: var(--radius-l); padding: 16px 18px; }
+    .footer { position: fixed; right: 1rem; bottom: 1rem; background:var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius-m); padding: 8px 10px; font-size: 12px; color:var(--c-text-secondary); box-shadow: var(--shadow-s); }
+    .notice { padding:8px 10px; border:1px solid var(--c-border); background:var(--c-surface-2); border-radius:var(--radius-m); }
     table { border-collapse: collapse; width: 100%; }
-    th,td { padding: 6px 8px; border-bottom:1px solid #eee; text-align:left; }
-    th { background:#f1f5f9; }
-    .nav-user { margin-left:auto; color:#cfd8dc; font-size:13px; display:flex; gap:6px; align-items:center; }
-    .nav-user a { color:#fff; text-decoration:underline; }
-    .print-hide {}
+    th,td { padding: 7px 8px; border-bottom:1px solid var(--c-border); text-align:left; }
+    th { background:var(--c-surface-2); font-size:.8rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:var(--c-text-secondary); }
+    tbody tr:hover > td { background:color-mix(in srgb, var(--c-primary) 4%, transparent); }
+    .muted { color:var(--c-text-secondary); }
+    /* Tlačítka a pole – oranžová jen pro akce, zbytek neutrální */
+    button, input[type="submit"], .btn { font-family:inherit; font-weight:700; font-size:.92rem; border-radius:var(--radius-m); border:1px solid var(--c-border-strong); background:var(--c-bg); color:var(--c-text); padding:.42rem .85rem; cursor:pointer; line-height:1.2; }
+    button:hover, input[type="submit"]:hover, .btn:hover { border-color:var(--c-primary-text); color:var(--c-primary-text); }
+    button[type="submit"], .btn-primary { background:var(--c-primary-akcent); border-color:var(--c-primary-akcent); color:#fff; }
+    button[type="submit"]:hover, .btn-primary:hover { background:var(--c-primary-akcent-hover); border-color:var(--c-primary-akcent-hover); color:#fff; }
+    button:disabled, input[type="submit"]:disabled { opacity:.45; cursor:not-allowed; }
+    input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="datetime-local"], input[type="password"], input[type="search"], select, textarea { font-family:inherit; font-weight:600; font-size:.95rem; color:var(--c-text); border:1px solid var(--c-border-strong); border-radius:var(--radius-s); background:var(--c-bg); padding:.38rem .5rem; }
+    input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible { outline:2px solid color-mix(in srgb, var(--c-primary) 55%, transparent); outline-offset:1px; }
+    .nav-user { margin-left:auto; color:var(--c-text-secondary); font-size:13px; display:flex; gap:6px; align-items:center; }
+    .nav-user a { color:var(--c-primary-text); }
     /* Jednotný styl pro rozbalovací trojúhelníčky */
     .row-toggle {
       display:inline-block;
       width:1.2rem;
       text-align:center;
       font-size:1rem;
-      color:#455a64;
+      color:#5f5e5a;
       cursor:pointer;
       user-select:none;
       transition: transform 0.15s ease;
     }
-    .row-toggle:hover { color:#263238; }
+    .row-toggle:hover { color:#111111; }
     /* Ikony Lucide (App\Support\Lucide, helper ikona()) – dědí barvu textu, zarovnané na účaří */
     svg.ikona { display:inline-block; vertical-align:-0.15em; flex-shrink:0; }
     .ikona-btn { display:inline-flex; align-items:center; gap:.35rem; }
@@ -89,6 +129,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
 <body>
   <header class="print-hide">
     <nav>
+      <a href="/" class="brand" title="Gworm – výroba a sklady">Gworm</a>
       <a href="/"<?= $navIsActive('/') ? ' class="active" aria-current="page"' : '' ?>>Domů</a>
       <?php $navIsReader = (($currentUser['role'] ?? '') === 'user'); ?>
       <?php if (!$navIsReader): ?>
