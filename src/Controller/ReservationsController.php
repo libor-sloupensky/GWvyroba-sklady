@@ -17,12 +17,13 @@ final class ReservationsController
         $this->render('reservations.php', [
             'title' => 'Rezervace',
             'rows'  => $rows,
+            'isAdmin' => \App\Support\Auth::isAdmin(),
         ]);
     }
 
     public function save(): void
     {
-        $this->requireAuth();
+        \App\Support\Auth::requireAdmin('Rezervace může měnit jen admin.');
         $id = (int)($_POST['id'] ?? 0);
         $sku = trim((string)($_POST['sku'] ?? ''));
         // Typ se neposílá z formuláře – vždy se odvodí ze zvolené položky,
@@ -46,7 +47,7 @@ final class ReservationsController
 
     public function delete(): void
     {
-        $this->requireAuth();
+        \App\Support\Auth::requireAdmin('Rezervace může mazat jen admin.');
         $id = (int)($_POST['id'] ?? 0);
         if ($id > 0) { DB::pdo()->prepare('DELETE FROM rezervace WHERE id=?')->execute([$id]); }
         $this->redirect('/reservations');

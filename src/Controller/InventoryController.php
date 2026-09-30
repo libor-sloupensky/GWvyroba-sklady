@@ -33,7 +33,8 @@ final class InventoryController
 
         $filters = $this->currentFilters();
         $hasSearch = $this->searchTriggered();
-        $allowEntries = $inventory && !$inventory['closed_at'] && $activeInventory && $inventory['id'] === $activeInventory['id'];
+        // Zápis jen u právě otevřené inventury a jen pro admin/superadmin (čtenář pouze prohlíží)
+        $allowEntries = $inventory && !$inventory['closed_at'] && $activeInventory && $inventory['id'] === $activeInventory['id'] && $this->isAdmin();
         $items = ($hasSearch && $inventory)
             ? $this->fetchInventoryProducts($filters, $inventory)
             : [];
@@ -708,7 +709,8 @@ final class InventoryController
 
     private function canEditInventory(): bool
     {
-        return true;
+        // Zápis inventury jen admin/superadmin; role čtenář (user) pouze prohlíží.
+        return $this->isAdmin();
     }
 
     private function ensureInventorySchema(): void

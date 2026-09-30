@@ -82,9 +82,11 @@
     <label>Hledat <input type="text" name="q" value="<?= $h($filters['q']) ?>" placeholder="číslo, SKU, poznámka, uživatel" /></label>
     <button type="submit">Filtrovat</button>
   </form>
+  <?php if (!empty($canCreate)): ?>
   <form method="post" action="/movements/create" class="create" title="Založí nový doklad (typ Výroba / Korekce se volí uvnitř dokladu).">
     <button type="submit">＋ Založit doklad</button>
   </form>
+  <?php endif; ?>
 </div>
 
 <?php if (empty($docs)): ?>

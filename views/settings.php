@@ -454,7 +454,7 @@
   <select name="role">
     <option value="admin">Admin</option>
     <option value="superadmin">Superadmin</option>
-    <option value="employee">Zaměstnanec</option>
+    <option value="user">Čtenář (jen prohlížení + Analýza)</option>
   </select>
   <label>
     <input type="checkbox" name="active" checked /> Aktivní
@@ -462,13 +462,14 @@
   <button type="submit">Uložit uživatele</button>
 </form>
 <table>
-  <tr><th>E-mail</th><th>Role</th><th>Stav</th><th>Vytvořen</th><th>Akce</th></tr>
+  <tr><th>E-mail</th><th>Role</th><th>Stav</th><th>Vytvořen</th><th>Poslední návštěva</th><th>Akce</th></tr>
   <?php foreach (($users ?? []) as $user): ?>
   <tr>
     <td><?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?></td>
-    <td><?= htmlspecialchars((string)$user['role'], ENT_QUOTES, 'UTF-8') ?></td>
+    <td><?= htmlspecialchars(\App\Support\Auth::label((string)$user['role']), ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= (int)$user['active'] ? 'aktivní' : 'blokován' ?></td>
     <td><?= htmlspecialchars((string)$user['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
+    <td><?= !empty($user['last_visit_at']) ? htmlspecialchars(date('j. n. Y H:i', strtotime((string)$user['last_visit_at'])), ENT_QUOTES, 'UTF-8') : '<span class="muted">—</span>' ?></td>
     <td>
       <button type="button" class="js-edit-user"
         data-id="<?= (int)$user['id'] ?>"

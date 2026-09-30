@@ -2,7 +2,11 @@
 
 ## Co modul dělá
 
-Autentizace uživatelů — kombinace lokálního hesla a Google OAuth (Google Identity Services). Podporuje tři role: `superadmin` (plné oprávnění včetně správy uživatelů), `admin` (většina operací), `user` (read-only / omezené).
+Autentizace uživatelů — kombinace lokálního hesla a Google OAuth (Google Identity Services). Podporuje tři role: `superadmin` (plné oprávnění včetně správy uživatelů a mazání produktů), `admin` (běžný provoz – produkty, BOM, import, inventura, rezervace, doklady, nastavení), `user` = **čtenář** (od 2026-09-30 skutečně jen prohlížení; jediné, co smí editovat, jsou vlastní dotazy v Analýze, která pouští jen SELECT). V UI se `user` zobrazuje jako „Čtenář" (`App\Support\Auth::label()`); hodnota v DB zůstala `user`. Dřívější volba „Zaměstnanec" (`employee`) ve správě uživatelů v DB ENUM neexistovala a šla by uložit chybně – opraveno.
+
+**`src/Support/Auth.php`** — společné `isAdmin()`, `isReader()`, `requireAdmin()` (vrací 403 stránku, nebo JSON pro AJAX). Zápisové endpointy, které byly dřív otevřené každému přihlášenému (Pohyby, Výroba produce/check/delete, Inventura addEntry, Rezervace save/delete), teď vyžadují admin. Analýza (`requireRole`) je otevřená všem rolím. Čtenáři se v navigaci skrývá Import a Nastavení; ve view se mu neukazují formuláře (`isAdmin`/`canCreate`/`allowEntries`), doklady mu `lockReason()` zamkne.
+
+**Poslední návštěva** — `users.last_visit_at` (sloupec si doplní `Auth::ensureLastVisitColumn()`), zapisuje se v `public/index.php` ve stejném hodinovém bloku jako `data/access_log.csv` (`Auth::touchLastVisit()`), nouzový `admin@local` (id 0) se nezapisuje. Vidí ji superadmin ve správě uživatelů. Složka `data/` (a `modules/`, `db/`, `scripts/`, `*.md`, `*.sql`) je od 2026-09-30 zakázaná v root `.htaccess`.
 
 Session je perzistentní (7 dní, HttpOnly cookies, SameSite=Lax). Logování přístupů (jednou za hodinu na uživatele) do `data/access_log.csv` — čte to modul `admin`.
 

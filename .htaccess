@@ -1,5 +1,8 @@
 RewriteEngine On
 RewriteBase /
+# Interní složky a soubory nesmí být čitelné z webu (log přihlášení, dokumentace, schéma DB, skripty)
+RewriteRule ^(data|modules|db|scripts|log|_trash|config)(/|$) - [F,L]
+RewriteRule \.(md|sql|json|csv|log)$ - [F,L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]

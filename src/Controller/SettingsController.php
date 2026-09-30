@@ -434,7 +434,8 @@ final class SettingsController
         $email = strtolower(trim((string)($_POST['email'] ?? '')));
         $role = (string)($_POST['role'] ?? 'admin');
         $active = isset($_POST['active']) ? 1 : 0;
-        $allowedRoles = ['superadmin', 'admin', 'employee'];
+        // 'user' = čtenář (jen prohlížení + Analýza). Dřívější hodnota 'employee' v DB ENUM neexistovala.
+        $allowedRoles = ['superadmin', 'admin', 'user'];
 
         // Vlastní účet může upravit jen jiný superadmin
         if ($id > 0 && $this->currentUserId() === $id) {
@@ -525,7 +526,8 @@ final class SettingsController
 
     private function fetchUsers(): array
     {
-        return DB::pdo()->query('SELECT id,email,role,active,created_at FROM users ORDER BY email')->fetchAll();
+        \App\Support\Auth::ensureLastVisitColumn();
+        return DB::pdo()->query('SELECT id,email,role,active,created_at,last_visit_at FROM users ORDER BY email')->fetchAll();
     }
 
     private function render(string $view, array $vars = []): void

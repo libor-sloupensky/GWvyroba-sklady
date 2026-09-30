@@ -40,6 +40,8 @@ if (isset($_SESSION['user']['email'])) {
     $lastLog = $_SESSION['_last_access_log'] ?? 0;
     if (time() - $lastLog >= 3600) {
         $_SESSION['_last_access_log'] = time();
+        // users.last_visit_at – vidí superadmin ve správě uživatelů
+        \App\Support\Auth::touchLastVisit();
         $logDir = __DIR__ . '/../data';
         if (!is_dir($logDir)) {
             @mkdir($logDir, 0755, true);

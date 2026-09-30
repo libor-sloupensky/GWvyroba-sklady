@@ -239,7 +239,7 @@ final class ProductionController
 
     {
 
-        $this->requireAuth();
+        \App\Support\Auth::requireAdmin('Zápis výroby je jen pro administrátory.');
 
         $sku = $this->toUtf8((string)($_POST['sku'] ?? ''));
 
@@ -351,7 +351,7 @@ final class ProductionController
 
     {
 
-        $this->requireAuth();
+        \App\Support\Auth::requireAdmin('Kontrola výroby je jen pro administrátory.');
 
         header('Content-Type: application/json');
 
@@ -501,7 +501,7 @@ final class ProductionController
 
     {
 
-        $this->requireAuth();
+        \App\Support\Auth::requireAdmin('Mazání zápisů výroby je jen pro administrátory.');
 
         $ref = (string)($_POST['ref_id'] ?? '');
 

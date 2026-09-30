@@ -53,6 +53,7 @@
 }
 </style>
 <p class="muted">Rezervace platí do 23:59:59 zvoleného dne. Nejdříve vyhledejte položku, poté zadejte množství. Typ se převezme ze zvolené položky.</p>
+<?php if (!empty($isAdmin)): ?>
 <form method="post" action="/reservations" class="reservation-form" id="reservation-form" autocomplete="off">
   <input type="hidden" name="id" value="" />
   <input type="hidden" name="sku" id="reservation-sku" />
@@ -76,6 +77,9 @@
   <br>
   <button type="submit">Uložit</button>
 </form>
+<?php else: ?>
+<p class="muted-note">Role čtenář může rezervace jen prohlížet.</p>
+<?php endif; ?>
 
 <hr>
 <table>
@@ -95,10 +99,12 @@
     <td><?= htmlspecialchars((string)$r['platna_do'],ENT_QUOTES,'UTF-8') ?></td>
     <td><?= htmlspecialchars((string)($r['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
     <td>
+      <?php if (!empty($isAdmin)): ?>
       <form method="post" action="/reservations/delete" onsubmit="return confirm('Smazat rezervaci?')" style="display:inline;">
         <input type="hidden" name="id" value="<?= (int)$r['id'] ?>" />
         <button type="submit">Smazat</button>
       </form>
+      <?php endif; ?>
     </td>
   </tr>
   <?php endforeach; ?>
@@ -107,6 +113,7 @@
 <script>
 (function() {
   const form = document.getElementById('reservation-form');
+  if (!form) return; // čtenář formulář nemá
   const skuInput = document.getElementById('reservation-sku');
   const searchInput = document.getElementById('product-search-input');
   const resultsBox = document.getElementById('product-search-results');

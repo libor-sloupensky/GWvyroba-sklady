@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Service\MovementDocService;
 use App\Service\StockService;
+use App\Support\Auth;
 use App\Support\DB;
 
 /**
@@ -33,6 +34,7 @@ final class MovementsController
             'mode' => 'list',
             'docs' => $docs,
             'filters' => $filters,
+            'canCreate' => Auth::isAdmin(),
             'message' => $this->flash('movements_message'),
             'error' => $this->flash('movements_error'),
         ]);
@@ -40,7 +42,7 @@ final class MovementsController
 
     public function create(): void
     {
-        $this->requireAuth();
+        Auth::requireAdmin('Doklady může zakládat jen admin.');
         $typ = (string)($_POST['typ'] ?? 'vyroba');
         try {
             $id = MovementDocService::createDoc($this->currentUser(), $typ);
@@ -83,7 +85,7 @@ final class MovementsController
 
     public function delete(): void
     {
-        $this->requireAuth();
+        Auth::requireAdmin('Doklady může mazat jen admin.');
         $id = (int)($_POST['id'] ?? 0);
         $doc = $id > 0 ? MovementDocService::loadDoc($id) : null;
         if (!$doc) {
@@ -161,7 +163,7 @@ final class MovementsController
      */
     private function jsonAction(callable $fn, bool $noteOnly = false): void
     {
-        $this->requireAuth();
+        Auth::requireAdmin('Doklady může měnit jen admin. Role čtenář může data pouze prohlížet.');
         header('Content-Type: application/json; charset=utf-8');
         $in = $this->collectJson();
         $id = (int)($in['doklad_id'] ?? 0);

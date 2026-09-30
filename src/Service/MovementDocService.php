@@ -285,6 +285,9 @@ final class MovementDocService
      */
     public static function lockReason(array $doc, array $user): ?string
     {
+        if ((string)($user['role'] ?? 'user') === 'user') {
+            return 'Role čtenář může doklady jen prohlížet.';
+        }
         if (self::isInventoryDoc($doc)) {
             return 'Inventární doklad – položky vznikají uzavřením inventury a nelze je měnit. Upravit lze jen poznámku (admin).';
         }

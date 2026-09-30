@@ -78,21 +78,26 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
   <header class="print-hide">
     <nav>
       <a href="/"<?= $navIsActive('/') ? ' class="active" aria-current="page"' : '' ?>>Domů</a>
+      <?php $navIsReader = (($currentUser['role'] ?? '') === 'user'); ?>
+      <?php if (!$navIsReader): ?>
       <a href="/import" title="Nahrát XML a spustit import"<?= $navIsActive('/import') ? ' class="active" aria-current="page"' : '' ?>>Import</a>
+      <?php endif; ?>
       <a href="/products" title="Kmenová karta produktů, CSV import/export"<?= $navIsActive('/products') ? ' class="active" aria-current="page"' : '' ?>>Produkty</a>
       <a href="/inventory" title="Záznam inventury a korekcí"<?= $navIsActive('/inventory') ? ' class="active" aria-current="page"' : '' ?>>Inventura</a>
       <a href="/reservations" title="Rezervace hotových produktů"<?= $navIsActive('/reservations') ? ' class="active" aria-current="page"' : '' ?>>Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného"<?= $navIsActive('/production') ? ' class="active" aria-current="page"' : '' ?>>Výroba</a>
       <a href="/movements" title="Skladové doklady – výroba a korekce"<?= $navIsActive('/movements') ? ' class="active" aria-current="page"' : '' ?>>Pohyby</a>
       <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
+      <?php if (!$navIsReader): ?>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
+      <?php endif; ?>
       <?php if (($currentUser['role'] ?? '') === 'superadmin'): ?>
         <a href="/admin/history" title="Historie přihlášení"<?= $navIsActive('/admin/history') ? ' class="active" aria-current="page"' : '' ?>>Historie</a>
       <?php endif; ?>
       <span class="nav-user">
         <?php if ($currentUser): ?>
           <?= htmlspecialchars((string)$currentUser['email'], ENT_QUOTES, 'UTF-8') ?>
-          (<?= htmlspecialchars((string)$currentUser['role'], ENT_QUOTES, 'UTF-8') ?>)
+          (<?= htmlspecialchars(mb_strtolower(\App\Support\Auth::label((string)$currentUser['role'])), ENT_QUOTES, 'UTF-8') ?>)
           • <a href="/logout">Odhlásit</a>
         <?php else: ?>
           Nepřihlášen • <a href="/login">Přihlásit</a>

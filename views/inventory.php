@@ -309,7 +309,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
 </form>
 
 <?php if ($inventory && !$allowEntries): ?>
-  <p class="muted no-print">Inventura je pouze pro čtení. Změny lze provádět pouze u právě otevřené inventury.</p>
+  <p class="muted no-print"><?= $isAdmin ? 'Inventura je pouze pro čtení. Změny lze provádět pouze u právě otevřené inventury.' : 'Inventura je pouze pro čtení – role čtenář může data jen prohlížet.' ?></p>
 <?php endif; ?>
 
 <?php if (!$hasSearchActive): ?>

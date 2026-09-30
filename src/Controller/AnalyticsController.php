@@ -17,7 +17,7 @@ final class AnalyticsController
     // Poznámka: Tipy a aliasy níže se odvozují od aktuálního schématu DB, proto udržuj aktualizované pokyny, pokud se DB mění.
     public function revenue(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         $templates = $this->loadTemplatesV2();
         $favoritesV2 = $this->loadFavoritesV2();
         $this->render('analytics_revenue.php', [
@@ -29,7 +29,7 @@ final class AnalyticsController
 
     public function ai(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
 
         $payload = $this->collectJson();
@@ -165,7 +165,7 @@ final class AnalyticsController
 
     public function saveFavoriteAjax(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $title = trim((string)($payload['title'] ?? ''));
@@ -188,7 +188,7 @@ final class AnalyticsController
 
     public function deleteFavoriteAjax(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $id = (int)($payload['id'] ?? 0);
@@ -436,7 +436,7 @@ PROMPT;
 
     public function revenueV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         $templates = $this->loadTemplatesV2();
         $favoritesV2 = $this->loadFavoritesV2();
         $this->render('analytics_revenue.php', [
@@ -448,7 +448,7 @@ PROMPT;
 
     public function runTemplateV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $templateId = (string)($payload['template_id'] ?? '');
@@ -517,14 +517,14 @@ PROMPT;
 
     public function favoriteListV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['ok' => true, 'favorites' => $this->loadFavoritesV2()], JSON_UNESCAPED_UNICODE);
     }
 
     public function saveFavoriteV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $title = trim((string)($payload['title'] ?? ''));
@@ -561,7 +561,7 @@ PROMPT;
 
     public function deleteFavoriteV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $payload = $this->collectJson();
         $id = (int)($payload['id'] ?? 0);
@@ -578,7 +578,7 @@ PROMPT;
 
     public function searchContactsV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $q = trim((string)($_GET['q'] ?? ''));
         if ($q === '') {
@@ -621,7 +621,7 @@ PROMPT;
 
     public function searchContactsByIdsV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
         $raw = $_GET['ids'] ?? [];
         if (!is_array($raw)) {
@@ -667,7 +667,7 @@ PROMPT;
      */
     public function invoiceItemsV2(): void
     {
-        $this->requireRole(['admin', 'superadmin']);
+        $this->requireRole(['user', 'admin', 'superadmin']); // Analýza je otevřená i čtenáři – pouští jen SELECT
         header('Content-Type: application/json; charset=utf-8');
 
         $eshop = trim($_GET['eshop_source'] ?? '');
