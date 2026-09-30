@@ -22,7 +22,8 @@ Typ dokladu je jen **výchozí režim** pro nově vkládané položky; režim ka
 |--------|-----|------|
 | GET | `/movements` | seznam dokladů (filtr od/do/typ/hledat) |
 | POST | `/movements/create` | založit doklad (typ) → redirect na detail |
-| GET | `/movements/doc?id=` | detail; `&search=1&q=…&znacka_id&skupina_id&typ` = vyhledávací panel produktů |
+| GET | `/movements/doc?id=` | detail dokladu |
+| GET | `/movements/search?q&znacka_id&skupina_id&typ` | JSON živého vyhledávání produktů: `{items (max 10), more, limit}`; bez filtru vrací prázdno |
 | POST | `/movements/delete` | smazat prázdný doklad |
 | POST | `/movements/header` | JSON: typ, poznámka (autosave) |
 | POST | `/movements/line/add` | JSON: sku, mnozstvi, rezim |
@@ -53,6 +54,8 @@ Schéma si při prvním použití doplní `MovementDocService::ensureSchema()` (
 - **Neskladové položky** ve vyhledávání šedé s tooltipem, nelze vložit (server odmítne). Neaktivní produkty vložit lze (odpis zbytku), SKU přeškrtnuté.
 - **Mínus**: žádný blokující dialog — řádek se uloží a stav „po" svítí červeně (u rodiče i potomků). Vložená položka dostane množství 1 a fokus do inputu.
 - **Autosave**: poznámka po 700 ms od psaní / při opuštění pole, množství po 600 ms / při změně / Enter. Konflikt dvou uživatelů = poslední zápis vyhrává.
+- **Log slučuje změny množství** téhož řádku od téhož uživatele do 3 minut (`LOG_MERGE_SECONDS`) do jednoho záznamu „z původního na výsledné"; návrat na původní hodnotu záznam smaže. Klikání na šipky u množství tak nevyrobí deset řádků v historii.
+- **Vyhledávání položek** je živé (debounce 250 ms, změna selectu hned), max 10 výsledků, při více výsledcích hláška pod tabulkou. Založení dokladu je jedním tlačítkem vpravo nahoře, typ se volí až v dokladu (výchozí Výroba).
 
 ## Závislosti
 
