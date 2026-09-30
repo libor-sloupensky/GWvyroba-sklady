@@ -70,6 +70,7 @@ final class MovementsController
             'mode' => 'doc',
             'doc' => $doc,
             'lock' => $lock,
+            'canEditNote' => MovementDocService::canEditNote($doc, $user),
             'lines' => MovementDocService::loadLines($id),
             'log' => MovementDocService::loadLog($id),
             'brands' => DB::pdo()->query('SELECT id,nazev FROM produkty_znacky ORDER BY nazev')->fetchAll(),
@@ -88,6 +89,11 @@ final class MovementsController
         if (!$doc) {
             $_SESSION['movements_error'] = 'Doklad nenalezen.';
             $this->redirect('/movements');
+            return;
+        }
+        if (MovementDocService::isInventoryDoc($doc)) {
+            $_SESSION['movements_error'] = 'Inventární doklad nelze smazat samostatně – maže se spolu s inventurou.';
+            $this->redirect('/movements/doc?id=' . $id);
             return;
         }
         $lock = MovementDocService::lockReason($doc, $this->currentUser());
@@ -112,7 +118,7 @@ final class MovementsController
         $this->jsonAction(function (array $doc, array $user, array $in): array {
             MovementDocService::updateHeader($doc, $user, (string)($in['typ'] ?? $doc['typ']), (string)($in['poznamka'] ?? ''));
             return [];
-        });
+        }, true);
     }
 
     public function lineAdd(): void
@@ -153,7 +159,7 @@ final class MovementsController
      * Společný obal JSON akcí: načte doklad, ověří zámek, provede callback
      * a vrátí aktuální řádky + log, aby si stránka mohla překreslit tabulku.
      */
-    private function jsonAction(callable $fn): void
+    private function jsonAction(callable $fn, bool $noteOnly = false): void
     {
         $this->requireAuth();
         header('Content-Type: application/json; charset=utf-8');
@@ -165,10 +171,18 @@ final class MovementsController
             return;
         }
         $user = $this->currentUser();
-        $lock = MovementDocService::lockReason($doc, $user);
-        if ($lock !== null) {
-            echo json_encode(['ok' => false, 'error' => $lock, 'locked' => true], JSON_UNESCAPED_UNICODE);
-            return;
+        if (MovementDocService::isInventoryDoc($doc)) {
+            // Inventární doklad: jen poznámka, jen admin – položky vznikají uzavřením inventury
+            if (!$noteOnly || !MovementDocService::canEditNote($doc, $user)) {
+                echo json_encode(['ok' => false, 'error' => 'Inventární doklad nelze měnit' . ($noteOnly ? ' (poznámku smí upravit jen admin).' : '.'), 'locked' => !$noteOnly], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+        } else {
+            $lock = MovementDocService::lockReason($doc, $user);
+            if ($lock !== null) {
+                echo json_encode(['ok' => false, 'error' => $lock, 'locked' => true], JSON_UNESCAPED_UNICODE);
+                return;
+            }
         }
         try {
             $extra = $fn($doc, $user, $in);

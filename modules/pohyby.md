@@ -10,6 +10,15 @@ Dva typy dokladu / režimy položky:
 
 Typ dokladu je jen **výchozí režim** pro nově vkládané položky; režim každé položky lze změnit.
 
+Třetí typ **Inventura** (od 2026-09-30) vzniká **automaticky uzavřením inventury** (`InventoryController::close` → `MovementDocService::attachInventoryDoc`). Ručně založit nejde.
+- Řádky dokladu jsou **existující rozdílové pohyby inventury** (`typ_pohybu='inventura'`, ref `inv:<inventura>:<zápis>`) – jen dostanou `doklad_id`, nic se nekopíruje. Položky beze změny pohyb nemají, takže doklad obsahuje jen rozdíly. V detailu se seskupují po SKU (`loadInventoryLines`): očekávaný stav = zjištěný − rozdíl, zjištěný = `inventura_stavy.stav`; SKU s nulovým součtem se nezobrazí a nepočítají.
+- Datum = datum uzavření, `created_at` = čas uzavření, uživatel = kdo uzavřel (u zpětně doplněných „systém"). Vazba `sklad_doklady.inventura_id`.
+- **Nelze editovat ani mazat** (`lockReason` vrací důvod vždy). Jediné, co jde měnit, je **poznámka** – admin/superadmin kdykoli (`canEditNote`), a má **jeden zdroj v `inventury.poznamka`** (doklad ji zobrazuje a při uložení zapíše tam; při uzavření se přebírá odtud).
+- **Znovuotevření inventury** (`reopen`): řádkům se odpojí `doklad_id`, doklad **zůstane** se svým číslem (prázdný, log „inventura otevřena"). Opětovné uzavření řádky připojí ke **stejnému** dokladu, aktualizuje datum/uživatele. Žádné mezery v číslování.
+- **Smazání inventury** (`delete`) smaže i doklad a log (pohyby maže inventura sama).
+- Zpětně doplněno 2026-09-30 pro 9 uzavřených inventur (#5–#15) chronologicky: 25-0001, 26-0001 … 26-0008 (skript jednorázový, `_trash/`, smazán). Záloha DB před změnou: `C:\Users\HP\.codex\Gworm_backups\gworm_full_2026-09-30_135939.sql`.
+- Zámek ostatních dokladů uzavřenou inventurou (viz níže) zůstává; inventární doklad sám lock nepotřebuje.
+
 ## Kam sahá v kódu
 
 - `src/Service/MovementDocService.php` — schéma (auto-migrace), číslování, oprávnění/zámky, řádky + kaskáda BOM, log změn, seznam
@@ -34,8 +43,8 @@ Všechny JSON akce vrací `{ok, doc, lines, log}` — stránka si překreslí ta
 
 ## Tabulky
 
-- `sklad_doklady` (id, cislo `RR-NNNN` per rok, datum DATE, typ ENUM vyroba/korekce, poznamka, user_id, user_email, created_at, updated_at)
-- `sklad_doklady_log` (doklad_id, pohyb_id, sku, akce vytvoreni/hlavicka/pridani/zmena_mnozstvi/zmena_rezimu/smazani, stare_mnozstvi, nove_mnozstvi, detail, user_email, datum) — historie změn zobrazená v detailu
+- `sklad_doklady` (id, cislo `RR-NNNN` per rok, datum DATE, typ ENUM vyroba/korekce/**inventura**, **inventura_id** INT NULL, poznamka, user_id, user_email, created_at, updated_at)
+- `sklad_doklady_log` (doklad_id, pohyb_id, sku, akce vytvoreni/hlavicka/pridani/zmena_mnozstvi/zmena_rezimu/smazani/inventura_uzavrena/inventura_otevrena, stare_mnozstvi, nove_mnozstvi, detail, user_email, datum) — historie změn zobrazená v detailu
 - `polozky_pohyby` + nové sloupce **`doklad_id`, `parent_pohyb_id`, `user_id`** (+ index `idx_pohyby_doklad`). Řádky dokladu jsou obyčejné pohyby, výpočet stavu skladu (`StockService`) nic nového nečte.
   - rodičovský řádek: `parent_pohyb_id IS NULL`, `typ_pohybu` = režim (vyroba/korekce), `ref_id = dok-<doklad>-<řádek>`
   - potomci: `parent_pohyb_id` = id rodiče, `typ_pohybu='vyroba'`, poznámka „odečet komponenty", stejný `ref_id` a `datum` jako rodič
@@ -69,5 +78,5 @@ Schéma si při prvním použití doplní `MovementDocService::ensureSchema()` (
 ⚠️ Dluhy
 - Historie pohybů ve Výrobě (`/production/movements`) zatím neodkazuje na doklad (ref `dok-…` ale vidět je).
 - Storno uzamčeného dokladu neexistuje — řeší se novým korekčním dokladem.
-- Sloupec „Akce" ve Výrobě dál zapisuje bez dokladu; sjednotí se při sloučení Výroby s Produkty.
+- Sloupec „Akce" ve Výrobě je od 2026-09-30 **skrytý** (`$showActionColumn = false` ve `views/production_plans.php`), kód i endpointy zůstaly; zruší se při sloučení Výroby s Produkty. `ProductionController::deleteRecord` odmítá reference `dok-…`.
 - Datum dokladu nelze změnit (záměr, případně později pro superadmina).

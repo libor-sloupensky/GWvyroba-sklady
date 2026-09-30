@@ -221,14 +221,16 @@ CREATE TABLE IF NOT EXISTS sklad_doklady (
   id INT AUTO_INCREMENT PRIMARY KEY,
   cislo VARCHAR(16) NOT NULL,
   datum DATE NOT NULL,
-  typ ENUM('vyroba','korekce') NOT NULL DEFAULT 'vyroba',
+  typ ENUM('vyroba','korekce','inventura') NOT NULL DEFAULT 'vyroba',
+  inventura_id INT NULL,
   poznamka VARCHAR(1024) NULL,
   user_id INT NOT NULL DEFAULT 0,
   user_email VARCHAR(255) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NULL,
   UNIQUE KEY uq_sklad_doklady_cislo (cislo),
-  KEY idx_sklad_doklady_datum (datum)
+  KEY idx_sklad_doklady_datum (datum),
+  KEY idx_sklad_doklady_inventura (inventura_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 CREATE TABLE IF NOT EXISTS sklad_doklady_log (

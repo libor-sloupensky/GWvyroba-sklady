@@ -6,7 +6,7 @@ Fyzický sklad — evidence stavů zásob přes **inventury** (otevřít → zap
 
 **Klíčový princip:** aktuální stav SKU = poslední uzavřená inventura (`inventura_stavy.stav`) **plus** součet pohybů od jejího uzavření. Stavy se neúdržbovsky aktualizují — místo toho se inkrementálně dopočítávají z event-log stylu `polozky_pohyby`.
 
-Výroba (viz `vyroba.md`) píše do stejných pohybů (+rodič, -potomci přes korekci). Od 2026-09-30 píší do pohybů také **skladové doklady** (záložka Pohyby, viz `pohyby.md`) — řádky mají `doklad_id`, potomci `parent_pohyb_id`. Uzavření inventury zamkne všechny doklady založené před ní.
+Výroba (viz `vyroba.md`) píše do stejných pohybů (+rodič, -potomci přes korekci). Od 2026-09-30 píší do pohybů také **skladové doklady** (záložka Pohyby, viz `pohyby.md`) — řádky mají `doklad_id`, potomci `parent_pohyb_id`. Uzavření inventury zamkne všechny doklady založené před ní. **Uzavření inventury také založí inventární doklad** (typ `inventura`, `sklad_doklady.inventura_id`) nad jejími rozdílovými pohyby; znovuotevření řádky odpojí (doklad zůstane), smazání inventury doklad smaže. Poznámka inventury a dokladu je jedna (`inventury.poznamka`). `close()`, `reopen()` i `delete()` volají `MovementDocService::ensureSchema()` před transakcí.
 
 ## Kam sahá v kódu
 

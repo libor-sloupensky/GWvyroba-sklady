@@ -1,6 +1,7 @@
 <?php
 namespace App\Controller;
 
+use App\Service\MovementDocService;
 use App\Support\DB;
  
 final class InventoryController
@@ -78,6 +79,7 @@ final class InventoryController
     public function close(): void
     {
         $this->requireAdmin();
+        MovementDocService::ensureSchema(); // DDL před transakcí, jinak by ji potichu potvrdilo
         $inventory = $this->getActiveInventory();
         if (!$inventory) {
             $_SESSION['inventory_error'] = 'Neprobíhá žádná inventura.';
@@ -114,6 +116,8 @@ final class InventoryController
             }
             $pdo->prepare('UPDATE inventury SET closed_at=?, entries_mode=? WHERE id=?')->execute([$closedAt, 'absolute', $inventory['id']]);
             $pdo->prepare('UPDATE polozky_pohyby SET datum=? WHERE ref_id LIKE ?')->execute([$closedAt, $this->inventoryRefPattern((int)$inventory['id'])]);
+            // Inventární doklad v záložce Pohyby – řádky jsou právě tyto rozdílové pohyby
+            MovementDocService::attachInventoryDoc($pdo, (int)$inventory['id'], $closedAt, $this->sessionUser(), $inventory['poznamka'] ?? null);
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla uzavřena.';
         } catch (\Throwable $e) {
@@ -182,6 +186,7 @@ final class InventoryController
     public function delete(): void
     {
         $this->requireAdmin();
+        MovementDocService::ensureSchema(); // DDL před transakcí, jinak by ji potichu potvrdilo
         $inventoryId = (int)($_POST['inventory_id'] ?? 0);
         if ($inventoryId <= 0) {
             $_SESSION['inventory_error'] = 'Neplatná inventura.';
@@ -200,6 +205,7 @@ final class InventoryController
             $pdo->prepare('DELETE FROM polozky_pohyby WHERE ref_id LIKE ?')->execute([$this->inventoryRefPattern($inventoryId)]);
             $pdo->prepare('DELETE FROM inventura_polozky WHERE inventura_id=?')->execute([$inventoryId]);
             $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventoryId]);
+            MovementDocService::deleteInventoryDoc($pdo, $inventoryId);
             $pdo->prepare('DELETE FROM inventury WHERE id=?')->execute([$inventoryId]);
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla smazána.';
@@ -213,6 +219,7 @@ final class InventoryController
     public function reopen(): void
     {
         $this->requireAdmin();
+        MovementDocService::ensureSchema(); // DDL před transakcí, jinak by ji potichu potvrdilo
         $inventoryId = (int)($_POST['inventory_id'] ?? 0);
         if ($inventoryId <= 0) {
             $_SESSION['inventory_error'] = 'Neplatná inventura.';
@@ -236,6 +243,7 @@ final class InventoryController
         try {
             $pdo->prepare('DELETE FROM inventura_stavy WHERE inventura_id=?')->execute([$inventoryId]);
             $pdo->prepare('UPDATE inventury SET closed_at=NULL, entries_mode=? WHERE id=?')->execute(['absolute', $inventoryId]);
+            MovementDocService::detachInventoryDoc($pdo, $inventoryId, $this->sessionUser());
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla znovu otevřena.';
         } catch (\Throwable $e) {
@@ -741,5 +749,16 @@ final class InventoryController
     private function inventoryRefPattern(int $inventoryId): string
     {
         return sprintf('inv:%d:%%', $inventoryId);
+    }
+
+    /** @return array{id:int,email:string,role:string} */
+    private function sessionUser(): array
+    {
+        $u = $_SESSION['user'] ?? [];
+        return [
+            'id' => (int)($u['id'] ?? 0),
+            'email' => (string)($u['email'] ?? ''),
+            'role' => (string)($u['role'] ?? 'user'),
+        ];
     }
 }

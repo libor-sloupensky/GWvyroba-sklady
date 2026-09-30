@@ -61,6 +61,16 @@ final class MovementDocService
             datum DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             KEY idx_sklad_doklady_log_doklad (doklad_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci");
+        // Inventární doklad (typ inventura, vazba na inventury.id) – doplněno 2026-09-30
+        $typCol = $pdo->query("SHOW COLUMNS FROM sklad_doklady LIKE 'typ'")->fetch(PDO::FETCH_ASSOC);
+        if ($typCol && stripos((string)$typCol['Type'], 'inventura') === false) {
+            $pdo->exec("ALTER TABLE sklad_doklady MODIFY typ ENUM('vyroba','korekce','inventura') NOT NULL DEFAULT 'vyroba'");
+        }
+        self::ensureColumn($pdo, 'sklad_doklady', 'inventura_id', 'INT NULL AFTER `typ`');
+        $idxInv = $pdo->query("SHOW INDEX FROM sklad_doklady WHERE Key_name = 'idx_sklad_doklady_inventura'")->fetch();
+        if (!$idxInv) {
+            $pdo->exec('ALTER TABLE sklad_doklady ADD KEY idx_sklad_doklady_inventura (inventura_id)');
+        }
         self::ensureColumn($pdo, 'polozky_pohyby', 'doklad_id', 'INT NULL AFTER `ref_id`');
         self::ensureColumn($pdo, 'polozky_pohyby', 'parent_pohyb_id', 'INT NULL AFTER `doklad_id`');
         self::ensureColumn($pdo, 'polozky_pohyby', 'user_id', 'INT NULL AFTER `parent_pohyb_id`');
@@ -119,14 +129,97 @@ final class MovementDocService
         }
     }
 
+    /** Počet položek dokladu: u inventury počet SKU s rozdílem, jinak rodičovské řádky. */
+    private const SQL_RADKU = "CASE WHEN d.typ = 'inventura'
+        THEN (SELECT COUNT(*) FROM (SELECT doklad_id, sku, SUM(mnozstvi) AS s FROM polozky_pohyby WHERE doklad_id IS NOT NULL GROUP BY doklad_id, sku HAVING ABS(s) > 0.0005) x WHERE x.doklad_id = d.id)
+        ELSE (SELECT COUNT(*) FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) END";
+
     /** @return array<string,mixed>|null */
     public static function loadDoc(int $id): ?array
     {
         self::ensureSchema();
-        $stmt = DB::pdo()->prepare('SELECT d.*, (SELECT COUNT(*) FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) AS radku FROM sklad_doklady d WHERE d.id = ? LIMIT 1');
+        $stmt = DB::pdo()->prepare('SELECT d.*, ' . self::SQL_RADKU . ' AS radku FROM sklad_doklady d WHERE d.id = ? LIMIT 1');
         $stmt->execute([$id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    public static function isInventoryDoc(array $doc): bool
+    {
+        return (string)($doc['typ'] ?? '') === 'inventura';
+    }
+
+    // ------------------------------------------------------ inventární doklad
+
+    /**
+     * Založí (nebo při opětovném uzavření znovu naplní) inventární doklad.
+     * Řádky dokladu jsou existující rozdílové pohyby inventury (ref inv:<id>:<zápis>),
+     * jen se jim nastaví doklad_id – nic se nekopíruje. Doklad drží své číslo
+     * i po znovuotevření inventury (řádky se odpojí, doklad zůstane prázdný).
+     *
+     * Volá se uvnitř transakce volajícího; ensureSchema() musí proběhnout před ní
+     * (DDL by transakci potichu potvrdilo).
+     *
+     * @param array{id:int,email:string,role:string} $user
+     */
+    public static function attachInventoryDoc(PDO $pdo, int $inventoryId, string $closedAt, array $user, ?string $poznamka): int
+    {
+        $datum = substr($closedAt, 0, 10);
+        $poznamka = ($poznamka !== null && trim($poznamka) !== '') ? mb_substr(trim($poznamka), 0, 1024) : null;
+        $sel = $pdo->prepare('SELECT id, cislo FROM sklad_doklady WHERE inventura_id = ? LIMIT 1');
+        $sel->execute([$inventoryId]);
+        $existing = $sel->fetch(PDO::FETCH_ASSOC);
+        if ($existing) {
+            $docId = (int)$existing['id'];
+            $pdo->prepare('UPDATE sklad_doklady SET datum = ?, poznamka = ?, user_id = ?, user_email = ?, updated_at = NOW() WHERE id = ?')
+                ->execute([$datum, $poznamka, (int)$user['id'], (string)$user['email'], $docId]);
+            self::log($pdo, $docId, null, null, 'inventura_uzavrena', null, null, 'Inventura #' . $inventoryId . ' znovu uzavřena ' . substr($closedAt, 0, 16), (string)$user['email']);
+        } else {
+            $cislo = self::nextNumber($pdo, $datum);
+            $pdo->prepare('INSERT INTO sklad_doklady (cislo, datum, typ, inventura_id, poznamka, user_id, user_email, created_at) VALUES (?,?,\'inventura\',?,?,?,?,?)')
+                ->execute([$cislo, $datum, $inventoryId, $poznamka, (int)$user['id'], (string)$user['email'], $closedAt]);
+            $docId = (int)$pdo->lastInsertId();
+            self::log($pdo, $docId, null, null, 'vytvoreni', null, null, 'Doklad ' . $cislo . ' – uzavření inventury #' . $inventoryId . ' ' . substr($closedAt, 0, 16), (string)$user['email']);
+        }
+        $pdo->prepare("UPDATE polozky_pohyby SET doklad_id = ? WHERE ref_id LIKE ?")->execute([$docId, sprintf('inv:%d:%%', $inventoryId)]);
+        return $docId;
+    }
+
+    /** Znovuotevření inventury: řádky se odpojí, doklad zůstane (prázdný) se svým číslem. */
+    public static function detachInventoryDoc(PDO $pdo, int $inventoryId, array $user): void
+    {
+        $sel = $pdo->prepare('SELECT id FROM sklad_doklady WHERE inventura_id = ? LIMIT 1');
+        $sel->execute([$inventoryId]);
+        $docId = (int)($sel->fetchColumn() ?: 0);
+        if ($docId <= 0) {
+            return;
+        }
+        $pdo->prepare('UPDATE polozky_pohyby SET doklad_id = NULL WHERE doklad_id = ?')->execute([$docId]);
+        $pdo->prepare('UPDATE sklad_doklady SET updated_at = NOW() WHERE id = ?')->execute([$docId]);
+        self::log($pdo, $docId, null, null, 'inventura_otevrena', null, null, 'Inventura #' . $inventoryId . ' znovu otevřena, položky odpojeny', (string)$user['email']);
+    }
+
+    /** Smazání inventury maže i její doklad (pohyby maže inventura sama). */
+    public static function deleteInventoryDoc(PDO $pdo, int $inventoryId): void
+    {
+        $sel = $pdo->prepare('SELECT id FROM sklad_doklady WHERE inventura_id = ? LIMIT 1');
+        $sel->execute([$inventoryId]);
+        $docId = (int)($sel->fetchColumn() ?: 0);
+        if ($docId <= 0) {
+            return;
+        }
+        $pdo->prepare('UPDATE polozky_pohyby SET doklad_id = NULL WHERE doklad_id = ?')->execute([$docId]);
+        $pdo->prepare('DELETE FROM sklad_doklady_log WHERE doklad_id = ?')->execute([$docId]);
+        $pdo->prepare('DELETE FROM sklad_doklady WHERE id = ?')->execute([$docId]);
+    }
+
+    /** Poznámku inventárního dokladu smí měnit admin/superadmin kdykoli; u ostatních platí lockReason(). */
+    public static function canEditNote(array $doc, array $user): bool
+    {
+        if (self::isInventoryDoc($doc)) {
+            return in_array((string)($user['role'] ?? ''), ['admin', 'superadmin'], true);
+        }
+        return self::lockReason($doc, $user) === null;
     }
 
     /**
@@ -135,8 +228,23 @@ final class MovementDocService
     public static function updateHeader(array $doc, array $user, string $typ, string $poznamka): void
     {
         $pdo = DB::pdo();
-        $typ = $typ === 'korekce' ? 'korekce' : 'vyroba';
         $poznamka = mb_substr(trim($poznamka), 0, 1024);
+        if (self::isInventoryDoc($doc)) {
+            // Jediné, co se u inventárního dokladu mění, je poznámka – a ta má jeden
+            // zdroj v inventury.poznamka, aby se doklad a inventura nerozešly.
+            if ($poznamka === (string)($doc['poznamka'] ?? '')) {
+                return;
+            }
+            $pdo->prepare('UPDATE sklad_doklady SET poznamka = ?, updated_at = NOW() WHERE id = ?')
+                ->execute([$poznamka === '' ? null : $poznamka, (int)$doc['id']]);
+            if (!empty($doc['inventura_id'])) {
+                $pdo->prepare('UPDATE inventury SET poznamka = ? WHERE id = ?')
+                    ->execute([$poznamka === '' ? null : mb_substr($poznamka, 0, 255), (int)$doc['inventura_id']]);
+            }
+            self::log($pdo, (int)$doc['id'], null, null, 'hlavicka', null, null, 'poznámka', (string)$user['email']);
+            return;
+        }
+        $typ = $typ === 'korekce' ? 'korekce' : 'vyroba';
         $changes = [];
         if ($typ !== (string)$doc['typ']) {
             $changes[] = 'typ ' . $doc['typ'] . ' → ' . $typ;
@@ -177,6 +285,9 @@ final class MovementDocService
      */
     public static function lockReason(array $doc, array $user): ?string
     {
+        if (self::isInventoryDoc($doc)) {
+            return 'Inventární doklad – položky vznikají uzavřením inventury a nelze je měnit. Upravit lze jen poznámku (admin).';
+        }
         $inv = DB::pdo()->prepare('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL AND closed_at > ? ORDER BY closed_at LIMIT 1');
         $inv->execute([(string)$doc['created_at']]);
         $closed = $inv->fetch(PDO::FETCH_ASSOC);
@@ -408,6 +519,12 @@ final class MovementDocService
      */
     public static function loadLines(int $docId): array
     {
+        $head = DB::pdo()->prepare('SELECT typ, inventura_id FROM sklad_doklady WHERE id = ? LIMIT 1');
+        $head->execute([$docId]);
+        $headRow = $head->fetch(PDO::FETCH_ASSOC);
+        if ($headRow && (string)$headRow['typ'] === 'inventura') {
+            return self::loadInventoryLines($docId, (int)$headRow['inventura_id']);
+        }
         $stmt = DB::pdo()->prepare('SELECT pp.id, pp.datum, pp.sku, pp.mnozstvi, pp.merna_jednotka, pp.typ_pohybu, pp.parent_pohyb_id, p.nazev, p.merna_jednotka AS p_mj
             FROM polozky_pohyby pp LEFT JOIN produkty p ON p.sku = pp.sku
             WHERE pp.doklad_id = ? ORDER BY COALESCE(pp.parent_pohyb_id, pp.id), pp.parent_pohyb_id IS NOT NULL, pp.id');
@@ -448,6 +565,45 @@ final class MovementDocService
         $out = [];
         foreach ($order as $id) {
             $out[] = $byId[$id];
+        }
+        return $out;
+    }
+
+    /**
+     * Řádky inventárního dokladu: jen SKU s nenulovým rozdílem, seskupené po SKU
+     * (jeden zápis se může skládat z více dílčích počítání). Stav "po" je zjištěný
+     * stav ze snímku inventury, "před" = zjištěný − rozdíl (tedy očekávaný).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private static function loadInventoryLines(int $docId, int $inventoryId): array
+    {
+        $stmt = DB::pdo()->prepare('SELECT pp.sku, SUM(pp.mnozstvi) AS delta, MIN(pp.id) AS id, MIN(pp.datum) AS datum,
+                MAX(pp.merna_jednotka) AS mj, p.nazev, p.merna_jednotka AS p_mj, s.stav
+            FROM polozky_pohyby pp
+            LEFT JOIN produkty p ON p.sku = pp.sku
+            LEFT JOIN inventura_stavy s ON s.inventura_id = ? AND s.sku = pp.sku
+            WHERE pp.doklad_id = ?
+            GROUP BY pp.sku, p.nazev, p.merna_jednotka, s.stav
+            HAVING ABS(SUM(pp.mnozstvi)) > 0.0005
+            ORDER BY p.nazev, pp.sku');
+        $stmt->execute([$inventoryId, $docId]);
+        $out = [];
+        foreach ($stmt as $r) {
+            $delta = (float)$r['delta'];
+            $after = $r['stav'] !== null ? (float)$r['stav'] : $delta;
+            $out[] = [
+                'id' => (int)$r['id'],
+                'sku' => (string)$r['sku'],
+                'nazev' => (string)($r['nazev'] ?? ''),
+                'mj' => (string)($r['mj'] ?? $r['p_mj'] ?? ''),
+                'mnozstvi' => $delta,
+                'rezim' => 'inventura',
+                'stav_po' => $after,
+                'stav_pred' => $after - $delta,
+                'datum' => (string)$r['datum'],
+                'children' => [],
+            ];
         }
         return $out;
     }
@@ -505,7 +661,7 @@ final class MovementDocService
             $where[] = 'd.datum <= ?';
             $params[] = $f['do'];
         }
-        if ($f['typ'] === 'vyroba' || $f['typ'] === 'korekce') {
+        if (in_array($f['typ'], ['vyroba', 'korekce', 'inventura'], true)) {
             $where[] = 'd.typ = ?';
             $params[] = $f['typ'];
         }
@@ -515,8 +671,8 @@ final class MovementDocService
             array_push($params, $like, $like, $like, $like);
         }
         $sql = 'SELECT d.*,
-                (SELECT COUNT(*) FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) AS radku,
-                (SELECT GROUP_CONCAT(pp.sku ORDER BY pp.id SEPARATOR ", ") FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) AS skus
+                ' . self::SQL_RADKU . ' AS radku,
+                (SELECT GROUP_CONCAT(DISTINCT pp.sku ORDER BY pp.id SEPARATOR ", ") FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) AS skus
                 FROM sklad_doklady d WHERE ' . implode(' AND ', $where) . ' ORDER BY d.datum DESC, d.id DESC LIMIT ' . (int)$limit;
         $stmt = DB::pdo()->prepare($sql);
         $stmt->execute($params);

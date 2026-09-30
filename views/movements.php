@@ -7,7 +7,7 @@
       $s = rtrim(rtrim($s, '0'), ',');
       return $s === '-0' || $s === '' ? '0' : $s;
   };
-  $typLabel = ['vyroba' => 'Výroba', 'korekce' => 'Korekce'];
+  $typLabel = ['vyroba' => 'Výroba', 'korekce' => 'Korekce', 'inventura' => 'Inventura'];
 ?>
 <style>
 .mv-toolbar { display:flex; flex-wrap:wrap; gap:.8rem; align-items:flex-end; margin:0 0 1rem; }
@@ -51,6 +51,7 @@
 .mv-badge.locked { background:#eceff1; color:#546e7a; }
 .mv-badge.vyroba { background:#e3f2fd; color:#0d47a1; }
 .mv-badge.korekce { background:#fff3e0; color:#e65100; }
+.mv-badge.inventura { background:#ede7f6; color:#4527a0; }
 .mv-help { display:inline-block; position:relative; width:1.1em; height:1.1em; line-height:1.1em; text-align:center; border-radius:50%; background:#cfd8dc; color:#263238; font-size:.75rem; cursor:help; margin-left:.3rem; vertical-align:middle; }
 .mv-help .mv-tip { display:none; position:absolute; left:0; top:1.5em; z-index:20; width:22rem; max-width:80vw; background:#263238; color:#eceff1; text-align:left; font-size:.85rem; line-height:1.45; padding:.6rem .8rem; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.25); white-space:normal; font-weight:normal; }
 .mv-help:hover .mv-tip, .mv-help:focus .mv-tip { display:block; }
@@ -64,7 +65,7 @@
 
 <?php if ($mode === 'list'): ?>
 <h1>Pohyby – skladové doklady</h1>
-<p class="mv-muted">Doklad typu <strong>Výroba</strong> přičte hotový produkt a odepíše jeho skladové komponenty podle kusovníku. Doklad typu <strong>Korekce</strong> mění jen zvolenou položku, bez dopadu na komponenty (slouží i pro likvidaci, odpis a opravu stavu). Režim lze změnit i u jednotlivé položky.</p>
+<p class="mv-muted">Doklad typu <strong>Výroba</strong> přičte hotový produkt a odepíše jeho skladové komponenty podle kusovníku. Doklad typu <strong>Korekce</strong> mění jen zvolenou položku, bez dopadu na komponenty (slouží i pro likvidaci, odpis a opravu stavu). Režim lze změnit i u jednotlivé položky. Doklad typu <strong>Inventura</strong> vzniká automaticky uzavřením inventury a obsahuje jen položky s rozdílem.</p>
 
 <div class="mv-toolbar">
   <form method="get" action="/movements">
@@ -75,6 +76,7 @@
         <option value="">Vše</option>
         <option value="vyroba"<?= $filters['typ'] === 'vyroba' ? ' selected' : '' ?>>Výroba</option>
         <option value="korekce"<?= $filters['typ'] === 'korekce' ? ' selected' : '' ?>>Korekce</option>
+        <option value="inventura"<?= $filters['typ'] === 'inventura' ? ' selected' : '' ?>>Inventura</option>
       </select>
     </label>
     <label>Hledat <input type="text" name="q" value="<?= $h($filters['q']) ?>" placeholder="číslo, SKU, poznámka, uživatel" /></label>
@@ -109,6 +111,8 @@
 <?php else: ?>
 <?php
   $canEdit = ($lock === null);
+  $isInv = (($doc['typ'] ?? '') === 'inventura');
+  $canEditNote = !empty($canEditNote);
   $docId = (int)$doc['id'];
 ?>
 <p><a href="/movements">← Seznam dokladů</a></p>
@@ -122,7 +126,9 @@
   <div class="field">Datum<strong><?= $h(date('j. n. Y', strtotime((string)$doc['datum']))) ?></strong></div>
   <div class="field">Založil<strong><?= $h($doc['user_email']) ?></strong></div>
   <div class="field"><span>Typ dokladu <span class="mv-help" tabindex="0">?<span class="mv-tip"><b>Výroba</b> – přičte produkt a odepíše jeho skladové komponenty podle kusovníku.<br><br><b>Korekce</b> – mění jen zvolenou položku, bez dopadu na komponenty. Slouží i pro likvidaci, odpis a opravu stavu.<br><br>Typ dokladu je výchozí režim pro nově vkládané položky, u každé položky jde režim změnit.</span></span></span>
-    <?php if ($canEdit): ?>
+    <?php if ($isInv): ?>
+      <strong>Inventura <?php if (!empty($doc['inventura_id'])): ?><a href="/inventory?inventory_id=<?= (int)$doc['inventura_id'] ?>" style="font-weight:normal; font-size:.9rem;">detail inventury #<?= (int)$doc['inventura_id'] ?></a><?php endif; ?></strong>
+    <?php elseif ($canEdit): ?>
       <select id="mv-typ">
         <option value="vyroba"<?= $doc['typ'] === 'vyroba' ? ' selected' : '' ?>>Výroba</option>
         <option value="korekce"<?= $doc['typ'] === 'korekce' ? ' selected' : '' ?>>Korekce</option>
@@ -134,14 +140,18 @@
   <div class="field">
     <span>Akce</span>
     <span>
+      <?php if ($isInv): ?>
+        <span class="mv-muted">Inventární doklad se maže jen spolu s inventurou.</span>
+      <?php else: ?>
       <form method="post" action="/movements/delete" style="display:inline" onsubmit="return confirm('Smazat prázdný doklad <?= $h($doc['cislo']) ?>?');">
         <input type="hidden" name="id" value="<?= $docId ?>" />
         <button type="submit" class="mv-btn danger" id="mv-delete-doc"<?= (!$canEdit || (int)$doc['radku'] > 0) ? ' disabled' : '' ?> title="<?= (int)$doc['radku'] > 0 ? 'Doklad obsahuje položky – nejdřív je smažte.' : ($canEdit ? 'Smazat prázdný doklad' : 'Doklad je uzamčen.') ?>">✕ Smazat doklad</button>
       </form>
+      <?php endif; ?>
     </span>
   </div>
   <div class="field wide">Poznámka (odůvodnění)
-    <?php if ($canEdit): ?>
+    <?php if ($canEdit || $canEditNote): ?>
       <textarea id="mv-poznamka" placeholder="Např. výroba pro objednávku X, likvidace prošlé šarže, oprava po inventuře…"><?= $h($doc['poznamka'] ?? '') ?></textarea>
       <span class="mv-muted" id="mv-head-status">Změny se ukládají automaticky.</span>
     <?php else: ?>
@@ -186,12 +196,21 @@
 <div id="mv-line-error" class="mv-err" style="display:none"></div>
 <table class="mv-lines" id="mv-lines">
   <thead>
+    <?php if ($isInv): ?>
+    <tr>
+      <th>SKU</th><th>Název</th>
+      <th class="num">Očekávaný stav</th><th class="num">Zjištěný stav</th>
+      <th class="num">Rozdíl <span class="mv-help" tabindex="0">?<span class="mv-tip">Zjištěný stav − očekávaný stav v okamžiku uzavření inventury. Zobrazují se jen položky s nenulovým rozdílem; položky beze změny doklad neobsahuje.</span></span></th>
+      <th>MJ</th>
+    </tr>
+    <?php else: ?>
     <tr>
       <th>SKU</th><th>Název</th><th>Režim</th>
       <th class="num">Množství</th><th>MJ</th>
       <th class="num">Stav před</th><th class="num">Stav po <span class="mv-help" tabindex="0">?<span class="mv-tip">Aktuální fyzický stav skladu po zapsání tohoto řádku. <b>Červeně</b> = záporný stav, položka je vyskladněná do mínusu.</span></span></th>
       <th></th>
     </tr>
+    <?php endif; ?>
   </thead>
   <tbody></tbody>
 </table>
@@ -204,12 +223,14 @@
 <script>
 (function () {
   const DOC_ID = <?= $docId ?>;
+  const DOC_TYP = <?= json_encode((string)$doc['typ']) ?>;
   const CAN_EDIT = <?= $canEdit ? 'true' : 'false' ?>;
+  const CAN_EDIT_NOTE = <?= ($canEdit || $canEditNote) ? 'true' : 'false' ?>;
   let lines = <?= json_encode($lines ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   let log = <?= json_encode($log ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   const tbody = document.querySelector('#mv-lines tbody');
   const errBox = document.getElementById('mv-line-error');
-  const AKCE = { vytvoreni: 'založení', hlavicka: 'hlavička', pridani: 'přidání', zmena_mnozstvi: 'změna množství', zmena_rezimu: 'změna režimu', smazani: 'smazání' };
+  const AKCE = { vytvoreni: 'založení', hlavicka: 'hlavička', pridani: 'přidání', zmena_mnozstvi: 'změna množství', zmena_rezimu: 'změna režimu', smazani: 'smazání', inventura_uzavrena: 'inventura uzavřena', inventura_otevrena: 'inventura otevřena' };
 
   const fmt = (v) => {
     const n = Number(v);
@@ -225,6 +246,17 @@
   }
 
   function renderLines() {
+    if (DOC_TYP === 'inventura') {
+      if (!lines.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="mv-muted">Inventura nemá žádné položky s rozdílem (nebo je znovu otevřená – položky se připojí při jejím uzavření).</td></tr>';
+        return;
+      }
+      tbody.innerHTML = lines.map((l) => {
+        const d = Number(l.mnozstvi);
+        return `<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}<td class="num${d < 0 ? ' neg' : ''}">${d > 0 ? '+' : ''}${fmt(d)}</td><td>${esc(l.mj)}</td></tr>`;
+      }).join('');
+      return;
+    }
     if (!lines.length) {
       tbody.innerHTML = '<tr><td colspan="8" class="mv-muted">Doklad zatím nemá položky' + (CAN_EDIT ? ' – vyhledejte produkt níže a klikněte na Vložit.' : '.') + '</td></tr>';
       return;
@@ -280,9 +312,9 @@
 
   renderLines();
   renderLog();
-  if (!CAN_EDIT) return;
+  if (!CAN_EDIT && !CAN_EDIT_NOTE) return;
 
-  // Hlavička – autosave
+  // Hlavička – autosave (u inventárního dokladu jen poznámka, typ se nemění)
   const typSel = document.getElementById('mv-typ');
   const pozn = document.getElementById('mv-poznamka');
   const headStatus = document.getElementById('mv-head-status');
@@ -290,18 +322,22 @@
   async function saveHeader() {
     headStatus.textContent = 'Ukládám…';
     try {
-      await call('/movements/header', { typ: typSel.value, poznamka: pozn.value });
-      const badge = document.getElementById('mv-typ-badge');
-      badge.textContent = typSel.value === 'vyroba' ? 'Výroba' : 'Korekce';
-      badge.className = 'mv-badge ' + typSel.value;
+      const typ = typSel ? typSel.value : DOC_TYP;
+      await call('/movements/header', { typ, poznamka: pozn.value });
+      if (typSel) {
+        const badge = document.getElementById('mv-typ-badge');
+        badge.textContent = typSel.value === 'vyroba' ? 'Výroba' : 'Korekce';
+        badge.className = 'mv-badge ' + typSel.value;
+      }
       headStatus.textContent = 'Uloženo ' + new Date().toLocaleTimeString('cs-CZ');
     } catch (e) {
       headStatus.textContent = 'Chyba: ' + e.message;
     }
   }
-  typSel.addEventListener('change', saveHeader);
+  if (typSel) typSel.addEventListener('change', saveHeader);
   pozn.addEventListener('input', () => { clearTimeout(headTimer); headTimer = setTimeout(saveHeader, 700); });
   pozn.addEventListener('blur', () => { clearTimeout(headTimer); saveHeader(); });
+  if (!CAN_EDIT) return;
 
   // Živé vyhledávání produktů (bez tlačítka) – max 10 výsledků
   const searchForm = document.getElementById('mv-search');
