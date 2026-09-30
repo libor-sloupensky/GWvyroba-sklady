@@ -505,7 +505,9 @@ final class ProductionController
 
         $ref = (string)($_POST['ref_id'] ?? '');
 
-        if ($ref !== '') {
+        // Řádky skladových dokladů (ref dok-…) se mažou jen přes doklad v záložce Pohyby,
+        // jinak by zůstal doklad bez řádků a rozešel se log.
+        if ($ref !== '' && strncmp($ref, 'dok-', 4) !== 0) {
 
             DB::pdo()->prepare('DELETE FROM polozky_pohyby WHERE ref_id=?')->execute([$ref]);
             DB::pdo()->prepare('UPDATE produkty p JOIN polozky_pohyby pp ON pp.ref_id=? AND pp.sku=p.sku SET p.dovyrobit = GREATEST(p.dovyrobit - ABS(pp.mnozstvi),0)')->execute([$ref]);

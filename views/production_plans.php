@@ -53,6 +53,10 @@
 
 
   $recentProductions = $recentProductions ?? [];
+  // Sloupec „Akce" (Vyrobit / Korekce) je od 2026-09-30 skrytý – zápis pohybů
+  // převzala záložka Pohyby (skladové doklady). Kód formuláře, JS i endpointy
+  // zůstávají, sloupec se zruší při sloučení Výroby s Produkty.
+  $showActionColumn = false;
 
 
 
@@ -2141,7 +2145,7 @@
 
 
 
-        <th>Akce</th>
+        <?php if ($showActionColumn): ?><th>Akce</th><?php endif; ?>
 
 
 
@@ -2361,6 +2365,7 @@
 
 
 
+        <?php if ($showActionColumn): ?>
         <td>
 
 
@@ -2412,6 +2417,7 @@
 
 
         </td>
+        <?php endif; ?>
 
 
 
