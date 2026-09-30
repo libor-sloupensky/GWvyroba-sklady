@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function () {
       groups: <?= json_encode(array_map(fn($g) => ['value'=>(string)$g['id'],'label'=>$g['nazev']], $groups ?? []), JSON_UNESCAPED_UNICODE) ?>,
       units:  <?= json_encode(array_map(fn($u) => ['value'=>$u['kod'],'label'=>$u['kod']], $units ?? []), JSON_UNESCAPED_UNICODE) ?>,
       types:  <?= json_encode(array_map(fn($t) => ['value'=>$t,'label'=>$t], $types ?? []), JSON_UNESCAPED_UNICODE) ?>,
-      active: [{value:'1',label:'✓'},{value:'0',label:'✕'}],
+      active: [{value:'1',label:'Ano'},{value:'0',label:'Ne'}],
       stockModes: [{value:'auto',label:'Automaticky'},{value:'manual',label:'Manuálně'}]
     };
 
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       closeBomRow();
       const toggle = cell.querySelector('.sku-toggle');
-      if (toggle) toggle.textContent = '▾';
+      if (toggle) toggle.innerHTML = LUCIDE['chevron-down'];
       row.classList.add('bom-open');
       const detailRow = document.createElement('tr');
       detailRow.className = 'bom-tree-row';
@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeBomRow() {
       if (!bomState.row) return;
       const toggle = bomState.row.querySelector('.sku-toggle');
-      if (toggle) toggle.textContent = '▸';
+      if (toggle) toggle.innerHTML = LUCIDE['chevron-right'];
       bomState.row.classList.remove('bom-open');
       if (bomState.detail) bomState.detail.remove();
       bomState = { row: null, detail: null };
@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function () {
           const delBtn = document.createElement('button');
           delBtn.type = 'button';
           delBtn.className = 'bom-action-btn bom-action-btn--danger';
-          delBtn.textContent = '×';
+          delBtn.innerHTML = LUCIDE.x;
           delBtn.title = 'Smazat vazbu';
           delBtn.addEventListener('click', () => deleteBomLink(rowData.parentSku, rowData.node.sku, refresh));
           actions.appendChild(delBtn);
@@ -678,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function formatDisplay(field, value) {
       if (value === undefined || value === null || value === '') return '';
-      if (field === 'aktivni') return value === '1' ? '✓' : (value === '0' ? '✕' : '');
+      if (field === 'aktivni') return value === '1' ? 'Ano' : (value === '0' ? 'Ne' : '');
       if (field === 'znacka_id') return lookupLabel(meta.brands, value);
       if (field === 'skupina_id') return lookupLabel(meta.groups, value);
       return value;
@@ -891,7 +891,7 @@ document.addEventListener('DOMContentLoaded', function () {
           <?php foreach ($bomOrphans as $orphan): ?>
             <li>
               <?= htmlspecialchars($orphan['rodic_sku'],ENT_QUOTES,'UTF-8') ?>
-              → <?= htmlspecialchars($orphan['potomek_sku'],ENT_QUOTES,'UTF-8') ?>
+              <?= ikona('arrow-right', 14, 'ikona-muted') ?> <?= htmlspecialchars($orphan['potomek_sku'],ENT_QUOTES,'UTF-8') ?>
               (<?= $orphan['missing_parent'] ? 'chybí rodič' : '' ?><?= ($orphan['missing_parent'] && $orphan['missing_child']) ? ', ' : '' ?><?= $orphan['missing_child'] ? 'chybí potomek' : '' ?>)
             </li>
           <?php endforeach; ?>
@@ -950,7 +950,7 @@ document.addEventListener('DOMContentLoaded', function () {
       <button type="submit">Vyhledat</button>
       <?php if ($hasSearchActive): ?>
         <span class="search-result-pill">Zobrazeno <?= $resultCount ?></span>
-        <a href="/products" class="search-reset" title="Zrušit filtr" aria-label="Zrušit filtr">×</a>
+        <a href="/products" class="search-reset" title="Zrušit filtr" aria-label="Zrušit filtr"><?= ikona('x', 14) ?></a>
       <?php endif; ?>
     </div>
   </form>
@@ -983,7 +983,7 @@ document.addEventListener('DOMContentLoaded', function () {
   <?php foreach (($items ?? []) as $it): ?>
   <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
     <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-      <span class="sku-toggle">▸</span>
+      <span class="sku-toggle"><?= ikona('chevron-right', 14) ?></span>
       <span class="<?= (int)$it['aktivni'] ? '' : 'inactive-sku' ?>"><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
     </td>
     <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
@@ -1002,14 +1002,14 @@ document.addEventListener('DOMContentLoaded', function () {
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
     <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? '✓' : '✕' ?></td>
+    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? 'Ano' : 'Ne' ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
     <?php if (!empty($isSuperadmin)): ?>
     <td class="del-cell" style="text-align:center;">
       <?php if ((int)($it['can_delete'] ?? 0) === 1): ?>
         <form method="post" action="/products/delete" style="margin:0;" onsubmit="return confirm('Opravdu smazat produkt <?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>? Akce je nevratná.');">
           <input type="hidden" name="sku" value="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-          <button type="submit" class="del-btn" title="Smazat produkt (není v kusovníku a nemá pohyby)">✕</button>
+          <button type="submit" class="del-btn" title="Smazat produkt (není v kusovníku a nemá pohyby)"><?= ikona('x', 14) ?></button>
         </form>
       <?php else: ?>
         <span class="del-disabled" title="Nelze smazat — produkt je v kusovníku (BOM) nebo má historické pohyby">–</span>

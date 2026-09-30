@@ -21,8 +21,8 @@
     </thead>
     <tbody>
       <?php foreach ($grouped as $email => $dates): ?>
-        <tr style="border-bottom:1px solid #eceff1; cursor:pointer;" onclick="var d=document.getElementById('hist-<?= md5($email) ?>');d.style.display=d.style.display==='none'?'':'none'; var t=this.querySelector('.tri');t.textContent=d.style.display===''?'\u25BC':'\u25B6';">
-          <td style="padding:0.4rem 0.75rem; color:#90a4ae;"><span class="tri"><?= count($dates) > 1 ? '&#9654;' : '' ?></span></td>
+        <tr style="border-bottom:1px solid #eceff1; cursor:pointer;" onclick="var d=document.getElementById('hist-<?= md5($email) ?>');d.style.display=d.style.display==='none'?'':'none'; var t=this.querySelector('.tri');t.innerHTML=d.style.display===''?LUCIDE['chevron-down']:LUCIDE['chevron-right'];">
+          <td style="padding:0.4rem 0.75rem; color:#90a4ae;"><span class="tri"><?= count($dates) > 1 ? ikona('chevron-right', 14) : '' ?></span></td>
           <td style="padding:0.4rem 0.75rem; font-weight:600;"><?= htmlspecialchars($email, ENT_QUOTES, 'UTF-8') ?></td>
           <td style="padding:0.4rem 0.75rem;"><?= htmlspecialchars($dates[0], ENT_QUOTES, 'UTF-8') ?></td>
           <td style="padding:0.4rem 0.75rem; text-align:right; color:#78909c;"><?= count($dates) ?>&times;</td>

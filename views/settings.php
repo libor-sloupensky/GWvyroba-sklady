@@ -14,10 +14,10 @@
 <style>
 .settings-toggle { cursor:pointer; user-select:none; }
 .settings-toggle:hover { color:#1565c0; }
-.settings-toggle .tri { display:inline-block; width:1em; font-size:0.8em; }
+.settings-toggle .tri { display:inline-block; width:1.2em; color:#607d8b; vertical-align:-0.1em; }
 </style>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> E-shopy a fakturační řady</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> E-shopy a fakturační řady</h2>
 <div class="settings-section" style="display:none;">
 <style>
 .series-form fieldset { border:1px solid #cfd8dc; border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.75rem; }
@@ -70,7 +70,7 @@
       <?php if (empty($s['has_imports'])): ?>
         <form method="post" action="/settings/series/delete" style="display:inline;margin-left:8px;">
           <input type="hidden" name="id" value="<?= (int)$s['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop">&#10005;</button>
+          <button type="submit" class="link-danger" title="Smazat e-shop" aria-label="Smazat e-shop"><?= ikona('x', 14) ?></button>
         </form>
       <?php else: ?>
         <span class="muted" title="E-shop ma importovana data, nejde smazat.">nelze smazat</span>
@@ -104,7 +104,7 @@
 <div id="series-form-wrapper" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;background:#f5f5f5;border:1px solid #cfd8dc;border-radius:6px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
     <strong id="series-form-title">Novy e-shop</strong>
-    <button type="button" id="btn-cancel-series" style="cursor:pointer;background:none;border:none;font-size:1.2rem;color:#78909c;" title="Zavrit">&times;</button>
+    <button type="button" id="btn-cancel-series" style="cursor:pointer;background:none;border:none;font-size:1.2rem;color:#78909c;" title="Zavřít"><?= ikona('x', 16) ?></button>
   </div>
   <form method="post" action="/settings/series" id="series-form" class="series-form">
     <input type="hidden" name="id" value="" />
@@ -208,7 +208,7 @@
 </script>
 </div>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> Ignorované položky</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Ignorované položky</h2>
 <div class="settings-section" style="display:none;">
 <form method="post" action="/settings/ignore">
   <label>Glob vzor (např. *SHIPPING*)</label>
@@ -221,14 +221,14 @@
       <span><?= htmlspecialchars((string)$i['vzor'], ENT_QUOTES, 'UTF-8') ?></span>
       <form method="post" action="/settings/ignore/delete" style="display:inline;margin-left:8px;">
         <input type="hidden" name="id" value="<?= (int)$i['id'] ?>" />
-        <button type="submit" class="link-danger" title="Odebrat vzor" aria-label="Odebrat vzor">✕</button>
+        <button type="submit" class="link-danger" title="Odebrat vzor" aria-label="Odebrat vzor"><?= ikona('x', 14) ?></button>
       </form>
     </li>
   <?php endforeach; ?>
 </ul>
 </div>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> Značky produktů</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Značky produktů</h2>
 <div class="settings-section" style="display:none;">
 <form method="post" action="/settings/brand">
   <label>Název značky</label>
@@ -244,7 +244,7 @@
       <?php if ((int)($b['used_count'] ?? 0) === 0): ?>
         <form method="post" action="/settings/brand/delete" style="display:inline;">
           <input type="hidden" name="id" value="<?= (int)$b['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat značku" aria-label="Smazat značku">✕</button>
+          <button type="submit" class="link-danger" title="Smazat značku" aria-label="Smazat značku"><?= ikona('x', 14) ?></button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= (int)$b['used_count'] ?>)</span>
@@ -255,7 +255,7 @@
 </table>
 </div>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> Skupiny produktů</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Skupiny produktů</h2>
 <div class="settings-section" style="display:none;">
 <form method="post" action="/settings/group">
   <label>Název skupiny</label>
@@ -271,7 +271,7 @@
       <?php if ((int)($g['used_count'] ?? 0) === 0): ?>
         <form method="post" action="/settings/group/delete" style="display:inline;">
           <input type="hidden" name="id" value="<?= (int)$g['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat skupinu" aria-label="Smazat skupinu">✕</button>
+          <button type="submit" class="link-danger" title="Smazat skupinu" aria-label="Smazat skupinu"><?= ikona('x', 14) ?></button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= (int)$g['used_count'] ?>)</span>
@@ -282,7 +282,7 @@
 </table>
 </div>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> Typy produktů</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Typy produktů</h2>
 <div class="settings-section" style="display:none;">
 <form method="post" action="/settings/type" id="product-type-form">
   <input type="hidden" name="id" value="" />
@@ -293,7 +293,7 @@
   <label>
     <input type="checkbox" name="is_nonstock" />
     Neskladová sada
-    <span class="info-icon" title="Neskladová sada: neodepisuje se sama, ale odepisují se její potomci.">i</span>
+    <span class="info-icon" title="Neskladová sada: neodepisuje se sama, ale odepisují se její potomci."><?= ikona('info', 14) ?></span>
   </label>
   <button type="submit">Uložit typ</button>
 </form>
@@ -316,7 +316,7 @@
       <?php if ($usedTotal === 0): ?>
         <form method="post" action="/settings/type/delete" style="display:inline;margin-left:8px;">
           <input type="hidden" name="id" value="<?= (int)$t['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat typ" aria-label="Smazat typ">✕</button>
+          <button type="submit" class="link-danger" title="Smazat typ" aria-label="Smazat typ"><?= ikona('x', 14) ?></button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= $usedTotal ?>)</span>
@@ -353,7 +353,7 @@
 </script>
 </div>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> Měrné jednotky</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Měrné jednotky</h2>
 <div class="settings-section" style="display:none;">
 <form method="post" action="/settings/unit">
   <label>Kód jednotky (např. ks, kg)</label>
@@ -369,7 +369,7 @@
       <?php if ((int)($u['used_count'] ?? 0) === 0): ?>
         <form method="post" action="/settings/unit/delete" style="display:inline;">
           <input type="hidden" name="id" value="<?= (int)$u['id'] ?>" />
-          <button type="submit" class="link-danger" title="Smazat jednotku" aria-label="Smazat jednotku">✕</button>
+          <button type="submit" class="link-danger" title="Smazat jednotku" aria-label="Smazat jednotku"><?= ikona('x', 14) ?></button>
         </form>
       <?php else: ?>
         <span class="muted">nelze smazat (<?= (int)$u['used_count'] ?>)</span>
@@ -380,22 +380,10 @@
 </table>
 </div>
 
-<h2 class="settings-toggle"><span class="tri">▸</span> Globální nastavení</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Globální nastavení</h2>
 <div class="settings-section" style="display:none;">
 <style>
-.info-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #eceff1;
-  color: #37474f;
-  font-size: 0.8rem;
-  margin-left: 0.35rem;
-  cursor: help;
-}
+.info-icon { display:inline-flex; align-items:center; color:#607d8b; cursor:help; margin-left:.25rem; }\n.info-icon:hover { color:#263238; }
 .global-settings-form label {
   font-weight: 600;
   display: flex;
@@ -415,7 +403,7 @@
 <form method="post" action="/settings/global" class="global-settings-form">
   <label>
     Počet dní sledování chyb importu XML
-    <span class="info-icon" title="Kolik dní zpětně se v importu XML vyhodnocují nenapárované položky.">i</span>
+    <span class="info-icon" title="Kolik dní zpětně se v importu XML vyhodnocují nenapárované položky."><?= ikona('info', 14) ?></span>
   </label>
   <div class="global-setting-row">
     <input type="number" name="okno_pro_prumer_dni" value="<?= (int)($glob['okno_pro_prumer_dni'] ?? 30) ?>" min="1" />
@@ -424,7 +412,7 @@
 
   <label>
     Počet dní pro výpočet průměrné spotřeby
-    <span class="info-icon" title="Délka okna pro výpočet průměrného denního odběru (např. 90 dní = 3 měsíce).">i</span>
+    <span class="info-icon" title="Délka okna pro výpočet průměrného denního odběru (např. 90 dní = 3 měsíce)."><?= ikona('info', 14) ?></span>
   </label>
   <div class="global-setting-row">
     <input type="number" name="spotreba_prumer_dni" value="<?= (int)($glob['spotreba_prumer_dni'] ?? 90) ?>" min="1" />
@@ -433,7 +421,7 @@
 
   <label>
     Počet dní skladových zásob
-    <span class="info-icon" title="Na kolik dní dopředu mají být sklady naplněny (cílový stav hotových produktů).">i</span>
+    <span class="info-icon" title="Na kolik dní dopředu mají být sklady naplněny (cílový stav hotových produktů)."><?= ikona('info', 14) ?></span>
   </label>
   <div class="global-setting-row">
     <input type="number" name="zasoba_cil_dni" value="<?= (int)($glob['zasoba_cil_dni'] ?? 30) ?>" min="1" />
@@ -443,7 +431,7 @@
 </div>
 
 <?php if (!empty($canManageUsers)): ?>
-<h2 class="settings-toggle"><span class="tri">▸</span> Uživatelé</h2>
+<h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Uživatelé</h2>
 <div class="settings-section" style="display:none;">
 <p class="muted">Přihlášení probíhá přes Google Workspace. Přidáním e-mailu přístup povolíte, křížkem ho odeberete. Roli měníte přímo v seznamu, uloží se sama. Vlastní účet měnit ani mazat nelze.</p>
 <?php
@@ -462,7 +450,7 @@
       <?php endforeach; ?>
     </select>
   </label>
-  <button type="submit">＋ Přidat uživatele</button>
+  <button type="submit" class="ikona-btn"><?= ikona('plus', 14) ?> Přidat uživatele</button>
 </form>
 <div id="user-status" class="muted" style="min-height:1.2em;"></div>
 <table id="user-table">
@@ -487,7 +475,7 @@
       <?php if (!$isMe): ?>
       <form method="post" action="/settings/users/delete" style="display:inline;" onsubmit="return confirm('Opravdu odebrat přístup uživateli <?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?>? Účet bude smazán.');">
         <input type="hidden" name="id" value="<?= (int)$user['id'] ?>" />
-        <button type="submit" title="Smazat uživatele" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:1.1rem; line-height:1;">✕</button>
+        <button type="submit" title="Smazat uživatele" style="background:none; border:none; color:#c62828; cursor:pointer; line-height:1;"><?= ikona('x', 16) ?></button>
       </form>
       <?php endif; ?>
     </td>
@@ -536,10 +524,10 @@
       if (!body) return;
       if (body.style.display === 'none') {
         body.style.display = '';
-        tri.textContent = '\u25BE';
+        tri.innerHTML = LUCIDE['chevron-down'];
       } else {
         body.style.display = 'none';
-        tri.textContent = '\u25B8';
+        tri.innerHTML = LUCIDE['chevron-right'];
       }
     });
   });

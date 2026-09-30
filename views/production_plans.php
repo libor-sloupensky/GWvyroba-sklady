@@ -131,7 +131,8 @@
 
 .page-note { margin-top:-0.2rem; color:#546e7a; }
 .with-tooltip { display:inline-flex; align-items:center; gap:0.35rem; white-space:nowrap; font-weight:inherit; }
-.info-icon { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#eceff1; color:#37474f; font-size:0.8rem; cursor:help; }
+.info-icon { display:inline-flex; align-items:center; color:#607d8b; cursor:help; }
+.info-icon:hover { color:#263238; }
 
 
 
@@ -1995,7 +1996,7 @@
 
 
 
-        <a href="/production/plans" class="search-reset" title="Zrušit filtr">&times;</a>
+        <a href="/production/plans" class="search-reset" title="Zrušit filtr"><?= ikona('x', 14) ?></a>
 
 
 
@@ -2087,7 +2088,7 @@
 
 
 
-        <th><span class="with-tooltip">SKU <span class="info-icon" title="• Kliknutím na SKU se rozbalí strom potomků se skladovými dostupnostmi&#10;• Barevná stupnice ukazuje, jaký podíl z hodnoty 'Dovyrobit' lze aktuálně vyrobit z dostupných přímých surovin (1. úroveň BOM)&#10;• Zelená = lze vyrobit vše, oranžová = částečně, červená = nedostatek materiálu">i</span></span></th>
+        <th><span class="with-tooltip">SKU <span class="info-icon" title="• Kliknutím na SKU se rozbalí strom potomků se skladovými dostupnostmi&#10;• Barevná stupnice ukazuje, jaký podíl z hodnoty 'Dovyrobit' lze aktuálně vyrobit z dostupných přímých surovin (1. úroveň BOM)&#10;• Zelená = lze vyrobit vše, oranžová = částečně, červená = nedostatek materiálu"><?= ikona('info', 14) ?></span></span></th>
 
 
 
@@ -2111,13 +2112,13 @@
 
 
 
-        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje celkovou poptávku po produktu z BOM kaskády&#10;• Pro finální výrobky: denní spotřeba × cílové dny zásoby&#10;• Pro komponenty: součet poptávky od všech rodičovských produktů&#10;• Pokud existují rezervace, jsou zobrazeny v závorce&#10;• Vztah: Dovyrobit = max(0, Cílový stav − dostupné), dostupné = stav − rezervace">i</span></th>
+        <th>Cílový stav<br><span style="font-size: 0.85em; font-weight: normal;">(rezervace)</span> <span class="info-icon" title="• Zobrazuje celkovou poptávku po produktu z BOM kaskády&#10;• Pro finální výrobky: denní spotřeba × cílové dny zásoby&#10;• Pro komponenty: součet poptávky od všech rodičovských produktů&#10;• Pokud existují rezervace, jsou zobrazeny v závorce&#10;• Vztah: Dovyrobit = max(0, Cílový stav − dostupné), dostupné = stav − rezervace"><?= ikona('info', 14) ?></span></th>
 
 
 
 
 
-        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit':&#10;• Vycházíme z průměrné denní poptávky za nastavený počet dnů&#10;• U kořenových položek v auto režimu násobíme cílovým počtem dní zásoby&#10;• U komponent je cíl jen potřeba rodičů (dovyrobit rodiče × koeficient)&#10;• Odečteme aktuální zásoby mínus rezervace&#10;• U neskladových typů se cíl nekrátí o stav, jen se propaguje dál&#10;&#10;Barevná stupnice (priorita):&#10;• Červená = vysoká priorita výroby (velký deficit)&#10;• Oranžová = střední priorita&#10;• Zelená = nízká priorita / dostatek zásob">i</span></th><!-- noop refresh -->
+        <th>Dovyrobit <span class="info-icon" title="Jak se počítá 'Dovyrobit':&#10;• Vycházíme z průměrné denní poptávky za nastavený počet dnů&#10;• U kořenových položek v auto režimu násobíme cílovým počtem dní zásoby&#10;• U komponent je cíl jen potřeba rodičů (dovyrobit rodiče × koeficient)&#10;• Odečteme aktuální zásoby mínus rezervace&#10;• U neskladových typů se cíl nekrátí o stav, jen se propaguje dál&#10;&#10;Barevná stupnice (priorita):&#10;• Červená = vysoká priorita výroby (velký deficit)&#10;• Oranžová = střední priorita&#10;• Zelená = nízká priorita / dostatek zásob"><?= ikona('info', 14) ?></span></th><!-- noop refresh -->
 
 
 
@@ -2273,7 +2274,7 @@
 
           <div class="sku-availability">
             <div class="sku-availability-content">
-              <span class="sku-toggle">▸</span>
+              <span class="sku-toggle"><?= ikona('chevron-right', 14) ?></span>
               <span class="sku-value <?= empty($item['aktivni']) ? 'inactive-sku' : '' ?>"><?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?></span>
             </div>
             <?php if ($deficit > 0): ?>
@@ -2307,7 +2308,7 @@
 
         <td class="qty-cell">
           <span class="available-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
-            <span class="available-toggle">▸</span>
+            <span class="available-toggle"><?= ikona('chevron-right', 14) ?></span>
             <span class="available-value"><?= $formatQty(($item['available'] ?? 0) + ($item['reservations'] ?? 0)) ?></span>
           </span>
         </td>
@@ -2331,7 +2332,7 @@
         <td class="qty-cell deficit-cell">
           <div class="deficit-with-bar">
             <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
-              <span class="demand-toggle">▸</span>
+              <span class="demand-toggle"><?= ikona('chevron-right', 14) ?></span>
               <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
             </span>
             <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= $ratioPct . '%' ?>"></span></div>
@@ -3631,7 +3632,7 @@ closeModal();
 
 
 
-    if (toggle) toggle.textContent = '▾';
+    if (toggle) toggle.innerHTML = LUCIDE['chevron-down'];
 
 
 
@@ -3728,7 +3729,7 @@ closeModal();
 
 
 
-    if (toggle) toggle.textContent = '▸';
+    if (toggle) toggle.innerHTML = LUCIDE['chevron-right'];
 
 
 
@@ -4225,7 +4226,7 @@ closeModal();
 
 
 
-    if (toggle) toggle.textContent = '▾';
+    if (toggle) toggle.innerHTML = LUCIDE['chevron-down'];
 
 
 
@@ -4315,7 +4316,7 @@ closeModal();
 
 
 
-    if (demandState.toggle) demandState.toggle.textContent = '▸';
+    if (demandState.toggle) demandState.toggle.innerHTML = LUCIDE['chevron-right'];
 
 
 
@@ -4711,7 +4712,7 @@ closeModal();
 
 
     const rootUnit = tree.merna_jednotka || '';
-    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>Dovyrobit <span class="info-icon" title="Hodnota 'dovyrobit' pro tento uzel v jeho měrné jednotce.">i</span></th><th>Požadavek na ${tree.sku} <span class="info-icon" title="Příspěvek všech rodičů přepočtený do měrné jednotky kořene (${rootUnit || '—'}).">i</span></th><th>Koeficient</th><th>Režim</th></tr></thead>`;
+    table.innerHTML = `<thead><tr><th>Strom poptávky</th><th>Dovyrobit <span class="info-icon" title="Hodnota 'dovyrobit' pro tento uzel v jeho měrné jednotce."><?= ikona('info', 14) ?></span></th><th>Požadavek na ${tree.sku} <span class="info-icon" title="Příspěvek všech rodičů přepočtený do měrné jednotky kořene (${rootUnit || '—'})."><?= ikona('info', 14) ?></span></th><th>Koeficient</th><th>Režim</th></tr></thead>`;
 
 
 

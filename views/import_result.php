@@ -141,7 +141,7 @@ $currentView = $viewMode ?? 'unmatched';
       <?php foreach (($invoiceRows ?? []) as $idx => $row): ?>
         <tr>
           <td>
-            <span class="row-toggle invoice-toggle" onclick="toggleInvoiceDetail(<?= $idx ?>)">▸</span>
+            <span class="row-toggle invoice-toggle" onclick="toggleInvoiceDetail(<?= $idx ?>)"><?= ikona('chevron-right', 14) ?></span>
           </td>
           <td><?= htmlspecialchars((string)($row['eshop_source'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
           <td><?= htmlspecialchars((string)($row['duzp'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
@@ -152,7 +152,7 @@ $currentView = $viewMode ?? 'unmatched';
               <input type="hidden" name="eshop" value="<?= htmlspecialchars((string)($row['eshop_source'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
               <input type="hidden" name="cislo_dokladu" value="<?= htmlspecialchars((string)($row['cislo_dokladu'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
               <input type="hidden" name="limit" value="<?= (int)($invoiceLimit ?? 50) ?>">
-              <button type="submit" class="invoice-delete" title="Smazat fakturu">&times;</button>
+              <button type="submit" class="invoice-delete" title="Smazat fakturu"><?= ikona('x', 14) ?></button>
             </form>
           </td>
         </tr>
@@ -208,11 +208,11 @@ function toggleInvoiceDetail(idx) {
   if (detailRow.classList.contains('expanded')) {
     // Sbalit
     detailRow.classList.remove('expanded');
-    toggle.textContent = '▸';
+    toggle.innerHTML = LUCIDE['chevron-right'];
   } else {
     // Rozbalit
     detailRow.classList.add('expanded');
-    toggle.textContent = '▾';
+    toggle.innerHTML = LUCIDE['chevron-down'];
 
     // Načíst data pokud ještě nebyla načtena
     if (!loadedInvoices.has(idx)) {
@@ -333,7 +333,7 @@ function renderInvoiceDetail(data) {
         }
         html += '</td>';
       } else {
-        html += '<td style="text-align:right;">✓</td>';
+        html += '<td style="text-align:right;">' + LUCIDE.check + '</td>';
       }
     } else {
       html += '<td style="text-align:right;color:#c62828;font-weight:600;">Neodepsáno</td>';

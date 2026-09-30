@@ -28,6 +28,13 @@
 - Lokální dev: `public/` jako web root, přihlášení `admin@local` / `dokola` (pokud není Google OAuth aktivní)
 - Po změně views/JS: otevřít stránku v prohlížeči a projít scénář — čistý syntax check nestačí
 
+## Ikony — Lucide (od 2026-09-30, stejný přístup jako Kalkulio / TupTuDu Office)
+- **Vždy Lucide** přes `ikona('nazev', velikost, 'css-trida')` (helper v `src/bootstrap.php`, sada v `src/Support/Lucide.php`, vložené SVG, žádná závislost ani CDN). V JavaScriptu `LUCIDE['chevron-down']`, `LUCIDE.x` … (mapa vložená v `views/_layout.php`).
+- **Nikdy emoji ani ručně psané znaky** (✕ ▸ ▾ × ✓ ⚠ 🔒 ＋ ←) jako UI ikony. Textové značky ✓/✕ u stavu nahrazuje slovo Ano/Ne. Stromové čáry `└── ├──` u komponent zůstávají (nejsou ikona).
+- Barva se dědí z textu (`stroke="currentColor"`), velikost 14 px u tlačítek v tabulce, 16 px standard, 18 px nadpisy sekcí. Pomocné třídy `.ikona-btn` (ikona + text), `.ikona-muted`, `.ikona-danger`.
+- Novou ikonu **nekresli ručně**: `curl -sSL https://unpkg.com/lucide-static@1.34.0/icons/NAZEV.svg`, vnitřek `<svg>` vlož do `Lucide::IKONY`. Seznam dostupných: `Lucide::seznam()`, přehled na lucide.dev/icons.
+- Tooltipy: otazník `circle-help`, informace `info`; řazení tabulek přes CSS `background-image` s data-URI (viz `analytics_revenue.php`), protože `content:` SVG neumí.
+
 ## Databázové konvence
 - Všude `utf8mb4_czech_ci`
 - Názvy sloupců česky, snake_case (`castka_celkem`, `cislo_dokladu`, `duzp`)

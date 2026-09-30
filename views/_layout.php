@@ -67,12 +67,24 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
       transition: transform 0.15s ease;
     }
     .row-toggle:hover { color:#263238; }
+    /* Ikony Lucide (App\Support\Lucide, helper ikona()) – dědí barvu textu, zarovnané na účaří */
+    svg.ikona { display:inline-block; vertical-align:-0.15em; flex-shrink:0; }
+    .ikona-btn { display:inline-flex; align-items:center; gap:.35rem; }
+    .ikona-muted { color:#90a4ae; }
+    .ikona-danger { color:#c62828; }
     @media print {
       header, .footer, .print-hide { display:none !important; }
       body { background:#fff; }
       .container { border:none; border-radius:0; margin:0; padding:0.5rem; }
     }
   </style>
+  <script>
+    // Ikony pro JavaScript ve view (stejná sada Lucide jako ikona() v PHP): LUCIDE.x, LUCIDE['chevron-down'] …
+    window.LUCIDE = <?= json_encode(array_combine(
+        ['x', 'check', 'chevron-right', 'chevron-down', 'chevron-up', 'trash-2', 'plus', 'info', 'circle-help', 'search', 'loader-circle', 'triangle-alert', 'arrow-right'],
+        array_map(static fn(string $n): string => \App\Support\Lucide::svg($n, 16), ['x', 'check', 'chevron-right', 'chevron-down', 'chevron-up', 'trash-2', 'plus', 'info', 'circle-help', 'search', 'loader-circle', 'triangle-alert', 'arrow-right'])
+    ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
+  </script>
 </head>
 <body>
   <header class="print-hide">

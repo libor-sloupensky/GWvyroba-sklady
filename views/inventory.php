@@ -231,7 +231,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
         <form method="post" action="/inventory/close" onsubmit="return confirm('Uzavřít aktuální inventuru?');">
           <label class="inventory-date-label">
             Datum provedení inventury
-            <span class="help-badge" title="Datum provedení inventury určuje, ke kterému okamžiku se inventura vztahuje. Pohyby s pozdějším datem budou zahrnuty až do další inventury.">i</span>
+            <span class="help-badge" title="Datum provedení inventury určuje, ke kterému okamžiku se inventura vztahuje. Pohyby s pozdějším datem budou zahrnuty až do další inventury."><?= ikona('circle-help', 14) ?></span>
             <?php
               $defaultPerformed = $inventory['opened_at'] ?? date('Y-m-d H:i:s');
               $defaultPerformed = date('Y-m-d\TH:i', strtotime($defaultPerformed));
@@ -292,18 +292,10 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
     <?php if ($hasSearchActive): ?>
       <span class="inventory-pill">Zobrazeno <?= $resultCount ?></span>
       <button type="button" class="inventory-print-btn" title="Tisk inventury" onclick="window.print()">
-        <span class="inventory-print-btn__icon" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 6 3 18 3 18 9"></polyline>
-            <path d="M6 14h12v7H6z"></path>
-            <path d="M6 18h12"></path>
-            <path d="M6 14H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"></path>
-            <circle cx="18" cy="10" r="1"></circle>
-          </svg>
-        </span>
+        <span class="inventory-print-btn__icon" aria-hidden="true"><?= ikona('printer', 16) ?></span>
         <span>Tisk</span>
       </button>
-      <a href="/inventory<?= $inventory ? '?inventory_id='.(int)$inventory['id'] : '' ?>" class="inventory-reset" title="Zrušit filtr" aria-label="Zrušit filtr">&times;</a>
+      <a href="/inventory<?= $inventory ? '?inventory_id='.(int)$inventory['id'] : '' ?>" class="inventory-reset" title="Zrušit filtr" aria-label="Zrušit filtr"><?= ikona('x', 14) ?></a>
     <?php endif; ?>
   </div>
 </form>
@@ -381,7 +373,7 @@ button.disabled { opacity:0.5; cursor:not-allowed; }
           <td><?= $row['poznamka'] ? htmlspecialchars((string)$row['poznamka'],ENT_QUOTES,'UTF-8') : '–' ?></td>
           <td class="inventory-history-actions">
             <?php if ($isAdmin && $isLatest): ?>
-              <button type="button" class="inventory-manage-trigger" data-id="<?= $rowId ?>" data-closed="<?= $row['closed_at'] ? '1' : '0' ?>" title="Spravovat inventuru">×</button>
+              <button type="button" class="inventory-manage-trigger" data-id="<?= $rowId ?>" data-closed="<?= $row['closed_at'] ? '1' : '0' ?>" title="Spravovat inventuru"><?= ikona('settings', 14) ?></button>
             <?php else: ?>
               <span class="muted">–</span>
             <?php endif; ?>

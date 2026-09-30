@@ -27,6 +27,16 @@ spl_autoload_register(function(string $class){
     if (is_file($path)) require_once $path;
 });
 
+/**
+ * Ikona Lucide jako vložené SVG (viz App\Support\Lucide). Použití ve view:
+ *   <?= ikona('x') ?>  <?= ikona('chevron-right', 14, 'row-toggle-icon') ?>
+ * Nikdy nepoužívat emoji ani ručně psané znaky (✕ ▸ ⚠ ×) jako UI ikony.
+ */
+function ikona(string $nazev, int $velikost = 16, string $class = '', ?string $title = null): string
+{
+    return \App\Support\Lucide::svg($nazev, $velikost, $class, $title);
+}
+
 // load config
 $cfgPath = dirname(__DIR__) . '/config/config.php';
 if (!is_file($cfgPath)) {

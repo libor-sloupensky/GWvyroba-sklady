@@ -22,7 +22,7 @@
     <h3><?= htmlspecialchars((string)$eshop,ENT_QUOTES,'UTF-8') ?></h3>
     <table>
       <tr>
-        <th class="help" title="Datum uskutečnění zdanitelného plnění">DUZP</th>
+        <th class="help" title="Datum uskutečnění zdanitelného plnění">DUZP <?= ikona('circle-help', 12, 'ikona-muted') ?></th>
         <th>Doklad</th>
         <th>Název</th>
         <th>Množství</th>

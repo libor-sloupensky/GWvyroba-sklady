@@ -86,9 +86,9 @@
 .margins-table th { background:#f1f5f9; font-weight:600; }
 .margins-table th.sortable { cursor:pointer; user-select:none; position:relative; padding-right:1.5rem; }
 .margins-table th.sortable:hover { background:#e3f2fd; }
-.margins-table th.sortable::after { content:'⇅'; position:absolute; right:0.4rem; color:#90a4ae; font-size:0.85em; }
-.margins-table th.sortable.asc::after { content:'▲'; color:#1565c0; }
-.margins-table th.sortable.desc::after { content:'▼'; color:#1565c0; }
+.margins-table th.sortable::after { content:''; position:absolute; right:0.4rem; top:50%; width:14px; height:14px; margin-top:-7px; background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2390a4ae%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m21%2016-4%204-4-4%22%20%2F%3E%3Cpath%20d%3D%22M17%2020V4%22%20%2F%3E%3Cpath%20d%3D%22m3%208%204-4%204%204%22%20%2F%3E%3Cpath%20d%3D%22M7%204v16%22%20%2F%3E%3C%2Fsvg%3E") center/contain no-repeat; }
+.margins-table th.sortable.asc::after { background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%231565c0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m18%2015-6-6-6%206%22%20%2F%3E%3C%2Fsvg%3E"); }
+.margins-table th.sortable.desc::after { background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%231565c0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%20%2F%3E%3C%2Fsvg%3E"); }
 .margins-table tfoot td { font-weight:700; background:#f5f7fa; }
 .margins-table .num { text-align:right; font-variant-numeric:tabular-nums; }
 .margins-table .positive { color:#2e7d32; }
@@ -587,7 +587,7 @@
           const btnDel = document.createElement('button');
           btnDel.type = 'button';
           btnDel.className = 'favorite-delete';
-          btnDel.textContent = '×';
+          btnDel.innerHTML = LUCIDE.x;
           btnDel.title = 'Smazat';
           btnDel.onclick = () => deleteFavorite(fav.id);
           actions.appendChild(btnDel);
@@ -824,7 +824,7 @@
         if (col.key === 'toggle' && mode === 'invoices') {
           const toggle = document.createElement('span');
           toggle.className = 'row-toggle';
-          toggle.textContent = '▶';
+          toggle.innerHTML = LUCIDE['chevron-right'];
           td.appendChild(toggle);
         } else if (col.key === 'trzby' || col.key === 'naklady' || col.key === 'zisk') {
           td.textContent = formatNum(row[col.key]);
@@ -860,10 +860,10 @@
           const toggle = tr.querySelector('.row-toggle');
           if (isOpen) {
             detailTr.classList.remove('open');
-            if (toggle) toggle.textContent = '▶';
+            if (toggle) toggle.innerHTML = LUCIDE['chevron-right'];
           } else {
             detailTr.classList.add('open');
-            if (toggle) toggle.textContent = '▼';
+            if (toggle) toggle.innerHTML = LUCIDE['chevron-down'];
             // Load detail if not already loaded
             if (detailTd.dataset.loaded !== '1') {
               loadMarginDetail(row.eshop_source, row.cislo_dokladu, detailTd);

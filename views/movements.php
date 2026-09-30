@@ -52,7 +52,8 @@
 .mv-badge.vyroba { background:#e3f2fd; color:#0d47a1; }
 .mv-badge.korekce { background:#fff3e0; color:#e65100; }
 .mv-badge.inventura { background:#ede7f6; color:#4527a0; }
-.mv-help { display:inline-block; position:relative; width:1.1em; height:1.1em; line-height:1.1em; text-align:center; border-radius:50%; background:#cfd8dc; color:#263238; font-size:.75rem; cursor:help; margin-left:.3rem; vertical-align:middle; }
+.mv-help { display:inline-block; position:relative; color:#78909c; cursor:help; margin-left:.25rem; vertical-align:middle; line-height:1; }
+.mv-help:hover { color:#263238; }
 .mv-help .mv-tip { display:none; position:absolute; left:0; top:1.5em; z-index:20; width:22rem; max-width:80vw; background:#263238; color:#eceff1; text-align:left; font-size:.85rem; line-height:1.45; padding:.6rem .8rem; border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.25); white-space:normal; font-weight:normal; }
 .mv-help:hover .mv-tip, .mv-help:focus .mv-tip { display:block; }
 .mv-help .mv-tip b { color:#fff; }
@@ -84,7 +85,7 @@
   </form>
   <?php if (!empty($canCreate)): ?>
   <form method="post" action="/movements/create" class="create" title="Založí nový doklad (typ Výroba / Korekce se volí uvnitř dokladu).">
-    <button type="submit">＋ Založit doklad</button>
+    <button type="submit" class="ikona-btn"><?= ikona('plus', 14) ?> Založit doklad</button>
   </form>
   <?php endif; ?>
 </div>
@@ -118,17 +119,17 @@
   $canEditNote = !empty($canEditNote);
   $docId = (int)$doc['id'];
 ?>
-<p><a href="/movements">← Seznam dokladů</a></p>
+<p><a href="/movements" class="ikona-btn"><?= ikona('arrow-left', 14) ?> Seznam dokladů</a></p>
 <h1>Doklad <?= $h($doc['cislo']) ?> <span class="mv-badge <?= $h($doc['typ']) ?>" id="mv-typ-badge"><?= $h($typLabel[$doc['typ']] ?? $doc['typ']) ?></span></h1>
 
 <?php if (!$canEdit): ?>
-  <div class="mv-lock">🔒 <?= $h($lock) ?></div>
+  <div class="mv-lock"><?= ikona('lock', 14) ?> <?= $h($lock) ?></div>
 <?php endif; ?>
 
 <div class="mv-head">
   <div class="field">Datum<strong><?= $h(date('j. n. Y', strtotime((string)$doc['datum']))) ?></strong></div>
   <div class="field">Založil<strong><?= $h($doc['user_email']) ?></strong></div>
-  <div class="field"><span>Typ dokladu <span class="mv-help" tabindex="0">?<span class="mv-tip"><b>Výroba</b> – přičte produkt a odepíše jeho skladové komponenty podle kusovníku.<br><br><b>Korekce</b> – mění jen zvolenou položku, bez dopadu na komponenty. Slouží i pro likvidaci, odpis a opravu stavu.<br><br>Typ dokladu je výchozí režim pro nově vkládané položky, u každé položky jde režim změnit.</span></span></span>
+  <div class="field"><span>Typ dokladu <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip"><b>Výroba</b> – přičte produkt a odepíše jeho skladové komponenty podle kusovníku.<br><br><b>Korekce</b> – mění jen zvolenou položku, bez dopadu na komponenty. Slouží i pro likvidaci, odpis a opravu stavu.<br><br>Typ dokladu je výchozí režim pro nově vkládané položky, u každé položky jde režim změnit.</span></span></span>
     <?php if ($isInv): ?>
       <strong>Inventura <?php if (!empty($doc['inventura_id'])): ?><a href="/inventory?inventory_id=<?= (int)$doc['inventura_id'] ?>" style="font-weight:normal; font-size:.9rem;">detail inventury #<?= (int)$doc['inventura_id'] ?></a><?php endif; ?></strong>
     <?php elseif ($canEdit): ?>
@@ -148,7 +149,7 @@
       <?php else: ?>
       <form method="post" action="/movements/delete" style="display:inline" onsubmit="return confirm('Smazat prázdný doklad <?= $h($doc['cislo']) ?>?');">
         <input type="hidden" name="id" value="<?= $docId ?>" />
-        <button type="submit" class="mv-btn danger" id="mv-delete-doc"<?= (!$canEdit || (int)$doc['radku'] > 0) ? ' disabled' : '' ?> title="<?= (int)$doc['radku'] > 0 ? 'Doklad obsahuje položky – nejdřív je smažte.' : ($canEdit ? 'Smazat prázdný doklad' : 'Doklad je uzamčen.') ?>">✕ Smazat doklad</button>
+        <button type="submit" class="mv-btn danger" id="mv-delete-doc"<?= (!$canEdit || (int)$doc['radku'] > 0) ? ' disabled' : '' ?> title="<?= (int)$doc['radku'] > 0 ? 'Doklad obsahuje položky – nejdřív je smažte.' : ($canEdit ? 'Smazat prázdný doklad' : 'Doklad je uzamčen.') ?>"><?= ikona('x', 14) ?> Smazat doklad</button>
       </form>
       <?php endif; ?>
     </span>
@@ -203,16 +204,16 @@
     <tr>
       <th>SKU</th><th>Název</th>
       <th class="num">Očekávaný stav</th><th class="num">Zjištěný stav</th>
-      <th class="num">Rozdíl <span class="mv-help" tabindex="0">?<span class="mv-tip">Zjištěný stav − očekávaný stav v okamžiku uzavření inventury. Zobrazují se jen položky s nenulovým rozdílem; položky beze změny doklad neobsahuje.</span></span></th>
+      <th class="num">Rozdíl <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Zjištěný stav − očekávaný stav v okamžiku uzavření inventury. Zobrazují se jen položky s nenulovým rozdílem; položky beze změny doklad neobsahuje.</span></span></th>
       <th>MJ</th>
-      <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0">?<span class="mv-tip">Rozdíl × skladová hodnota položky platná při uzavření inventury (u dokladů doplněných zpětně 30. 9. 2026 hodnota z toho dne). Záporný rozdíl = záporná hodnota.</span></span></th>
+      <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Rozdíl × skladová hodnota položky platná při uzavření inventury (u dokladů doplněných zpětně 30. 9. 2026 hodnota z toho dne). Záporný rozdíl = záporná hodnota.</span></span></th>
     </tr>
     <?php else: ?>
     <tr>
       <th>SKU</th><th>Název</th><th>Režim</th>
       <th class="num">Množství</th><th>MJ</th>
-      <th class="num">Stav před</th><th class="num">Stav po <span class="mv-help" tabindex="0">?<span class="mv-tip">Aktuální fyzický stav skladu po zapsání tohoto řádku. <b>Červeně</b> = záporný stav, položka je vyskladněná do mínusu.</span></span></th>
-      <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0">?<span class="mv-tip">Množství × skladová hodnota položky. Skladová hodnota se ukládá v okamžiku zápisu řádku; při pozdější změně množství se převezme hodnota platná v době změny. <b>Záporný pohyb = záporná hodnota.</b> Řádek Celkem sčítá rodiče i odepsané komponenty.</span></span></th>
+      <th class="num">Stav před</th><th class="num">Stav po <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Aktuální fyzický stav skladu po zapsání tohoto řádku. <b>Červeně</b> = záporný stav, položka je vyskladněná do mínusu.</span></span></th>
+      <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Množství × skladová hodnota položky. Skladová hodnota se ukládá v okamžiku zápisu řádku; při pozdější změně množství se převezme hodnota platná v době změny. <b>Záporný pohyb = záporná hodnota.</b> Řádek Celkem sčítá rodiče i odepsané komponenty.</span></span></th>
       <th></th>
     </tr>
     <?php endif; ?>
@@ -294,7 +295,7 @@
       const qtyCtl = CAN_EDIT
         ? `<input type="number" step="any" class="qty" data-id="${l.id}" value="${l.mnozstvi}" />`
         : fmt(l.mnozstvi);
-      const del = CAN_EDIT ? `<button type="button" class="del" data-id="${l.id}" title="Smazat položku včetně odepsaných komponent">✕</button>` : '';
+      const del = CAN_EDIT ? `<button type="button" class="del" data-id="${l.id}" title="Smazat položku včetně odepsaných komponent">${LUCIDE.x}</button>` : '';
       html.push(`<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td><td>${rezimCtl}</td><td class="num">${qtyCtl}</td><td>${esc(l.mj)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}${valueCell(l.hodnota, false)}<td>${del}</td></tr>`);
       const kids = l.children || [];
       kids.forEach((c, i) => {
