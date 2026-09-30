@@ -318,10 +318,11 @@
       const ns = Number(p.is_nonstock) === 1;
       const inactive = Number(p.aktivni) === 0;
       const title = ns ? 'Neskladová položka – nevyrábí se ani neskladuje, do dokladu ji nelze vložit. Vložte její skladové komponenty.' : (inactive ? 'Neaktivní produkt (lze použít např. pro odpis zbytku).' : '');
-      return `<tr class="${ns ? 'nonstock' : ''}${inactive ? ' inactive' : ''}"${title ? ` title="${esc(title)}"` : ''}><td class="sku">${esc(p.sku)}</td><td>${esc(p.nazev)}</td><td>${esc(p.typ)}</td><td class="num">${fmt(p.stav)}</td><td>${esc(p.merna_jednotka || '')}</td><td><button type="button" class="add" data-sku="${esc(p.sku)}"${ns ? ' disabled' : ''}>Vložit</button></td></tr>`;
+      const stav = ns ? '' : `${fmt(p.stav)} ${esc(p.merna_jednotka || '')}`.trim();
+      return `<tr class="${ns ? 'nonstock' : ''}${inactive ? ' inactive' : ''}"${title ? ` title="${esc(title)}"` : ''}><td class="sku">${esc(p.sku)}</td><td>${esc(p.typ)}</td><td>${esc(p.nazev)}</td><td class="num">${stav}</td><td><button type="button" class="add" data-sku="${esc(p.sku)}"${ns ? ' disabled' : ''}>Vložit</button></td></tr>`;
     });
     const more = data.more ? `<p class="mv-search-more">Zobrazeno prvních ${data.limit || items.length} položek, nalezeno více – upřesněte hledání.</p>` : '';
-    resultsBox.innerHTML = `<table class="mv-products"><thead><tr><th>SKU</th><th>Název</th><th>Typ</th><th class="num">Stav</th><th>MJ</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>${more}`;
+    resultsBox.innerHTML = `<table class="mv-products"><thead><tr><th>SKU</th><th>Typ</th><th>Název</th><th class="num">Stav</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>${more}`;
   }
   async function runSearch() {
     const params = new URLSearchParams(new FormData(searchForm));
