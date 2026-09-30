@@ -214,3 +214,35 @@ CREATE TABLE IF NOT EXISTS nastaveni_global (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
 
 INSERT IGNORE INTO nastaveni_global (id) VALUES (1);
+
+-- Skladové doklady (záložka Pohyby). Řádky žijí v polozky_pohyby (doklad_id, parent_pohyb_id, user_id);
+-- sloupce i tabulky si při prvním použití doplní MovementDocService::ensureSchema().
+CREATE TABLE IF NOT EXISTS sklad_doklady (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  cislo VARCHAR(16) NOT NULL,
+  datum DATE NOT NULL,
+  typ ENUM('vyroba','korekce') NOT NULL DEFAULT 'vyroba',
+  poznamka VARCHAR(1024) NULL,
+  user_id INT NOT NULL DEFAULT 0,
+  user_email VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NULL,
+  UNIQUE KEY uq_sklad_doklady_cislo (cislo),
+  KEY idx_sklad_doklady_datum (datum)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+CREATE TABLE IF NOT EXISTS sklad_doklady_log (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  doklad_id INT NOT NULL,
+  pohyb_id INT NULL,
+  sku VARCHAR(128) NULL,
+  akce VARCHAR(32) NOT NULL,
+  stare_mnozstvi DECIMAL(18,3) NULL,
+  nove_mnozstvi DECIMAL(18,3) NULL,
+  detail VARCHAR(255) NULL,
+  user_email VARCHAR(255) NULL,
+  datum DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_sklad_doklady_log_doklad (doklad_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;
+
+-- polozky_pohyby: ALTER TABLE polozky_pohyby ADD COLUMN doklad_id INT NULL, ADD COLUMN parent_pohyb_id INT NULL, ADD COLUMN user_id INT NULL, ADD KEY idx_pohyby_doklad (doklad_id);

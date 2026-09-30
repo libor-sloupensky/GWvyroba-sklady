@@ -14,6 +14,7 @@ use App\Controller\BomController;
 use App\Controller\InventoryController;
 use App\Controller\ReservationsController;
 use App\Controller\ProductionController;
+use App\Controller\MovementsController;
 use App\Controller\AnalyticsController;
 use App\Controller\SettingsController;
 use App\Controller\AdminController;
@@ -112,6 +113,16 @@ $router->get('/production/demand-tree', [ProductionController::class, 'demandTre
 $router->get('/production/movements', [ProductionController::class, 'movements']);
 $router->get('/production/filtered-movements', [ProductionController::class, 'filteredMovements']);
 $router->post('/production/recent-limit', [ProductionController::class, 'updateRecentLimit']);
+
+// Movements (skladové doklady – záložka Pohyby)
+$router->get('/movements', [MovementsController::class, 'index']);
+$router->post('/movements/create', [MovementsController::class, 'create']);
+$router->get('/movements/doc', [MovementsController::class, 'doc']);
+$router->post('/movements/delete', [MovementsController::class, 'delete']);
+$router->post('/movements/header', [MovementsController::class, 'header']);
+$router->post('/movements/line/add', [MovementsController::class, 'lineAdd']);
+$router->post('/movements/line/update', [MovementsController::class, 'lineUpdate']);
+$router->post('/movements/line/delete', [MovementsController::class, 'lineDelete']);
 
 // Analytics
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);

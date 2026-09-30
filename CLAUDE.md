@@ -65,6 +65,7 @@
 | sklad | `modules/sklad.md` | Inventura, stavy zásob, pohyby skladu |
 | rezervace | `modules/rezervace.md` | CRUD rezervací zásob |
 | vyroba | `modules/vyroba.md` | Plány výroby, demand tree, záznamy pohybů |
+| pohyby | `modules/pohyby.md` | Skladové doklady (výroba/korekce), autosave, zámky, log změn |
 | analytics | `modules/analytics.md` | /analytics/revenue, tržby/marže, AI SQL šablony |
 | nastaveni | `modules/nastaveni.md` | Řady, ignor vzory, značky/skupiny/typy/jednotky, uživatelé, globální parametry |
 | admin | `modules/admin.md` | Historie přihlášení (access_log.csv) |

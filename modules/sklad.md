@@ -6,7 +6,7 @@ Fyzický sklad — evidence stavů zásob přes **inventury** (otevřít → zap
 
 **Klíčový princip:** aktuální stav SKU = poslední uzavřená inventura (`inventura_stavy.stav`) **plus** součet pohybů od jejího uzavření. Stavy se neúdržbovsky aktualizují — místo toho se inkrementálně dopočítávají z event-log stylu `polozky_pohyby`.
 
-Výroba (viz `vyroba.md`) píše do stejných pohybů (+rodič, -potomci přes korekci).
+Výroba (viz `vyroba.md`) píše do stejných pohybů (+rodič, -potomci přes korekci). Od 2026-09-30 píší do pohybů také **skladové doklady** (záložka Pohyby, viz `pohyby.md`) — řádky mají `doklad_id`, potomci `parent_pohyb_id`. Uzavření inventury zamkne všechny doklady založené před ní.
 
 ## Kam sahá v kódu
 
@@ -33,7 +33,7 @@ Pohyby skladu jsou dostupné přes `vyroba` modul (viz `vyroba.md` — `/product
 - `inventury` (id, opened_at DATETIME, closed_at DATETIME NULL, baseline_inventory_id, poznamka)
 - `inventura_polozky` (inventura_id FK, sku, mnozstvi, poznamka, created_at) — syrové zápisy
 - `inventura_stavy` (inventura_id FK + sku, stav DECIMAL(18,6)) — **PK je `(inventura_id, sku)`**, vypočtené stavy (při zavření)
-- `polozky_pohyby` (id, datum DATETIME, sku, mnozstvi, typ_pohybu ENUM, poznamka, ref_id) — event log
+- `polozky_pohyby` (id, datum DATETIME, sku, mnozstvi, typ_pohybu ENUM, poznamka, ref_id, **doklad_id, parent_pohyb_id, user_id** — od 2026-09-30, viz `pohyby.md`) — event log
 
 ## Závislosti
 

@@ -83,6 +83,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
       <a href="/inventory" title="Záznam inventury a korekcí"<?= $navIsActive('/inventory') ? ' class="active" aria-current="page"' : '' ?>>Inventura</a>
       <a href="/reservations" title="Rezervace hotových produktů"<?= $navIsActive('/reservations') ? ' class="active" aria-current="page"' : '' ?>>Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného"<?= $navIsActive('/production') ? ' class="active" aria-current="page"' : '' ?>>Výroba</a>
+      <a href="/movements" title="Skladové doklady – výroba a korekce"<?= $navIsActive('/movements') ? ' class="active" aria-current="page"' : '' ?>>Pohyby</a>
       <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
       <?php if (($currentUser['role'] ?? '') === 'superadmin'): ?>
