@@ -113,6 +113,7 @@ $router->post('/movements/create', [MovementsController::class, 'create']);
 $router->get('/movements/doc', [MovementsController::class, 'doc']);
 $router->get('/movements/search', [MovementsController::class, 'search']);
 $router->post('/movements/delete', [MovementsController::class, 'delete']);
+$router->post('/movements/recalc', [MovementsController::class, 'recalc']);
 $router->post('/movements/header', [MovementsController::class, 'header']);
 $router->post('/movements/line/add', [MovementsController::class, 'lineAdd']);
 $router->post('/movements/line/update', [MovementsController::class, 'lineUpdate']);

@@ -81,3 +81,18 @@ Schéma si při prvním použití doplní `MovementDocService::ensureSchema()` (
 - Storno uzamčeného dokladu neexistuje — řeší se novým korekčním dokladem.
 - Sloupec „Akce" ve Výrobě je od 2026-09-30 **skrytý** (`$showActionColumn = false` ve `views/production_plans.php`), kód i endpointy zůstaly; zruší se při sloučení Výroby s Produkty. `ProductionController::deleteRecord` odmítá reference `dok-…`.
 - Datum dokladu nelze změnit (záměr, případně později pro superadmina).
+
+## Přepočet rozdílů inventárního dokladu (2026-10-01)
+
+Rozdíl položky má platit jako **zjištěný stav (snímek) − očekávaný stav**, kde očekávaný = snímek základní inventury + pohyby mezi oběma uzavřeními. Uložené rozdílové řádky ale vznikají v okamžiku zápisu, takže přestanou sedět, když:
+- se pohyby v období inventury změní dodatečně (pozdní import faktur s dřívějším DUZP – např. grigsupply.cz po výpadku certifikátu 8–10/2026, smazaná faktura),
+- položka nebyla v inventuře vůbec zapsána – uzavření ji **tiše nastaví na 0** a žádný řádek nevznikne.
+
+Řešení: `MovementDocService::recalcInventoryDoc()` dorovná rozdíl **opravným řádkem** (`polozky_pohyby`, typ `inventura`, datum = uzavření, ref `inv:<id>:fix`, poznámka „nezapsáno v inventuře" / „oprava po změně pohybů, přepočet D. M. RRRR").
+- **Nejvýš jeden opravný řádek na SKU a inventuru.** Opakovaný přepočet ho upraví; když oprava už není potřeba, smaže ho. Původní řádky zápisů se nemění.
+- **Stav skladu se nemění** – inventurní pohyby mají datum uzavření a aktuální stav = snímek + pohyby s datem PO uzavření (ověřeno: 0 SKU se změněným stavem).
+- Hodnota opravného řádku = skladová hodnota jako u ostatních řádků inventury (snímek při uzavření), u nezapsaných aktuální `skl_hodnota`.
+- **Spouští se jen na povel**: tlačítko „Přepočítat rozdíly" v detailu inventárního dokladu (`POST /movements/recalc`, jen admin). Žádný automatický přepočet po importu. Výjimka: při **uzavření inventury** se přepočet zavolá jednou, aby nezapsané položky byly v dokladu hned vidět.
+- Detail dokladu ukazuje pod rozdílem malý dovětek („při uzavření −120, opraveno +120 – oprava po změně pohybů…" nebo „nezapsáno v inventuře"). Každá změna opravného řádku je v historii dokladu (akce `oprava_rozdilu`).
+- Ref `inv:<id>:fix` odpovídá vzoru `inv:<id>:%`, takže smazání inventury ho smaže a znovuotevření/uzavření s ním počítá (při uzavření se přepočítá).
+- 2026-10-01 doplněny **jen nezapsané položky** do stávajících dokladů (#9: 27, #11: 7, #12: 13, #13: 14, #14: 6, #15: 5, #17: 28). Opravy z pozdních změn pohybů u starých dokladů (simulace: #5 42, #6 160, #10 32, #12 34, #14 27 položek) se záměrně neprováděly – jen tlačítkem.

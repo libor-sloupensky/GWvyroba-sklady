@@ -119,6 +119,8 @@ final class InventoryController
             $pdo->prepare('UPDATE polozky_pohyby SET datum=? WHERE ref_id LIKE ?')->execute([$closedAt, $this->inventoryRefPattern((int)$inventory['id'])]);
             // Inventární doklad v záložce Pohyby – řádky jsou právě tyto rozdílové pohyby
             MovementDocService::attachInventoryDoc($pdo, (int)$inventory['id'], $closedAt, $this->sessionUser(), $inventory['poznamka'] ?? null);
+            // Položky, které nebyly v inventuře zapsány, uzavření nastaví na 0 – ať je to v dokladu vidět
+            MovementDocService::recalcInventoryDoc($pdo, (int)$inventory['id'], $this->sessionUser(), false, false);
             $pdo->commit();
             $_SESSION['inventory_message'] = 'Inventura byla uzavřena.';
         } catch (\Throwable $e) {

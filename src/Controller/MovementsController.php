@@ -73,6 +73,7 @@ final class MovementsController
             'doc' => $doc,
             'lock' => $lock,
             'canEditNote' => MovementDocService::canEditNote($doc, $user),
+            'canRecalc' => Auth::isAdmin() && MovementDocService::isInventoryDoc($doc) && !empty($doc['inventura_id']),
             'lines' => MovementDocService::loadLines($id),
             'log' => MovementDocService::loadLog($id),
             'brands' => DB::pdo()->query('SELECT id,nazev FROM produkty_znacky ORDER BY nazev')->fetchAll(),
@@ -111,6 +112,36 @@ final class MovementsController
         }
         $_SESSION['movements_message'] = 'Doklad ' . $doc['cislo'] . ' byl smazán.';
         $this->redirect('/movements');
+    }
+
+    /**
+     * „Přepočítat rozdíly" – jen u inventárního dokladu, jen na povel admina.
+     * Dorovná rozdíly podle aktuálních pohybů (pozdní import, nezapsané položky).
+     */
+    public function recalc(): void
+    {
+        Auth::requireAdmin('Přepočet rozdílů může spustit jen admin.');
+        $id = (int)($_POST['id'] ?? 0);
+        $doc = $id > 0 ? MovementDocService::loadDoc($id) : null;
+        if (!$doc || !MovementDocService::isInventoryDoc($doc) || empty($doc['inventura_id'])) {
+            $_SESSION['movements_error'] = 'Přepočet rozdílů je možný jen u inventárního dokladu.';
+            $this->redirect($doc ? '/movements/doc?id=' . $id : '/movements');
+            return;
+        }
+        $pdo = DB::pdo();
+        $pdo->beginTransaction();
+        try {
+            $r = MovementDocService::recalcInventoryDoc($pdo, (int)$doc['inventura_id'], $this->currentUser());
+            $pdo->commit();
+            $total = $r['pridano'] + $r['upraveno'] + $r['smazano'];
+            $_SESSION['movements_message'] = $total === 0
+                ? 'Přepočet proběhl, rozdíly odpovídají aktuálním pohybům – nic se nezměnilo.'
+                : sprintf('Přepočet proběhl: přidáno %d, upraveno %d, odstraněno %d opravných řádků.', $r['pridano'], $r['upraveno'], $r['smazano']);
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            $_SESSION['movements_error'] = 'Přepočet selhal: ' . $e->getMessage();
+        }
+        $this->redirect('/movements/doc?id=' . $id);
     }
 
     // ------------------------------------------------------------ JSON API

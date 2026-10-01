@@ -145,7 +145,13 @@
     <span>Akce</span>
     <span>
       <?php if ($isInv): ?>
-        <span class="mv-muted">Inventární doklad se maže jen spolu s inventurou.</span>
+        <?php if (!empty($canRecalc)): ?>
+        <form method="post" action="/movements/recalc" style="display:inline">
+          <input type="hidden" name="id" value="<?= $docId ?>" />
+          <button type="submit" class="ikona-btn" title="Dorovná rozdíly podle aktuálních pohybů: zohlední faktury doplněné později s dřívějším datem a položky, které nebyly v inventuře zapsány. Na položku vznikne nejvýš jeden opravný řádek; opakovaný přepočet ho upraví nebo odstraní. Stav skladu se nemění."><?= ikona('refresh-cw', 14) ?> Přepočítat rozdíly</button>
+        </form>
+        <?php endif; ?>
+        <span class="mv-muted" style="display:block; margin-top:.3rem;">Inventární doklad se maže jen spolu s inventurou.</span>
       <?php else: ?>
       <form method="post" action="/movements/delete" style="display:inline" onsubmit="return confirm('Smazat prázdný doklad <?= $h($doc['cislo']) ?>?');">
         <input type="hidden" name="id" value="<?= $docId ?>" />
@@ -204,7 +210,7 @@
     <tr>
       <th>SKU</th><th>Název</th>
       <th class="num">Očekávaný stav</th><th class="num">Zjištěný stav</th>
-      <th class="num">Rozdíl <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Zjištěný stav − očekávaný stav v okamžiku uzavření inventury. Zobrazují se jen položky s nenulovým rozdílem; položky beze změny doklad neobsahuje.</span></span></th>
+      <th class="num">Rozdíl <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Zjištěný stav − očekávaný stav k okamžiku uzavření inventury. Zobrazují se jen položky s nenulovým rozdílem. Malý text pod číslem ukazuje opravu z přepočtu: <b>nezapsáno v inventuře</b> (položka nebyla spočítána a uzavření ji nastavilo na 0) nebo <b>oprava po změně pohybů</b> (např. faktury doplněné později).</span></span></th>
       <th>MJ</th>
       <th class="num">Hodnota (CZK) <span class="mv-help" tabindex="0"><?= ikona('circle-help', 14) ?><span class="mv-tip">Rozdíl × skladová hodnota položky platná při uzavření inventury (u dokladů doplněných zpětně 30. 9. 2026 hodnota z toho dne). Záporný rozdíl = záporná hodnota.</span></span></th>
     </tr>
@@ -236,7 +242,7 @@
   let log = <?= json_encode($log ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   const tbody = document.querySelector('#mv-lines tbody');
   const errBox = document.getElementById('mv-line-error');
-  const AKCE = { vytvoreni: 'založení', hlavicka: 'hlavička', pridani: 'přidání', zmena_mnozstvi: 'změna množství', zmena_rezimu: 'změna režimu', smazani: 'smazání', inventura_uzavrena: 'inventura uzavřena', inventura_otevrena: 'inventura otevřena' };
+  const AKCE = { vytvoreni: 'založení', hlavicka: 'hlavička', pridani: 'přidání', zmena_mnozstvi: 'změna množství', zmena_rezimu: 'změna režimu', smazani: 'smazání', inventura_uzavrena: 'inventura uzavřena', inventura_otevrena: 'inventura otevřena', oprava_rozdilu: 'oprava rozdílu' };
 
   const fmt = (v) => {
     const n = Number(v);
@@ -275,9 +281,16 @@
         tbody.innerHTML = '<tr><td colspan="7" class="mv-muted">Inventura nemá žádné položky s rozdílem (nebo je znovu otevřená – položky se připojí při jejím uzavření).</td></tr>';
         return;
       }
+      const signed = (n) => (n > 0 ? '+' : '') + fmt(n);
       const rows = lines.map((l) => {
         const d = Number(l.mnozstvi);
-        return `<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}<td class="num${d < 0 ? ' neg' : ''}">${d > 0 ? '+' : ''}${fmt(d)}</td><td>${esc(l.mj)}</td>${valueCell(l.hodnota, false)}</tr>`;
+        let note = '';
+        if (l.oprava !== null && l.oprava !== undefined) {
+          const orig = d - Number(l.oprava);
+          const parts = Math.abs(orig) > 0.0005 ? `při uzavření ${signed(orig)}, opraveno ${signed(Number(l.oprava))} – ` : '';
+          note = `<div class="mv-muted" style="font-size:.78rem; font-weight:600;">${parts}${esc(l.oprava_pozn || 'oprava')}</div>`;
+        }
+        return `<tr data-id="${l.id}"><td><strong>${esc(l.sku)}</strong></td><td>${esc(l.nazev)}</td>${stockCell(l.stav_pred)}${stockCell(l.stav_po)}<td class="num${d < 0 ? ' neg' : ''}">${signed(d)}${note}</td><td>${esc(l.mj)}</td>${valueCell(l.hodnota, false)}</tr>`;
       });
       rows.push(totalRow(6).replace(/<td><\/td><\/tr>$/, '</tr>'));
       tbody.innerHTML = rows.join('');

@@ -218,6 +218,163 @@ final class MovementDocService
         $pdo->prepare('DELETE FROM sklad_doklady WHERE id = ?')->execute([$docId]);
     }
 
+    /**
+     * Přepočet rozdílů inventárního dokladu („Přepočítat rozdíly", a jednou při uzavření).
+     *
+     * Rozdíl položky má vždy platit: zjištěný stav (snímek) − očekávaný stav, kde očekávaný =
+     * snímek předchozí inventury + pohyby mezi oběma uzavřeními. Když se pohyby v tom období
+     * změní dodatečně (pozdní import faktur s dřívějším DUZP, smazaná faktura) nebo když položka
+     * nebyla v inventuře vůbec zapsána (uzavření ji tiše nastaví na 0), uložené rozdíly nesedí.
+     *
+     * Pro každé SKU proto vznikne NEJVÝŠ JEDEN opravný řádek (ref `inv:<id>:fix`) s chybějící
+     * částí rozdílu. Opakovaný přepočet ho upraví, a když už oprava není potřeba, smaže.
+     * Původní řádky zápisů se nemění. Stav skladu se tím nehýbe – inventurní pohyby mají datum
+     * uzavření a aktuální stav se počítá ze snímku + pohybů PO něm.
+     *
+     * Volá se uvnitř transakce volajícího.
+     *
+     * @param array{id:int,email:string,role:string} $user
+     * @param bool $onlyUncounted jen položky nezapsané v inventuře (jednorázové doplnění starých dokladů)
+     * @param bool $stampDate     do poznámky řádku doplnit datum přepočtu
+     * @return array{pridano:int,upraveno:int,smazano:int,nezapsano:int}
+     */
+    public static function recalcInventoryDoc(PDO $pdo, int $inventoryId, array $user, bool $onlyUncounted = false, bool $stampDate = true): array
+    {
+        $st = $pdo->prepare('SELECT id, closed_at, baseline_inventory_id FROM inventury WHERE id = ? LIMIT 1');
+        $st->execute([$inventoryId]);
+        $inv = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$inv || empty($inv['closed_at'])) {
+            throw new \RuntimeException('Inventura není uzavřená, rozdíly nelze přepočítat.');
+        }
+        $st = $pdo->prepare('SELECT id FROM sklad_doklady WHERE inventura_id = ? LIMIT 1');
+        $st->execute([$inventoryId]);
+        $docId = (int)($st->fetchColumn() ?: 0);
+        if ($docId <= 0) {
+            throw new \RuntimeException('Inventura nemá doklad.');
+        }
+        $closedAt = (string)$inv['closed_at'];
+
+        // Základ = navázaná (jinak nejbližší předchozí uzavřená) inventura
+        $baseId = (int)($inv['baseline_inventory_id'] ?? 0);
+        $baseClosed = null;
+        if ($baseId > 0) {
+            $st = $pdo->prepare('SELECT closed_at FROM inventury WHERE id = ? AND closed_at IS NOT NULL');
+            $st->execute([$baseId]);
+            $baseClosed = $st->fetchColumn() ?: null;
+        }
+        if ($baseClosed === null) {
+            $st = $pdo->prepare('SELECT id, closed_at FROM inventury WHERE closed_at IS NOT NULL AND closed_at < ? AND id <> ? ORDER BY closed_at DESC LIMIT 1');
+            $st->execute([$closedAt, $inventoryId]);
+            $prev = $st->fetch(PDO::FETCH_ASSOC);
+            $baseId = $prev ? (int)$prev['id'] : 0;
+            $baseClosed = $prev ? (string)$prev['closed_at'] : null;
+        }
+
+        $refPattern = sprintf('inv:%d:%%', $inventoryId);
+        $fixRef = sprintf('inv:%d:fix', $inventoryId);
+
+        $st = $pdo->prepare('SELECT s.sku, s.stav, p.merna_jednotka, p.skl_hodnota
+            FROM inventura_stavy s JOIN produkty p ON p.sku = s.sku LEFT JOIN product_types pt ON pt.code = p.typ
+            WHERE s.inventura_id = ? AND COALESCE(pt.is_nonstock, 0) = 0');
+        $st->execute([$inventoryId]);
+        $snapshot = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $base = [];
+        if ($baseId > 0) {
+            $st = $pdo->prepare('SELECT sku, stav FROM inventura_stavy WHERE inventura_id = ?');
+            $st->execute([$baseId]);
+            foreach ($st as $r) {
+                $base[(string)$r['sku']] = (float)$r['stav'];
+            }
+        }
+
+        $sql = 'SELECT sku, SUM(mnozstvi) AS s FROM polozky_pohyby WHERE datum <= ? AND (ref_id IS NULL OR ref_id NOT LIKE ?)';
+        $params = [$closedAt, $refPattern];
+        if ($baseClosed !== null) {
+            $sql .= ' AND datum > ?';
+            $params[] = $baseClosed;
+        }
+        $st = $pdo->prepare($sql . ' GROUP BY sku');
+        $st->execute($params);
+        $moves = [];
+        foreach ($st as $r) {
+            $moves[(string)$r['sku']] = (float)$r['s'];
+        }
+
+        $st = $pdo->prepare('SELECT sku, SUM(mnozstvi) AS s, MAX(skl_hodnota_jedn) AS v FROM polozky_pohyby WHERE ref_id LIKE ? AND ref_id <> ? GROUP BY sku');
+        $st->execute([$refPattern, $fixRef]);
+        $entries = [];
+        $entryValue = [];
+        foreach ($st as $r) {
+            $entries[(string)$r['sku']] = (float)$r['s'];
+            $entryValue[(string)$r['sku']] = $r['v'] === null ? null : (float)$r['v'];
+        }
+
+        $st = $pdo->prepare('SELECT id, sku, mnozstvi FROM polozky_pohyby WHERE ref_id = ?');
+        $st->execute([$fixRef]);
+        $fixes = [];
+        foreach ($st as $r) {
+            $fixes[(string)$r['sku']] = ['id' => (int)$r['id'], 'mnozstvi' => (float)$r['mnozstvi']];
+        }
+
+        $st = $pdo->prepare('SELECT sku, COUNT(*) AS n FROM inventura_polozky WHERE inventura_id = ? GROUP BY sku');
+        $st->execute([$inventoryId]);
+        $counted = [];
+        foreach ($st as $r) {
+            $counted[(string)$r['sku']] = (int)$r['n'];
+        }
+
+        $ins = $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id, doklad_id, parent_pohyb_id, user_id, skl_hodnota_jedn) VALUES (?,?,?,?,\'inventura\',?,?,?,NULL,?,?)');
+        $upd = $pdo->prepare('UPDATE polozky_pohyby SET mnozstvi = ?, poznamka = ?, datum = ?, doklad_id = ?, user_id = ? WHERE id = ?');
+        $del = $pdo->prepare('DELETE FROM polozky_pohyby WHERE id = ?');
+        $stamp = $stampDate ? ', přepočet ' . date('j. n. Y') : '';
+        $out = ['pridano' => 0, 'upraveno' => 0, 'smazano' => 0, 'nezapsano' => 0];
+
+        foreach ($snapshot as $row) {
+            $sku = (string)$row['sku'];
+            $uncounted = empty($counted[$sku]);
+            if ($onlyUncounted && !$uncounted) {
+                continue;
+            }
+            $expected = ($base[$sku] ?? 0.0) + ($moves[$sku] ?? 0.0);
+            $target = (float)$row['stav'] - $expected;
+            $need = $target - ($entries[$sku] ?? 0.0);
+            $fix = $fixes[$sku] ?? null;
+
+            if (abs($need) < 0.0005) {
+                if ($fix !== null) {
+                    $del->execute([$fix['id']]);
+                    self::log($pdo, $docId, $fix['id'], $sku, 'oprava_rozdilu', $fix['mnozstvi'], 0.0, 'oprava už není potřeba, řádek odstraněn', (string)$user['email']);
+                    $out['smazano']++;
+                }
+                continue;
+            }
+            $note = ($uncounted ? 'nezapsáno v inventuře' : 'oprava po změně pohybů') . $stamp;
+            if ($fix !== null) {
+                if (abs($fix['mnozstvi'] - $need) < 0.0005) {
+                    continue;
+                }
+                $upd->execute([$need, $note, $closedAt, $docId, (int)$user['id'], $fix['id']]);
+                self::log($pdo, $docId, $fix['id'], $sku, 'oprava_rozdilu', $fix['mnozstvi'], $need, $note, (string)$user['email']);
+                $out['upraveno']++;
+            } else {
+                $unit = ($row['merna_jednotka'] ?? '') !== '' ? (string)$row['merna_jednotka'] : null;
+                $value = $entryValue[$sku] ?? ($row['skl_hodnota'] === null ? null : (float)$row['skl_hodnota']);
+                $ins->execute([$closedAt, $sku, $need, $unit, $note, $fixRef, $docId, (int)$user['id'], $value]);
+                self::log($pdo, $docId, (int)$pdo->lastInsertId(), $sku, 'oprava_rozdilu', null, $need, $note, (string)$user['email']);
+                $out['pridano']++;
+            }
+            if ($uncounted) {
+                $out['nezapsano']++;
+            }
+        }
+
+        if ($out['pridano'] + $out['upraveno'] + $out['smazano'] > 0) {
+            $pdo->prepare('UPDATE sklad_doklady SET updated_at = NOW() WHERE id = ?')->execute([$docId]);
+        }
+        return $out;
+    }
+
     /** Poznámku inventárního dokladu smí měnit admin/superadmin kdykoli; u ostatních platí lockReason(). */
     public static function canEditNote(array $doc, array $user): bool
     {
@@ -595,6 +752,8 @@ final class MovementDocService
     {
         $stmt = DB::pdo()->prepare('SELECT pp.sku, SUM(pp.mnozstvi) AS delta, MIN(pp.id) AS id, MIN(pp.datum) AS datum,
                 SUM(pp.mnozstvi * COALESCE(pp.skl_hodnota_jedn, 0)) AS hodnota, MAX(pp.skl_hodnota_jedn) AS hodnota_jedn,
+                SUM(CASE WHEN pp.ref_id LIKE \'inv:%:fix\' THEN pp.mnozstvi ELSE 0 END) AS oprava,
+                MAX(CASE WHEN pp.ref_id LIKE \'inv:%:fix\' THEN pp.poznamka END) AS oprava_pozn,
                 MAX(pp.merna_jednotka) AS mj, p.nazev, p.merna_jednotka AS p_mj, s.stav
             FROM polozky_pohyby pp
             LEFT JOIN produkty p ON p.sku = pp.sku
@@ -620,6 +779,9 @@ final class MovementDocService
                 'datum' => (string)$r['datum'],
                 'hodnota_jedn' => $r['hodnota_jedn'] === null ? null : (float)$r['hodnota_jedn'],
                 'hodnota' => $r['hodnota_jedn'] === null ? null : round((float)$r['hodnota'], 2),
+                // opravný řádek z přepočtu rozdílů (nejvýš jeden na SKU): kolik z rozdílu tvoří a proč
+                'oprava' => $r['oprava_pozn'] === null ? null : (float)$r['oprava'],
+                'oprava_pozn' => $r['oprava_pozn'] === null ? null : (string)$r['oprava_pozn'],
                 'children' => [],
             ];
         }
