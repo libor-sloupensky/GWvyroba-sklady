@@ -31,13 +31,16 @@
   align-items: center;
 }
 .collapsible summary::-webkit-details-marker { display:none; }
+/* Zaoblená šipka (Lucide chevron-down) místo textového trojúhelníku; po otevření se otočí */
 .collapsible summary::after {
-  content: '\25BC';
-  font-size: 1.3rem;
+  content: '';
+  width: 18px;
+  height: 18px;
   margin-left: 0.5rem;
-  color: #5f5e5a;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f5e5a' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat center / contain;
+  transition: transform .15s;
 }
-.collapsible[open] summary::after { content: '\25B2'; }
+.collapsible[open] summary::after { transform: rotate(180deg); }
 .collapsible-body { margin-top: 0.75rem; }
 .collapsible-block { margin-bottom: 1.25rem; }
 .collapsible-heading { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.4rem; }
@@ -249,7 +252,38 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 .active-toggle button.on.is-sel { background:#e8f5e9; }
 .active-toggle button.off.is-sel { background:#ffebee; }
 .col-picker-td { width:1%; }
-.products-table th[title] { cursor:help; }
+/* Přetahování sloupců: úchyt a ruka po najetí, při tažení průhledný sloupec a oranžová čára v místě dopadu */
+.products-table th[draggable="true"] { cursor:grab; user-select:none; white-space:nowrap; position:relative; }
+.products-table th[draggable="true"]:active { cursor:grabbing; }
+.col-grip { display:inline-flex; vertical-align:-2px; margin-right:0.2rem; color:var(--c-text-muted); opacity:0; transition:opacity .12s; }
+.products-table th[draggable="true"]:hover .col-grip { opacity:1; }
+.products-table th.is-dragging { opacity:0.45; }
+.products-table th.drop-before { box-shadow:inset 3px 0 0 var(--c-primary); }
+.products-table th.drop-after { box-shadow:inset -3px 0 0 var(--c-primary); }
+.col-order-reset { margin-top:0.5rem; padding-top:0.45rem; border:none; border-top:1px solid var(--c-border); border-radius:0; background:transparent; color:var(--c-primary-text); cursor:pointer; width:100%; text-align:left; font-weight:600; display:flex; align-items:center; gap:0.35rem; }
+/* Výrobní sloupce (převzato z Výroby) */
+.products-table td.needs-production { background:#fffdf7; }
+.products-table td.is-blocked { background:#fff3f0; }
+.qty-cell { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.sku-vyroba-cell { cursor:pointer; font-weight:600; white-space:nowrap; }
+.sku-vyroba-toggle, .available-toggle, .demand-toggle { display:inline-flex; color:var(--c-text-secondary); width:1rem; }
+.sku-availability { display:flex; flex-direction:column; gap:0.25rem; }
+.sku-availability-content { display:flex; align-items:center; gap:0.35rem; }
+.sku-availability-bar, .ratio-bar { width:100%; height:6px; border-radius:999px; background:var(--c-border); overflow:hidden; }
+.sku-availability-bar { max-width:100px; }
+.sku-availability-bar span, .ratio-bar span { display:block; height:100%; background:#66bb6a; }
+.sku-availability-bar span[data-state="warn"], .ratio-bar span[data-state="warn"] { background:#ffa726; }
+.sku-availability-bar span[data-state="critical"], .ratio-bar span[data-state="critical"] { background:#ff7043; }
+.deficit-cell { font-weight:600; }
+.deficit-with-bar { display:flex; flex-direction:column; gap:0.25rem; }
+.available-cell, .demand-cell { display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; }
+.bom-node-critical { color:#b00020; font-weight:600; }
+.bom-node-warning { color:#ef6c00; font-weight:600; }
+.bom-root-row td { font-weight:700; }
+.movement-table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+.movement-table th, .movement-table td { border:1px solid var(--c-border); padding:0.35rem 0.45rem; vertical-align:top; }
+.movement-table th { background:var(--c-surface-2); text-align:left; }
+.movement-table .qty-cell, .movement-table .stock-cell { text-align:right; font-variant-numeric:tabular-nums; }
 </style>
 
 <?php if (!empty($error)): ?>
@@ -1056,6 +1090,94 @@ document.addEventListener('DOMContentLoaded', function () {
   const colStyle = document.createElement('style');
   document.head.appendChild(colStyle);
 
+  // --- Pořadí sloupců: přetažením hlavičky, ukládá se per prohlížeč (localStorage); prázdné = výchozí pořadí
+  const ORDER_KEY = 'gworm.produkty.poradiSloupcu';
+  let order = [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+    if (Array.isArray(saved)) order = saved;
+  } catch (_) { order = []; }
+  function saveOrder() {
+    try {
+      if (order.length) localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+      else localStorage.removeItem(ORDER_KEY);
+    } catch (_) { /* jen pohodlí */ }
+  }
+  // Uložené pořadí + sloupce přidané později (vloží se za svého výchozího předchůdce); výběr sloupců vždy poslední
+  function mergedOrder(defaults) {
+    const result = order.filter((k) => defaults.includes(k) && k !== '_picker');
+    defaults.forEach((k, i) => {
+      if (k === '_picker' || result.includes(k)) return;
+      let pos = 0;
+      for (let j = i - 1; j >= 0; j--) {
+        const p = result.indexOf(defaults[j]);
+        if (p >= 0) { pos = p + 1; break; }
+      }
+      result.splice(pos, 0, k);
+    });
+    if (defaults.includes('_picker')) result.push('_picker');
+    return result;
+  }
+  function applyOrder() {
+    const tbl = box.querySelector('.products-table');
+    if (!tbl || !tbl.rows.length) return;
+    const head = tbl.rows[0];
+    const current = Array.from(head.cells).map((th) => th.dataset.col);
+    if (!tbl.dataset.defaultOrder) tbl.dataset.defaultOrder = current.join(','); // server vykresluje výchozí pořadí
+    const target = mergedOrder(tbl.dataset.defaultOrder.split(','));
+    if (target.join(',') === current.join(',')) return;
+    const perm = target.map((k) => current.indexOf(k));
+    Array.from(tbl.rows).forEach((tr) => {
+      if (tr.cells.length !== current.length) return; // rozbalené detaily (jedna buňka přes celou šířku)
+      const cells = Array.from(tr.cells);
+      perm.forEach((idx) => tr.appendChild(cells[idx]));
+    });
+  }
+
+  let dragKey = null;
+  function clearDropMarks() {
+    box.querySelectorAll('.drop-before, .drop-after').forEach((th) => th.classList.remove('drop-before', 'drop-after'));
+  }
+  function dropTarget(ev) {
+    const th = ev.target.closest('.products-table th[data-col]');
+    if (!th || !dragKey || th.dataset.col === '_picker' || th.dataset.col === dragKey) return null;
+    const rect = th.getBoundingClientRect();
+    return { th, after: ev.clientX > rect.left + rect.width / 2 };
+  }
+  box.addEventListener('dragstart', (ev) => {
+    const th = ev.target.closest && ev.target.closest('.products-table th[draggable="true"]');
+    if (!th) return;
+    dragKey = th.dataset.col;
+    th.classList.add('is-dragging');
+    ev.dataTransfer.effectAllowed = 'move';
+    ev.dataTransfer.setData('text/plain', dragKey); // Firefox bez dat tažení nespustí
+  });
+  box.addEventListener('dragover', (ev) => {
+    const t = dropTarget(ev);
+    clearDropMarks();
+    if (!t) return;
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    t.th.classList.add(t.after ? 'drop-after' : 'drop-before');
+  });
+  box.addEventListener('drop', (ev) => {
+    const t = dropTarget(ev);
+    clearDropMarks();
+    if (!t) return;
+    ev.preventDefault();
+    const keys = Array.from(t.th.parentNode.cells).map((th) => th.dataset.col).filter((k) => k !== '_picker' && k !== dragKey);
+    keys.splice(keys.indexOf(t.th.dataset.col) + (t.after ? 1 : 0), 0, dragKey);
+    order = keys;
+    saveOrder();
+    applyOrder();
+    applyColumns();
+  });
+  box.addEventListener('dragend', () => {
+    clearDropMarks();
+    box.querySelectorAll('.is-dragging').forEach((th) => th.classList.remove('is-dragging'));
+    dragKey = null;
+  });
+
   function applyColumns() {
     // Skrytí přes nth-child podle pořadí hlavičky – buňky řádků nepotřebují vlastní značku
     const rules = [];
@@ -1078,6 +1200,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   box.addEventListener('click', (ev) => {
+    if (ev.target.closest('.col-order-reset')) {
+      order = [];
+      saveOrder();
+      applyOrder();
+      applyColumns();
+      return;
+    }
     const btn = ev.target.closest('.col-picker-btn');
     if (btn) {
       const menu = btn.parentNode.querySelector('.col-picker-menu');
@@ -1099,6 +1228,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!ev.target.closest('.col-picker-th')) closePicker();
   });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closePicker(); });
+  applyOrder();
   applyColumns();
 
   // --- Živé hledání: debounce 250 ms u psaní, změna selectu hned, výsledky jako HTML fragment
@@ -1120,6 +1250,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (mySeq !== seq) return; // mezitím přišel novější dotaz
       box.innerHTML = html;
       box.dispatchEvent(new CustomEvent('products:replaced'));
+      applyOrder();
       applyColumns();
     } catch (_) {
       if (mySeq === seq) box.innerHTML = '<p class="text-error">Vyhledávání selhalo.</p>';
@@ -1142,6 +1273,269 @@ document.addEventListener('DOMContentLoaded', function () {
       const q = form.querySelector('input[name=q]');
       if (q) q.focus();
     });
+  }
+})();
+</script>
+
+<script>
+// Výrobní sloupce převzaté z Výroby: rozbalení stromu potomků s potřebou (SKU výroba),
+// pohybů položky (Dostupné) a stromu poptávky (Dovyrobit). Každý detail má vlastní stav.
+(function () {
+  const box = document.getElementById('product-results');
+  if (!box) return;
+
+  const states = { tree: null, movement: null, demand: null };
+  box.addEventListener('products:replaced', () => { states.tree = states.movement = states.demand = null; });
+
+  box.addEventListener('click', (event) => {
+    const movementCell = event.target.closest('.available-cell');
+    if (movementCell) { event.preventDefault(); toggleDetail('movement', movementCell, '.available-toggle', 'Načítám pohyby…', loadMovementList); return; }
+    const demandCell = event.target.closest('.demand-cell');
+    if (demandCell) { event.preventDefault(); toggleDetail('demand', demandCell, '.demand-toggle', 'Načítám zdroje poptávky…', loadDemandTree); return; }
+    const treeCell = event.target.closest('.sku-vyroba-cell');
+    if (treeCell) { event.preventDefault(); toggleDetail('tree', treeCell, '.sku-vyroba-toggle', 'Načítám strom vazeb…', loadNeedTree); }
+  });
+
+  function toggleDetail(kind, cell, toggleSel, loadingText, loader) {
+    const row = cell.closest('tr');
+    if (!row) return;
+    const wasOpen = states[kind] && states[kind].row === row;
+    closeDetail(kind);
+    if (wasOpen) return;
+    const toggle = cell.querySelector(toggleSel);
+    if (toggle) toggle.innerHTML = LUCIDE['chevron-down'];
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'bom-tree-row';
+    const detailCell = document.createElement('td');
+    detailCell.colSpan = Array.from(row.children).filter((c) => getComputedStyle(c).display !== 'none').length; // bez skrytých sloupců
+    detailCell.textContent = loadingText;
+    detailRow.appendChild(detailCell);
+    row.parentNode.insertBefore(detailRow, row.nextSibling);
+    states[kind] = { row, detail: detailRow, toggle };
+    loader(cell, detailCell);
+  }
+
+  function closeDetail(kind) {
+    const st = states[kind];
+    if (!st) return;
+    if (st.toggle) st.toggle.innerHTML = LUCIDE['chevron-right'];
+    if (st.detail) st.detail.remove();
+    states[kind] = null;
+  }
+
+  async function fetchJson(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }
+
+  // --- Strom potomků s potřebou (stejné jako SKU ve Výrobě)
+  async function loadNeedTree(cell, container) {
+    const sku = cell.dataset.sku;
+    const required = parseFloat(cell.dataset.deficit || '0');
+    try {
+      const requiredParam = Number.isFinite(required) ? `&required=${encodeURIComponent(required)}` : '';
+      const data = await fetchJson(`/products/bom-tree?sku=${encodeURIComponent(sku)}${requiredParam}`);
+      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst strom.');
+      container.innerHTML = '';
+      container.appendChild(buildNeedTable(data.tree));
+    } catch (err) {
+      container.textContent = `Chyba: ${err.message || err}`;
+    }
+  }
+
+  function buildNeedTable(tree) {
+    if (!tree || !Array.isArray(tree.children) || tree.children.length === 0) {
+      const wrap = document.createElement('div');
+      wrap.textContent = 'Produkt nemá navázané potomky.';
+      return wrap;
+    }
+    const table = document.createElement('table');
+    table.className = 'bom-tree-table';
+    table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Typ položky</th><th>Dostupné</th><th>Cílový stav</th><th>Chybí</th></tr></thead>';
+    const body = document.createElement('tbody');
+    flattenTree(tree).forEach((row) => {
+      const tr = document.createElement('tr');
+      if (row.node.is_root) tr.classList.add('bom-root-row');
+      const label = treeLabelCell(row);
+      const status = row.node.status || null;
+      if (!row.node.is_root && status && (status.deficit || 0) > 0.0005) {
+        label.text.classList.add('bom-node-critical');
+      } else if (!row.node.is_root && status && (status.ratio || 0) > 0.4) {
+        label.text.classList.add('bom-node-warning');
+      }
+      tr.appendChild(label.td);
+      const edge = row.node.edge || {};
+      tr.appendChild(createCell(edge.koeficient));
+      tr.appendChild(createCell(edge.merna_jednotka || row.node.merna_jednotka));
+      tr.appendChild(createCell(row.node.typ));
+      tr.appendChild(createCell(formatInteger(status ? status.available : null)));
+      tr.appendChild(createCell(formatInteger(status ? status.target : null)));
+      tr.appendChild(createCell(formatInteger(status ? status.deficit : null)));
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    return table;
+  }
+
+  // --- Pohyby položky (stejné jako Dostupné ve Výrobě)
+  async function loadMovementList(cell, container) {
+    try {
+      const data = await fetchJson(`/production/movements?sku=${encodeURIComponent(cell.dataset.sku)}`);
+      if (!data.ok) throw new Error(data.error || 'Chyba načtení pohybů.');
+      const rows = data.movements || [];
+      if (!rows.length) { container.textContent = 'Žádné pohyby.'; return; }
+      container.textContent = '';
+      container.appendChild(buildMovementTable(rows));
+    } catch (err) {
+      container.textContent = err && err.message ? err.message : 'Chyba načtení pohybů.';
+    }
+  }
+
+  function buildMovementTable(rows) {
+    const table = document.createElement('table');
+    table.className = 'movement-table';
+    table.innerHTML = '<thead><tr><th>Datum</th><th>E-shop</th><th>Faktura</th><th>SKU</th><th>počet</th><th>Aktuální sklad</th><th>název položky</th></tr></thead>';
+    const body = document.createElement('tbody');
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      tr.appendChild(createCell(row.datum ?? ''));
+      tr.appendChild(createCell(row.eshop ?? ''));
+      tr.appendChild(createCell(row.faktura ?? ''));
+      tr.appendChild(createCell(row.sku ?? ''));
+      const qty = createCell(row.pocet ?? '');
+      qty.className = 'qty-cell';
+      tr.appendChild(qty);
+      const stock = createCell(row.sklad ?? '');
+      stock.className = 'stock-cell';
+      tr.appendChild(stock);
+      tr.appendChild(createCell(row.nazev ?? ''));
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    return table;
+  }
+
+  // --- Strom poptávky (stejné jako Dovyrobit ve Výrobě)
+  async function loadDemandTree(cell, container) {
+    try {
+      const data = await fetchJson(`/production/demand-tree?sku=${encodeURIComponent(cell.dataset.sku)}`);
+      if (!data.ok) throw new Error(data.error || 'Nepodařilo se načíst zdroje poptávky.');
+      if (!data.tree) { container.textContent = 'Nenalezeny žádné zdroje poptávky.'; return; }
+      container.innerHTML = '';
+      container.appendChild(buildDemandTable(data.tree));
+      if (!data.tree.children || !data.tree.children.length) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = 'Poptávka vzniká přímo na této položce (rezervace nebo minimální zásoba).';
+        container.appendChild(note);
+      }
+    } catch (err) {
+      container.textContent = err.message || 'Nepodařilo se načíst zdroje poptávky.';
+    }
+  }
+
+  function buildDemandTable(tree) {
+    const table = document.createElement('table');
+    table.className = 'bom-tree-table demand-tree-table';
+    const rootUnit = tree.merna_jednotka || '';
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    [
+      ['Strom poptávky', ''],
+      ['Dovyrobit', 'Hodnota „dovyrobit" pro tento uzel v jeho měrné jednotce.'],
+      [`Požadavek na ${tree.sku}`, `Příspěvek všech rodičů přepočtený do měrné jednotky kořene (${rootUnit || '—'}).`],
+      ['Koeficient', ''],
+      ['Režim', ''],
+    ].forEach(([text, tip]) => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      if (tip) {
+        const icon = document.createElement('span');
+        icon.className = 'info-icon';
+        icon.title = tip;
+        icon.innerHTML = LUCIDE.info;
+        th.appendChild(icon);
+      }
+      headRow.appendChild(th);
+    });
+    head.appendChild(headRow);
+    table.appendChild(head);
+    const body = document.createElement('tbody');
+    flattenTree(tree).forEach((row) => {
+      if (row.node.is_nonstock) return; // neskladové uzly se v poptávce nezobrazují
+      const tr = document.createElement('tr');
+      if (row.node.is_root) tr.classList.add('bom-root-row');
+      tr.appendChild(treeLabelCell(row).td);
+      const unit = row.node.merna_jednotka || '';
+      tr.appendChild(createCell(`${formatNumber(row.node.needed, 0)} ${unit}`.trim()));
+      tr.appendChild(createCell(`${formatNumber(row.node.contribution, 0)} ${rootUnit}`.trim()));
+      tr.appendChild(createCell(formatDemandEdge(row.node.edge)));
+      tr.appendChild(createCell(row.node.status && row.node.status.mode ? row.node.status.mode : '—'));
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    return table;
+  }
+
+  function formatDemandEdge(edge) {
+    if (!edge || !edge.koeficient) return '—';
+    return formatNumber(edge.koeficient) + (edge.merna_jednotka ? ` ${edge.merna_jednotka}` : '');
+  }
+
+  // --- Společné pomocníky stromů
+  function flattenTree(node, guides = []) {
+    const rows = [{ node, guides }];
+    const children = Array.isArray(node.children) ? node.children : [];
+    children.forEach((child, index) => {
+      rows.push(...flattenTree(child, guides.concat([index === children.length - 1])));
+    });
+    return rows;
+  }
+
+  function buildPrefix(guides) {
+    let prefix = '';
+    guides.forEach((isLast, idx) => {
+      if (idx === guides.length - 1) prefix += isLast ? '└── ' : '├── ';
+      else prefix += isLast ? '    ' : '│   ';
+    });
+    return prefix;
+  }
+
+  function treeLabelCell(row) {
+    const td = document.createElement('td');
+    td.className = 'bom-tree-cell';
+    const prefix = document.createElement('span');
+    prefix.className = 'bom-tree-prefix';
+    prefix.textContent = buildPrefix(row.guides);
+    if (!prefix.textContent.trim()) prefix.style.display = 'none';
+    const text = document.createElement('span');
+    text.className = 'bom-tree-label';
+    text.textContent = `${row.node.sku}${row.node.nazev ? ` – ${row.node.nazev}` : ''}`.trim();
+    if (row.node.is_root) text.classList.add('bom-root-label');
+    td.appendChild(prefix);
+    td.appendChild(text);
+    return { td, text };
+  }
+
+  function createCell(value) {
+    const td = document.createElement('td');
+    td.textContent = value ?? '—';
+    return td;
+  }
+
+  function formatNumber(value, decimals = 3) {
+    if (value === null || value === undefined || value === '') return '—';
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '—';
+    const fixed = num.toFixed(decimals);
+    // koncové nuly jen za desetinnou čárkou (jinak by se ze 100 stalo 1)
+    return fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed;
+  }
+
+  function formatInteger(value) {
+    if (value === null || value === undefined || isNaN(value)) return '—';
+    return String(Math.round(Number(value)));
   }
 })();
 </script>

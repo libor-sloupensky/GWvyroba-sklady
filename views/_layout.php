@@ -93,6 +93,8 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     button[type="submit"]:hover, .btn-primary:hover { background:var(--c-primary-akcent-hover); border-color:var(--c-primary-akcent-hover); color:#fff; }
     button:disabled, input[type="submit"]:disabled { opacity:.45; cursor:not-allowed; }
     input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="datetime-local"], input[type="password"], input[type="search"], select, textarea { font-family:inherit; font-weight:600; font-size:.95rem; color:var(--c-text); border:1px solid var(--c-border-strong); border-radius:var(--radius-s); background:var(--c-bg); padding:.38rem .5rem; }
+    /* Rozbalovací šipka selectu: zaoblený Lucide chevron-down místo nativního trojúhelníku (padding-right přebíjí přepisy ve views) */
+    select:not([multiple]):not([size]) { -webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f5e5a' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .45rem center; background-size:15px; padding-right:1.8rem !important; cursor:pointer; }
     input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible { outline:2px solid color-mix(in srgb, var(--c-primary) 55%, transparent); outline-offset:1px; }
     .nav-user { margin-left:auto; color:#d6d4cf; font-size:13px; display:flex; gap:6px; align-items:center; }
     .nav-user a, .nav-user a:hover { color:#fff; text-decoration-color:rgba(255,255,255,0.5); }

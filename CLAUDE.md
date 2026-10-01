@@ -40,6 +40,7 @@
 - **Nikdy emoji ani ručně psané znaky** (✕ ▸ ▾ × ✓ ⚠ 🔒 ＋ ←) jako UI ikony. Textové značky ✓/✕ u stavu nahrazuje slovo Ano/Ne. Stromové čáry `└── ├──` u komponent zůstávají (nejsou ikona).
 - Barva se dědí z textu (`stroke="currentColor"`), velikost 14 px u tlačítek v tabulce, 16 px standard, 18 px nadpisy sekcí. Pomocné třídy `.ikona-btn` (ikona + text), `.ikona-muted`, `.ikona-danger`.
 - Novou ikonu **nekresli ručně**: `curl -sSL https://unpkg.com/lucide-static@1.34.0/icons/NAZEV.svg`, vnitřek `<svg>` vlož do `Lucide::IKONY`. Seznam dostupných: `Lucide::seznam()`, přehled na lucide.dev/icons.
+- Šipka selectů (globálně v layoutu) a rozbalovacích panelů `<details>` je zaoblený Lucide `chevron-down` jako data-URI, ne nativní / textový trojúhelník.
 - Tooltipy: otazník `circle-help`, informace `info`; řazení tabulek přes CSS `background-image` s data-URI (viz `analytics_revenue.php`), protože `content:` SVG neumí.
 
 ## Databázové konvence

@@ -1521,7 +1521,13 @@ final class ProductsController
 
         $stmt->execute($params);
 
-        return $this->annotateDeletable($stmt->fetchAll());
+        $items = $this->annotateDeletable($stmt->fetchAll());
+        if (!$items) {
+            return $items;
+        }
+        // Výrobní sloupce (převzaté z Výroby): přepočet dovyrobit + cílové stavy, pak stejné doplnění jako v plánech
+        $targetMap = StockService::recalcDovyrobit();
+        return (new ProductionController())->annotateProduction($items, $targetMap);
 
     }
 

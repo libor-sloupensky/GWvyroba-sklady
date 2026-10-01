@@ -62,6 +62,7 @@ Modul nemá vlastní tabulky — píše do:
 - Pohyby skladu ve filtru defaultně zapnuté (commit d16e32a)
 
 ⚠️ **Známé dluhy / gotchy**
+- **Slučování s Produkty – 1. krok hotov (2026-10-01):** sloupce SKU (jako „SKU výroba"), Dostupné, Cílový stav (rezervace) a Dovyrobit včetně rozbalování jsou i v Produktech (`produkty.md`). Doplnění výrobních údajů je vyčleněné do veřejné `ProductionController::annotateProduction($items, $targetMap)`, kterou volá `plans()` i `ProductsController::fetchProducts()`. Výroba zatím zůstává; tabulka „Pohyby skladů" se do Produktů nepřenáší. Opravena chyba formátu ve stromu poptávky (`formatNumber` s 0 desetinnými místy dělal ze 100 → 1).
 - **Sloupec „Akce" (Vyrobit / Korekce) má náhradu v záložce Pohyby** (`pohyby.md`, skladové doklady s hlavičkou, uživatelem, logem a zámky). Ve Výrobě zůstal záměrně beze změny — Výroba se bude slučovat s Produkty a sloupec se zruší až při tom. Zápisy odsud nemají `doklad_id`.
 - **Non-stock typy nejsou v demand tree** (filtr přes `product_types.is_nonstock`) — samotné se "nevyrábí", jen se rozpadají do skladových potomků. `dovyrobit` kartonu/balení je proto vždy 0.
 - **`min_zasoba`, `min_davka`, `krok_vyroby`, `vyrobni_doba_dni` do `dovyrobit` nevstupují** — cíl je čistě `denní spotřeba × zasoba_cil_dni`. `min_zasoba` se sice počítá v `recalcAutoSafetyStock()` (včetně výrobní doby a min. dávky) a zobrazuje, ale výsledek se ve výpočtu nepoužije. **Vědomě odstaveno**, ne chyba.

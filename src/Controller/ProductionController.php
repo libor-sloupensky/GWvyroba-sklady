@@ -99,92 +99,7 @@ final class ProductionController
 
             if ($items) {
 
-                $skus = array_map('strval', array_column($items, 'sku'));
-
-                $graph = StockService::getBomGraph();
-
-                $children = $graph['children'] ?? [];
-                $parents = $graph['parents'] ?? [];
-
-                $descendantCache = [];
-
-                $statusSkus = $skus;
-
-                foreach ($skus as $skuValue) {
-
-                    $desc = $this->collectDescendants($skuValue, $children, $descendantCache);
-
-                    if ($desc) {
-
-                        $statusSkus = array_merge($statusSkus, $desc);
-
-                    }
-
-                    foreach ($this->collectDemandAncestors($skuValue, $parents) as $anc) {
-                        $statusSkus[] = $anc;
-                    }
-
-                }
-
-            $statusSkus = array_values(array_unique(array_filter($statusSkus)));
-
-            $statusMap = $statusSkus ? StockService::getStatusForSkus($statusSkus) : [];
-            if (!empty($statusSkus)) {
-                $dovy = $this->loadDovyrobitMap($statusSkus);
-                    foreach ($dovy as $dSku => $dVal) {
-                        if (!isset($statusMap[$dSku])) {
-                            $statusMap[$dSku] = [];
-                        }
-                        $statusMap[$dSku]['deficit'] = (float)$dVal;
-                    }
-                }
-
-
-
-                foreach ($items as &$item) {
-
-                    $sku = (string)$item['sku'];
-
-                    $status = $statusMap[$sku] ?? [];
-
-                    $item['stock'] = $status['stock'] ?? 0.0;
-
-                    $item['stav'] = $status['available'] ?? 0.0;
-
-                    $item['available'] = $status['available'] ?? 0.0;
-
-                    $item['reservations'] = $status['reservations'] ?? 0.0;
-
-                    $item['deficit'] = (float)($status['deficit'] ?? 0.0);
-
-                    // Skutečný kaskádový cíl z recalcDovyrobit (potřeba rodičů + vlastní cíl u kořenů).
-                    // Dřívější dopočet dovyrobit + dostupné ukazoval při nulovém dovyrobit jen stav skladu.
-                    $item['target'] = (float)($targetMap[$sku] ?? 0.0);
-
-                    $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['available']);
-
-                    $item['mode'] = $status['mode'] ?? 'manual';
-
-                    $item['daily'] = $status['daily'] ?? 0.0;
-
-                    $blockers = [];
-
-                    if ($item['deficit'] > 0.0) {
-
-                        $blockers = $this->detectBlockingComponents($sku, (float)$item['deficit'], $children, $statusMap);
-
-                    }
-
-                    $item['blockers'] = $blockers;
-
-                    $item['blocked'] = !empty($blockers);
-
-                    // Výpočet dostupnosti materiálů 1. úrovně
-                    $item['material_availability_ratio'] = $this->computeMaterialAvailabilityRatio($sku, (float)$item['deficit'], $children, $statusMap);
-
-                }
-
-                unset($item);
+                $items = $this->annotateProduction($items, $targetMap);
 
                 usort($items, function ($a, $b) {
                     // Neaktivní produkty řadit na konec
@@ -600,6 +515,73 @@ final class ProductionController
 
         return $list;
 
+    }
+
+    /**
+     * Doplní k řádkům produktů výrobní údaje: dostupné, rezervace, cílový stav, dovyrobit,
+     * prioritu (ratio), blokující komponenty a dostupnost materiálu 1. úrovně.
+     * Sdílí Výroba (plans) i tabulka Produkty. Předpokládá čerstvě přepočtené dovyrobit.
+     *
+     * @param array<int,array<string,mixed>> $items řádky s klíčem sku
+     * @param array<string,float> $targetMap sku => cílový stav z recalcDovyrobit()
+     * @return array<int,array<string,mixed>>
+     */
+    public function annotateProduction(array $items, array $targetMap): array
+    {
+        if (!$items) {
+            return $items;
+        }
+        $skus = array_map('strval', array_column($items, 'sku'));
+        $graph = StockService::getBomGraph();
+        $children = $graph['children'] ?? [];
+        $parents = $graph['parents'] ?? [];
+        $descendantCache = [];
+        $statusSkus = $skus;
+        foreach ($skus as $skuValue) {
+            $desc = $this->collectDescendants($skuValue, $children, $descendantCache);
+            if ($desc) {
+                $statusSkus = array_merge($statusSkus, $desc);
+            }
+            foreach ($this->collectDemandAncestors($skuValue, $parents) as $anc) {
+                $statusSkus[] = $anc;
+            }
+        }
+        $statusSkus = array_values(array_unique(array_filter($statusSkus)));
+        $statusMap = $statusSkus ? StockService::getStatusForSkus($statusSkus) : [];
+        if (!empty($statusSkus)) {
+            $dovy = $this->loadDovyrobitMap($statusSkus);
+            foreach ($dovy as $dSku => $dVal) {
+                if (!isset($statusMap[$dSku])) {
+                    $statusMap[$dSku] = [];
+                }
+                $statusMap[$dSku]['deficit'] = (float)$dVal;
+            }
+        }
+        foreach ($items as &$item) {
+            $sku = (string)$item['sku'];
+            $status = $statusMap[$sku] ?? [];
+            $item['stock'] = $status['stock'] ?? 0.0;
+            $item['stav'] = $status['available'] ?? 0.0;
+            $item['available'] = $status['available'] ?? 0.0;
+            $item['reservations'] = $status['reservations'] ?? 0.0;
+            $item['deficit'] = (float)($status['deficit'] ?? 0.0);
+            // Skutečný kaskádový cíl z recalcDovyrobit (potřeba rodičů + vlastní cíl u kořenů).
+            // Dřívější dopočet dovyrobit + dostupné ukazoval při nulovém dovyrobit jen stav skladu.
+            $item['target'] = (float)($targetMap[$sku] ?? 0.0);
+            $item['ratio'] = $this->computePriorityRatio($item['deficit'], (float)$item['available']);
+            $item['mode'] = $status['mode'] ?? 'manual';
+            $item['daily'] = $status['daily'] ?? 0.0;
+            $blockers = [];
+            if ($item['deficit'] > 0.0) {
+                $blockers = $this->detectBlockingComponents($sku, (float)$item['deficit'], $children, $statusMap);
+            }
+            $item['blockers'] = $blockers;
+            $item['blocked'] = !empty($blockers);
+            // Výpočet dostupnosti materiálů 1. úrovně
+            $item['material_availability_ratio'] = $this->computeMaterialAvailabilityRatio($sku, (float)$item['deficit'], $children, $statusMap);
+        }
+        unset($item);
+        return $items;
     }
 
     /**

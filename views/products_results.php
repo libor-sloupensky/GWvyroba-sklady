@@ -3,6 +3,14 @@
   $hasSearchActive = (bool)($hasSearch ?? false);
   $resultCount = (int)($resultCount ?? 0);
   $e = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+  // Formát množství jako ve Výrobě: mezera jako oddělovač tisíců, bez koncových nul
+  $formatQty = static function ($value, int $decimals = 3): string {
+      $formatted = number_format((float)$value, max(0, $decimals), ',', ' ');
+      if ($decimals > 0) {
+          $formatted = rtrim(rtrim($formatted, '0'), ',');
+      }
+      return $formatted === '' ? '0' : $formatted;
+  };
 
   // Sloupce tabulky: klíč => [hlavička, tooltip, povinný]. Pořadí = pořadí buněk v řádku.
   // Povinné sloupce (SKU, Název) nejdou ve výběru sloupců skrýt.
@@ -15,6 +23,11 @@
       'typ'        => ['Typ', 'Typ položky – produkt, karton, surovina, obal … Určuje, jak se s položkou počítá ve výrobě a analýze. Dvojklikem upravíte.', false],
       'mj'         => ['MJ', 'Měrná jednotka skladové evidence (ks, kg, bal …). Dvojklikem upravíte.', false],
       'nazev'      => ['Název', 'Název produktu. Dvojklikem upravíte.', true],
+      // Výrobní sloupce převzaté z Výroby (/production/plans)
+      'sku_vyroba' => ['SKU výroba', "Kliknutím se rozbalí strom potomků se skladovými dostupnostmi (dostupné, cílový stav, chybí).\nBarevná stupnice ukazuje, jaký podíl z hodnoty Dovyrobit lze aktuálně vyrobit z dostupných přímých surovin (1. úroveň BOM).\nZelená = lze vyrobit vše, oranžová = částečně, červená = nedostatek materiálu.", false],
+      'dostupne'   => ['Dostupné', 'Aktuální stav skladu (včetně rezervovaného). Kliknutím se rozbalí pohyby položky.', false],
+      'cil'        => ['Cílový stav (rezervace)', "Celková poptávka po produktu z BOM kaskády.\nPro finální výrobky: denní spotřeba × cílové dny zásoby.\nPro komponenty: součet poptávky od všech rodičovských produktů.\nPokud existují rezervace, jsou zobrazeny v závorce.\nVztah: Dovyrobit = max(0, Cílový stav − dostupné), dostupné = stav − rezervace.", false],
+      'dovyrobit'  => ['Dovyrobit', "Vychází z průměrné denní poptávky za nastavený počet dnů.\nU kořenových položek v auto režimu se násobí cílovým počtem dní zásoby, u komponent je cíl jen potřeba rodičů (dovyrobit rodiče × koeficient).\nOdečtou se aktuální zásoby mínus rezervace. U neskladových typů se cíl nekrátí o stav, jen se propaguje dál.\nBarevná stupnice (priorita): červená = vysoká, oranžová = střední, zelená = nízká.\nKliknutím se rozbalí strom poptávky.", false],
       'min_zasoba' => ['Min. zásoba', 'Minimální zásoba – pod tuto hranici se produkt dostane do plánu výroby. Dvojklikem upravíte.', false],
       'min_davka'  => ['Min. dávka', 'Nejmenší množství, které má smysl vyrobit najednou. Dvojklikem upravíte.', false],
       'krok'       => ['Krok výroby', 'Násobek, po kterém se vyrábí (např. po 25 ks). Dvojklikem upravíte.', false],
@@ -36,7 +49,7 @@
 <table class="products-table">
   <tr>
     <?php foreach ($productColumns as $key => [$label, $tip, $required]): ?>
-      <th data-col="<?= $key ?>" title="<?= $e($tip) ?>"><?= $e($label) ?></th>
+      <th data-col="<?= $key ?>" draggable="true" title="<?= $e($tip . "\n\nHlavičku můžete přetáhnout na jiné místo.") ?>"><span class="col-grip" aria-hidden="true"><?= ikona('grip-vertical', 14) ?></span><?= $e($label) ?></th>
     <?php endforeach; ?>
     <th class="col-picker-th" data-col="_picker" title="Výběr zobrazených sloupců">
       <button type="button" class="col-picker-btn" aria-label="Výběr sloupců" aria-expanded="false"><?= ikona('columns-3', 16) ?></button>
@@ -48,6 +61,7 @@
             <?= $e($label) ?><?= $required ? ' <span class="muted">(vždy)</span>' : '' ?>
           </label>
         <?php endforeach; ?>
+        <button type="button" class="col-order-reset ikona-btn" title="Vrátit sloupce do výchozího pořadí"><?= ikona('rotate-ccw', 14) ?> Výchozí pořadí</button>
       </div>
     </th>
   </tr>
@@ -68,6 +82,49 @@
     <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= $e($it['typ']) ?>"><?= $e($it['typ']) ?></td>
     <td class="editable" data-field="merna_jednotka" data-type="select" data-options="units" data-value="<?= $e($it['merna_jednotka']) ?>"><?= $e($it['merna_jednotka']) ?></td>
     <td class="editable" data-field="nazev" data-type="text" data-value="<?= $e($it['nazev']) ?>"><?= $e($it['nazev']) ?></td>
+    <?php
+      // Výrobní sloupce – stejné výpočty a barvy jako ve Výrobě (ProductionController::annotateProduction)
+      $deficit = (float)($it['deficit'] ?? 0.0);
+      $ratio = max(0.0, min(1.0, (float)($it['ratio'] ?? 0.0)));
+      $ratioState = $ratio >= 0.85 ? 'critical' : ($ratio >= 0.5 ? 'warn' : 'ok');
+      $materialRatio = max(0.0, min(1.0, (float)($it['material_availability_ratio'] ?? 1.0)));
+      $materialState = $materialRatio >= 0.8 ? 'ok' : ($materialRatio >= 0.4 ? 'warn' : 'critical');
+      $vyrobaClass = !empty($it['blocked']) ? ' is-blocked' : ($deficit > 0.0 ? ' needs-production' : '');
+    ?>
+    <td class="sku-vyroba-cell<?= $vyrobaClass ?>" data-sku="<?= $e($it['sku']) ?>" data-deficit="<?= $e($deficit) ?>">
+      <div class="sku-availability">
+        <div class="sku-availability-content">
+          <span class="sku-vyroba-toggle"><?= ikona('chevron-right', 14) ?></span>
+          <span class="<?= (int)$it['aktivni'] ? '' : 'inactive-sku' ?>"><?= $e($it['sku']) ?></span>
+        </div>
+        <?php if ($deficit > 0): ?>
+          <div class="sku-availability-bar" title="Dostupnost materiálu 1. úrovně: <?= (int)round($materialRatio * 100) ?> %">
+            <span data-state="<?= $materialState ?>" style="width: <?= (int)round($materialRatio * 100) ?>%"></span>
+          </div>
+        <?php endif; ?>
+      </div>
+    </td>
+    <td class="qty-cell<?= $vyrobaClass ?>">
+      <span class="available-cell" data-sku="<?= $e($it['sku']) ?>">
+        <span class="available-toggle"><?= ikona('chevron-right', 14) ?></span>
+        <span><?= $formatQty((float)($it['available'] ?? 0) + (float)($it['reservations'] ?? 0)) ?></span>
+      </span>
+    </td>
+    <td class="qty-cell<?= $vyrobaClass ?>">
+      <?= $formatQty($it['target'] ?? 0, 0) ?>
+      <?php if (($it['reservations'] ?? 0) > 0): ?>
+        <br><span class="muted" style="font-size:0.85em;">(<?= $formatQty($it['reservations']) ?>)</span>
+      <?php endif; ?>
+    </td>
+    <td class="qty-cell deficit-cell<?= $vyrobaClass ?>">
+      <div class="deficit-with-bar">
+        <span class="demand-cell" data-sku="<?= $e($it['sku']) ?>">
+          <span class="demand-toggle"><?= ikona('chevron-right', 14) ?></span>
+          <span><?= $formatQty($deficit, 0) ?></span>
+        </span>
+        <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= (int)round($ratio * 100) ?>%"></span></div>
+      </div>
+    </td>
     <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= $e($it['min_zasoba']) ?>"><?= (int)$it['min_zasoba'] ?></td>
     <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= $e($it['min_davka']) ?>"><?= (int)$it['min_davka'] ?></td>
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= $e($it['krok_vyroby']) ?>"><?= (int)$it['krok_vyroby'] ?></td>

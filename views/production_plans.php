@@ -5296,7 +5296,8 @@ closeModal();
 
 
 
-    const trimmed = fixed.replace(/\.?0+$/, '');
+    // koncové nuly jen za desetinnou čárkou (jinak by se ze 100 stalo 1)
+    const trimmed = fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed;
 
 
 
