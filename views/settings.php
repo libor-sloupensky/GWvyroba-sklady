@@ -454,7 +454,7 @@
 </form>
 <div id="user-status" class="muted" style="min-height:1.2em;"></div>
 <table id="user-table">
-  <tr><th>E-mail</th><th>Role</th><th>Vytvořen</th><th>Poslední návštěva</th><th></th></tr>
+  <tr><th>E-mail</th><th>Role</th><th>Vytvořen</th><th>Poslední návštěva</th><th style="text-align:right;" title="Počet návštěv – započítá se nejvýš jedna za hodinu">Návštěv</th><th></th></tr>
   <?php foreach (($users ?? []) as $user): $isMe = ((int)$user['id'] === $meId && (string)$user['email'] === $meEmail); ?>
   <tr data-id="<?= (int)$user['id'] ?>">
     <td><?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?><?= $isMe ? ' <span class="muted">(vy)</span>' : '' ?></td>
@@ -471,6 +471,7 @@
     </td>
     <td><?= htmlspecialchars(date('j. n. Y', strtotime((string)$user['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
     <td><?= !empty($user['last_visit_at']) ? htmlspecialchars(date('j. n. Y H:i', strtotime((string)$user['last_visit_at'])), ENT_QUOTES, 'UTF-8') : '<span class="muted">—</span>' ?></td>
+    <td style="text-align:right;"><?= (int)($user['visit_count'] ?? 0) ?></td>
     <td style="text-align:right;">
       <?php if (!$isMe): ?>
       <form method="post" action="/settings/users/delete" style="display:inline;" onsubmit="return confirm('Opravdu odebrat přístup uživateli <?= htmlspecialchars((string)$user['email'], ENT_QUOTES, 'UTF-8') ?>? Účet bude smazán.');">

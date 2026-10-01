@@ -566,7 +566,7 @@ final class SettingsController
     private function fetchUsers(): array
     {
         \App\Support\Auth::ensureLastVisitColumn();
-        return DB::pdo()->query('SELECT id,email,role,active,created_at,last_visit_at FROM users ORDER BY email')->fetchAll();
+        return DB::pdo()->query('SELECT id,email,role,active,created_at,last_visit_at,visit_count FROM users ORDER BY email')->fetchAll();
     }
 
     private function render(string $view, array $vars = []): void

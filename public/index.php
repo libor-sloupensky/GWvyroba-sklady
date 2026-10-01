@@ -17,7 +17,6 @@ use App\Controller\ProductionController;
 use App\Controller\MovementsController;
 use App\Controller\AnalyticsController;
 use App\Controller\SettingsController;
-use App\Controller\AdminController;
 
 $sessionLifetime = 60 * 60 * 24 * 7; // 7 dni
 ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
@@ -40,17 +39,9 @@ if (isset($_SESSION['user']['email'])) {
     $lastLog = $_SESSION['_last_access_log'] ?? 0;
     if (time() - $lastLog >= 3600) {
         $_SESSION['_last_access_log'] = time();
-        // users.last_visit_at – vidí superadmin ve správě uživatelů
+        // users.last_visit_at + visit_count – vidí superadmin ve správě uživatelů.
+        // Dřívější CSV log (data/access_log.csv) a stránka Historie byly 2026-10-01 zrušeny.
         \App\Support\Auth::touchLastVisit();
-        $logDir = __DIR__ . '/../data';
-        if (!is_dir($logDir)) {
-            @mkdir($logDir, 0755, true);
-        }
-        @file_put_contents(
-            $logDir . '/access_log.csv',
-            date('Y-m-d H:i:s') . ',' . $_SESSION['user']['email'] . "\n",
-            FILE_APPEND | LOCK_EX
-        );
     }
 }
 
@@ -155,8 +146,5 @@ $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
 $router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
 $router->post('/settings/users/role', [SettingsController::class, 'updateUserRole']);
 $router->post('/settings/users/delete', [SettingsController::class, 'deleteUser']);
-
-// Admin
-$router->get('/admin/history', [AdminController::class, 'history']);
 
 $router->dispatch();

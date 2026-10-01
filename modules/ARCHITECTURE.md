@@ -71,7 +71,6 @@ Cílová skupina: interní tým (admin/superadmin/user). Aplikace je privátní,
 - `rezervace` → čte `produkty`, ovlivňuje dostupný stav počítaný ve `vyroba`/`sklad`
 - `vyroba` → využívá `bom` (demand tree), zapisuje do `polozky_pohyby` (jako `sklad`)
 - `analytics` → čte `doklady_eshop`, `polozky_eshop`, `produkty`, `bom`
-- `admin` → jen čte `data/access_log.csv`
 - `deploy` → průřezový
 
 ---
@@ -99,7 +98,7 @@ gworm/
 │   ├── seed_admin.php           # vytvoří superadmin uživatele
 │   └── shoptet_auto_import.php  # CLI auto-import
 ├── data/
-│   └── access_log.csv     # login history
+│   └── access_log.imported.csv  # bývalý log přihlášení (převeden do users.visit_count 2026-10-01)
 ├── cron.php               # HTTP cron endpoint (token-protected)
 ├── xml/                   # vzorky XML faktur
 ├── _trash/                # gitignored, dev/diagnostické skripty

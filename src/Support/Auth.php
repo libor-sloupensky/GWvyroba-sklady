@@ -107,10 +107,56 @@ final class Auth
         if (!$stmt->fetch()) {
             $pdo->exec('ALTER TABLE users ADD COLUMN last_visit_at DATETIME NULL AFTER created_at');
         }
+        $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'visit_count'");
+        if (!$stmt->fetch()) {
+            $pdo->exec('ALTER TABLE users ADD COLUMN visit_count INT NOT NULL DEFAULT 0 AFTER last_visit_at');
+        }
+        self::importLegacyAccessLog($pdo);
         self::$columnVerified = true;
     }
 
-    /** Zapíše čas návštěvy přihlášeného uživatele (volá se nejvýš jednou za hodinu z routeru). */
+    /**
+     * Jednorázový převod zrušeného CSV logu (data/access_log.csv – řádek „datum,email"
+     * nejvýš jednou za hodinu) na users.visit_count. Stránka Historie přihlášení byla
+     * 2026-10-01 zrušena, počty návštěv žijí v tabulce uživatelů. Po převodu se soubor
+     * přejmenuje, aby se nezapočítal dvakrát.
+     */
+    private static function importLegacyAccessLog(\PDO $pdo): void
+    {
+        $file = dirname(__DIR__, 2) . '/data/access_log.csv';
+        if (!is_file($file)) {
+            return;
+        }
+        // Nejdřív přejmenovat, teprve pak číst: když přejmenování selže (práva), převod
+        // se neprovede vůbec – jinak by se počty při každém volání přičítaly znovu.
+        $done = dirname($file) . '/access_log.imported.csv';
+        if (!@rename($file, $done)) {
+            return;
+        }
+        $counts = [];
+        $last = [];
+        foreach (file($done, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            $parts = explode(',', $line, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            $email = strtolower(trim($parts[1]));
+            if ($email === '') {
+                continue;
+            }
+            $counts[$email] = ($counts[$email] ?? 0) + 1;
+            $when = trim($parts[0]);
+            if (!isset($last[$email]) || $when > $last[$email]) {
+                $last[$email] = $when;
+            }
+        }
+        $upd = $pdo->prepare('UPDATE users SET visit_count = visit_count + ?, last_visit_at = COALESCE(GREATEST(last_visit_at, ?), ?) WHERE LOWER(email) = ?');
+        foreach ($counts as $email => $n) {
+            $upd->execute([$n, $last[$email], $last[$email], $email]);
+        }
+    }
+
+    /** Zapíše čas návštěvy přihlášeného uživatele a přičte návštěvu (volá se nejvýš jednou za hodinu z routeru). */
     public static function touchLastVisit(): void
     {
         $u = self::user();
@@ -119,7 +165,7 @@ final class Auth
         }
         try {
             self::ensureLastVisitColumn();
-            DB::pdo()->prepare('UPDATE users SET last_visit_at = NOW() WHERE id = ?')->execute([$u['id']]);
+            DB::pdo()->prepare('UPDATE users SET last_visit_at = NOW(), visit_count = visit_count + 1 WHERE id = ?')->execute([$u['id']]);
         } catch (\Throwable $e) {
             // návštěva se nezapsala – nesmí to shodit stránku
         }

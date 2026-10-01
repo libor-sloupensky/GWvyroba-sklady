@@ -56,6 +56,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
       --c-text: #111111;
       --c-text-secondary: #5f5e5a;
       --c-text-muted: #8a8985;
+      --c-header: #3a3c3f;             /* tmavě šedá hlavička (bílý text), pod ní oranžová linka */
       --c-border: #e5e5e5;
       --c-border-strong: #d6d4cf;
       --c-danger: #c62828;
@@ -69,14 +70,14 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     h2 { font-size:1.2rem; margin:1.4rem 0 .7rem; }
     a { color:var(--c-primary-text); text-decoration:underline; text-decoration-color:color-mix(in srgb, var(--c-primary-text) 35%, transparent); text-underline-offset:2px; }
     a:hover { color:var(--c-primary-akcent-hover); text-decoration-color:currentColor; }
-    /* Hlavička: bílá, menu podtržené oranžovou linkou */
-    header { background:var(--c-bg); color:var(--c-text); padding:0 16px; border-bottom:3px solid var(--c-primary); box-shadow:0 1px 0 var(--c-border); }
+    /* Hlavička: tmavě šedá s bílým textem, pod menu oranžová linka */
+    header { background:var(--c-header); color:#fff; padding:0 16px; border-bottom:3px solid var(--c-primary); }
     nav { display:flex; flex-wrap:wrap; gap:2px; align-items:center; max-width:1200px; margin:0 auto; }
-    nav .brand { display:inline-flex; align-items:center; gap:.4rem; font-weight:800; font-size:1.15rem; color:var(--c-text); text-decoration:none; padding:10px 14px 10px 0; margin-right:.4rem; border-bottom:3px solid transparent; }
+    nav .brand { display:inline-flex; align-items:center; gap:.4rem; font-weight:800; font-size:1.15rem; color:#fff; text-decoration:none; padding:10px 14px 10px 0; margin-right:.4rem; border-bottom:3px solid transparent; }
     nav .brand::before { content:''; width:.7em; height:.7em; border-radius:2px; background:var(--c-primary); display:inline-block; }
-    nav a:not(.brand) { display:inline-block; color:var(--c-text); text-decoration:none; font-weight:700; padding:12px 12px 9px; margin-bottom:-3px; border-bottom:3px solid transparent; border-radius:0; }
-    nav a:not(.brand):hover { color:var(--c-primary-text); }
-    nav a:not(.brand).active { color:var(--c-primary-text); border-bottom-color:var(--c-primary); }
+    nav a:not(.brand) { display:inline-block; color:#fff; text-decoration:none; font-weight:700; padding:12px 12px 9px; margin-bottom:-3px; border-bottom:3px solid transparent; border-radius:0; }
+    nav a:not(.brand):hover { color:#fff; background:rgba(255,255,255,0.10); }
+    nav a:not(.brand).active { color:#fff; background:rgba(255,255,255,0.14); border-bottom-color:#fff; }
     .container { max-width: 1200px; margin: 1rem auto; background:var(--c-bg); border:1px solid var(--c-border); border-radius: var(--radius-l); padding: 16px 18px; }
     .footer { position: fixed; right: 1rem; bottom: 1rem; background:var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius-m); padding: 8px 10px; font-size: 12px; color:var(--c-text-secondary); box-shadow: var(--shadow-s); }
     .notice { padding:8px 10px; border:1px solid var(--c-border); background:var(--c-surface-2); border-radius:var(--radius-m); }
@@ -93,8 +94,8 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     button:disabled, input[type="submit"]:disabled { opacity:.45; cursor:not-allowed; }
     input[type="text"], input[type="number"], input[type="email"], input[type="date"], input[type="datetime-local"], input[type="password"], input[type="search"], select, textarea { font-family:inherit; font-weight:600; font-size:.95rem; color:var(--c-text); border:1px solid var(--c-border-strong); border-radius:var(--radius-s); background:var(--c-bg); padding:.38rem .5rem; }
     input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible { outline:2px solid color-mix(in srgb, var(--c-primary) 55%, transparent); outline-offset:1px; }
-    .nav-user { margin-left:auto; color:var(--c-text-secondary); font-size:13px; display:flex; gap:6px; align-items:center; }
-    .nav-user a { color:var(--c-primary-text); }
+    .nav-user { margin-left:auto; color:#d6d4cf; font-size:13px; display:flex; gap:6px; align-items:center; }
+    .nav-user a, .nav-user a:hover { color:#fff; text-decoration-color:rgba(255,255,255,0.5); }
     /* Jednotný styl pro rozbalovací trojúhelníčky */
     .row-toggle {
       display:inline-block;
@@ -143,9 +144,6 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
       <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
       <?php if (!$navIsReader): ?>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
-      <?php endif; ?>
-      <?php if (($currentUser['role'] ?? '') === 'superadmin'): ?>
-        <a href="/admin/history" title="Historie přihlášení"<?= $navIsActive('/admin/history') ? ' class="active" aria-current="page"' : '' ?>>Historie</a>
       <?php endif; ?>
       <span class="nav-user">
         <?php if ($currentUser): ?>

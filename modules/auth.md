@@ -6,9 +6,9 @@ Autentizace uživatelů — kombinace lokálního hesla a Google OAuth (Google I
 
 **`src/Support/Auth.php`** — společné `isAdmin()`, `isReader()`, `requireAdmin()` (vrací 403 stránku, nebo JSON pro AJAX). Zápisové endpointy, které byly dřív otevřené každému přihlášenému (Pohyby, Výroba produce/check/delete, Inventura addEntry, Rezervace save/delete), teď vyžadují admin. Analýza (`requireRole`) je otevřená všem rolím. Čtenáři se v navigaci skrývá Import a Nastavení; ve view se mu neukazují formuláře (`isAdmin`/`canCreate`/`allowEntries`), doklady mu `lockReason()` zamkne.
 
-**Poslední návštěva** — `users.last_visit_at` (sloupec si doplní `Auth::ensureLastVisitColumn()`), zapisuje se v `public/index.php` ve stejném hodinovém bloku jako `data/access_log.csv` (`Auth::touchLastVisit()`), nouzový `admin@local` (id 0) se nezapisuje. Vidí ji superadmin ve správě uživatelů. Složka `data/` (a `modules/`, `db/`, `scripts/`, `*.md`, `*.sql`) je od 2026-09-30 zakázaná v root `.htaccess`.
+**Poslední návštěva** — `users.last_visit_at` (sloupec si doplní `Auth::ensureLastVisitColumn()`), zapisuje se v `public/index.php` v hodinovém bloku (`Auth::touchLastVisit()`, zároveň přičte `visit_count`), nouzový `admin@local` (id 0) se nezapisuje. Vidí ji superadmin ve správě uživatelů. Složka `data/` (a `modules/`, `db/`, `scripts/`, `*.md`, `*.sql`) je od 2026-09-30 zakázaná v root `.htaccess`.
 
-Session je perzistentní (7 dní, HttpOnly cookies, SameSite=Lax). Logování přístupů (jednou za hodinu na uživatele) do `data/access_log.csv` — čte to modul `admin`.
+Session je perzistentní (7 dní, HttpOnly cookies, SameSite=Lax). Návštěvy (nejvýš jedna za hodinu na uživatele) se zapisují do `users.last_visit_at` a `users.visit_count`. CSV log `data/access_log.csv` a stránka Historie přihlášení (modul `admin`, `/admin/history`) byly **2026-10-01 zrušeny**; dosavadní řádky se při prvním volání `Auth::ensureLastVisitColumn()` jednorázově přičtou do `visit_count` a soubor se přejmenuje na `access_log.imported.csv`.
 
 ## Kam sahá v kódu
 
@@ -30,7 +30,7 @@ Session je perzistentní (7 dní, HttpOnly cookies, SameSite=Lax). Logování p�
 ## Tabulky
 
 - `users` (id, email, role ENUM, active, password_hash, created_at)
-- `data/access_log.csv` — NE tabulka, CSV soubor (timestamp, email)
+- `users.last_visit_at`, `users.visit_count` — poslední návštěva a počet návštěv (vidí superadmin v Nastavení → Uživatelé)
 
 ## Závislosti
 
