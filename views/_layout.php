@@ -130,8 +130,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
 <body>
   <header class="print-hide">
     <nav>
-      <a href="/" class="brand" title="Gworm – výroba a sklady">Gworm</a>
-      <a href="/"<?= $navIsActive('/') ? ' class="active" aria-current="page"' : '' ?>>Domů</a>
+      <a href="/" class="brand" title="Gworm – domů"<?= $navIsActive('/') ? ' aria-current="page"' : '' ?>>Gworm</a>
       <?php $navIsReader = (($currentUser['role'] ?? '') === 'user'); ?>
       <?php if (!$navIsReader): ?>
       <a href="/import" title="Nahrát XML a spustit import"<?= $navIsActive('/import') ? ' class="active" aria-current="page"' : '' ?>>Import</a>
