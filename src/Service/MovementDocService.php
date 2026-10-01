@@ -552,7 +552,12 @@ final class MovementDocService
         if (self::isNonstock($sku)) {
             throw new \RuntimeException('Neskladovou položku nelze do dokladu vložit.');
         }
-        $datum = (string)$doc['datum'] . ' ' . date('H:i:s');
+        // Všechny řádky dokladu nesou ČAS ZALOŽENÍ DOKLADU, ne čas vložení řádku. Doklad je jedna
+        // událost a jeho pořadí vůči ostatním dokladům (hlavně vůči inventuře) určuje okamžik
+        // založení. Dřív měl řádek vlastní čas: korekce 26-0010 založená 8:48 tak měla řádky
+        // z 9:19 až za inventurou provedenou v 9:15 a položky, které inventura vynulovala,
+        // srazila ještě jednou do mínusu (opraveno 2026-10-01).
+        $datum = (string)($doc['created_at'] ?? ((string)$doc['datum'] . ' ' . date('H:i:s')));
         $pdo->beginTransaction();
         try {
             $ins = $pdo->prepare('INSERT INTO polozky_pohyby (datum, sku, mnozstvi, merna_jednotka, typ_pohybu, poznamka, ref_id, doklad_id, parent_pohyb_id, user_id, skl_hodnota_jedn) VALUES (?,?,?,?,?,?,?,?,NULL,?,?)');

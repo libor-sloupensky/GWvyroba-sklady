@@ -54,7 +54,7 @@ Schéma si při prvním použití doplní `MovementDocService::ensureSchema()` (
 
 ## Pravidla (rozhodnuto 2026-09-30)
 
-- **Datum dokladu** = den založení, neměnné. Datum řádku = datum dokladu + čas vytvoření řádku; při změně množství datum zůstává, změna je v logu.
+- **Datum dokladu** = den založení, neměnné. **Všechny řádky nesou čas založení dokladu** (`sklad_doklady.created_at`), ne čas vložení řádku (změna 2026-10-01); při změně množství datum zůstává, změna je v logu. Doklad je jedna událost a jeho pořadí vůči inventuře určuje okamžik založení: řádky dokladu založeného před okamžikem provedení inventury spadají do jejího období, i když byly vloženy později. Důvod: korekce 26-0010 (založena 8:48) měla řádky z 9:16–9:34 až za inventurou #17 provedenou v 9:15, takže 27 položek, které inventura jako nezapsané vynulovala, kleslo ještě jednou do mínusu. Opraveno přesunem řádků na čas založení + přepočtem rozdílů inventury (27 opravných řádků zaniklo). **Pohyb, který fyzicky nastal až po inventuře, patří do nového dokladu založeného po ní.**
 - **Editace**: autor do konce následujícího dne; superadmin 7 dní od data dokladu; role `admin` = jako běžný uživatel. Ostatní uživatelé jen čtou.
 - **Zámek inventurou**: jakmile je po `created_at` dokladu uzavřena libovolná inventura, doklad je uzamčen pro všechny (stav se od inventury počítá znovu, změna staršího řádku by ho rozjela). `lockReason()` vrací důvod, UI ho zobrazí.
 - **Změna množství rodiče** = smazat potomky a vygenerovat znovu podle **aktuálního** BOM. Přepnutí na korekci potomky smaže.
