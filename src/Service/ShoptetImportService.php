@@ -176,6 +176,19 @@ final class ShoptetImportService
      * @param array<string,mixed> $eshopRow Řádek z nastaveni_rady s credentials
      * @return array<string,mixed>
      */
+    /** Čas posledního běhu, který pro daný e-shop doběhl bez chyby (ok / warning), nebo null. */
+    private function lastSuccessfulRun(string $eshopSource): ?\DateTimeImmutable
+    {
+        try {
+            $st = DB::pdo()->prepare("SELECT MAX(created_at) FROM import_history WHERE eshop_source = ? AND status IN ('ok','warning')");
+            $st->execute([$eshopSource]);
+            $val = $st->fetchColumn();
+            return $val ? new \DateTimeImmutable((string)$val) : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     public function runForEshop(array $eshopRow): array
     {
         $eshopSource = (string)$eshopRow['eshop_source'];
@@ -295,10 +308,22 @@ final class ShoptetImportService
             }
             $this->log('Detekované měny: ' . implode(', ', array_column($currencies, 'label')));
 
-            // 4. Období: od 1. dne minulého měsíce do dneška
+            // 4. Období: od 1. dne minulého měsíce do dneška. Když ale import tohoto e-shopu
+            //    déle selhával (např. vypršelý SSL certifikát e-shopu – grigsupply.cz 8–10/2026),
+            //    začne se už od měsíce posledního úspěšného běhu, jinak by doklady z mezery
+            //    vypadly z okna a nikdy se nedotáhly.
             $now = new \DateTimeImmutable();
-            $firstOfLastMonth = $now->modify('first day of last month');
-            $from = $firstOfLastMonth->format('d.m.Y');
+            $firstOfLastMonth = $now->modify('first day of last month')->setTime(0, 0);
+            $fromDate = $firstOfLastMonth;
+            $lastOk = $this->lastSuccessfulRun($eshopSource);
+            if ($lastOk !== null) {
+                $catchUp = $lastOk->modify('first day of last month')->setTime(0, 0);
+                if ($catchUp < $fromDate) {
+                    $fromDate = $catchUp;
+                    $this->log('Poslední úspěšný import ' . $lastOk->format('d.m.Y') . ' – období rozšířeno, aby se dotáhla mezera.');
+                }
+            }
+            $from = $fromDate->format('d.m.Y');
             $to = $now->format('d.m.Y');
             $this->log("Období: {$from} - {$to}");
             $this->log('');
