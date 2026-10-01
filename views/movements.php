@@ -307,7 +307,19 @@
       }
     });
     html.push(totalRow(7));
+    // Překreslení po autosave nesmí vyhodit uživatele z rozepsaného množství:
+    // zapamatovat fokus i aktuálně napsaný text (mohl dopsat během ukládání) a vrátit je.
+    const act = document.activeElement;
+    const keep = (act && act.matches('input.qty') && tbody.contains(act)) ? { id: act.dataset.id, value: act.value } : null;
     tbody.innerHTML = html.join('');
+    if (keep) {
+      const inp = tbody.querySelector(`input.qty[data-id="${keep.id}"]`);
+      if (inp) {
+        inp.focus();
+        inp.value = '';
+        inp.value = keep.value; // kurzor na konec (type=number neumí setSelectionRange)
+      }
+    }
   }
 
   function renderLog() {
@@ -371,6 +383,7 @@
   const resultsBox = document.getElementById('mv-search-results');
   let searchTimer = null;
   let searchSeq = 0;
+  let searchAll = false;
   function renderSearch(data) {
     const items = data.items || [];
     if (!items.length) {
@@ -384,7 +397,12 @@
       const stav = ns ? '' : `${fmt(p.stav)} ${esc(p.merna_jednotka || '')}`.trim();
       return `<tr class="${ns ? 'nonstock' : ''}${inactive ? ' inactive' : ''}"${title ? ` title="${esc(title)}"` : ''}><td class="sku">${esc(p.sku)}</td><td>${esc(p.typ)}</td><td>${esc(p.nazev)}</td><td class="num">${stav}</td><td><button type="button" class="add" data-sku="${esc(p.sku)}"${ns ? ' disabled' : ''}>Vložit</button></td></tr>`;
     });
-    const more = data.more ? `<p class="mv-search-more">Zobrazeno prvních ${data.limit || items.length} položek, nalezeno více – upřesněte hledání.</p>` : '';
+    let more = '';
+    if (data.more && !searchAll) {
+      more = `<p class="mv-search-more">Zobrazeno prvních ${data.limit || items.length} položek, nalezeno více – upřesněte hledání, nebo <a href="#" class="mv-search-all">vypsat vše nalezené</a>.</p>`;
+    } else if (data.more) {
+      more = `<p class="mv-search-more">Zobrazeno prvních ${data.limit || items.length} položek – upřesněte hledání.</p>`;
+    }
     resultsBox.innerHTML = `<table class="mv-products"><thead><tr><th>SKU</th><th>Typ</th><th>Název</th><th class="num">Stav</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>${more}`;
   }
   async function runSearch() {
@@ -392,6 +410,7 @@
     const seq = ++searchSeq;
     const hasAny = Array.from(params.values()).some((v) => String(v).trim() !== '');
     if (!hasAny) { resultsBox.innerHTML = ''; return; }
+    if (searchAll) params.set('all', '1');
     try {
       const res = await fetch('/movements/search?' + params.toString(), { headers: { 'Accept': 'application/json' } });
       const data = await res.json();
@@ -401,8 +420,16 @@
       if (seq === searchSeq) resultsBox.innerHTML = '<p class="mv-err">Vyhledávání selhalo.</p>';
     }
   }
-  searchForm.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
-  searchForm.addEventListener('change', () => { clearTimeout(searchTimer); runSearch(); });
+  // Změna podmínek vrací výpis na prvních 10, „vypsat vše" platí jen pro aktuální hledání
+  searchForm.addEventListener('input', () => { searchAll = false; clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 250); });
+  searchForm.addEventListener('change', () => { searchAll = false; clearTimeout(searchTimer); runSearch(); });
+  resultsBox.addEventListener('click', (ev) => {
+    if (!ev.target.closest('a.mv-search-all')) return;
+    ev.preventDefault();
+    searchAll = true;
+    clearTimeout(searchTimer);
+    runSearch();
+  });
 
   // Vložení produktu (delegace – výsledky se překreslují)
   resultsBox.addEventListener('click', async (ev) => {

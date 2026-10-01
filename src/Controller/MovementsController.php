@@ -203,7 +203,10 @@ final class MovementsController
 
     // ------------------------------------------------------- vyhledávání
 
-    /** Živé vyhledávání produktů pro vložení do dokladu (max 10 výsledků + příznak, že je jich víc). */
+    /**
+     * Živé vyhledávání produktů pro vložení do dokladu (max 10 výsledků + příznak, že je jich víc).
+     * S ?all=1 („Vypsat vše nalezené") vrací všechny shody, s pojistkou SEARCH_LIMIT_ALL.
+     */
     public function search(): void
     {
         $this->requireAuth();
@@ -213,12 +216,14 @@ final class MovementsController
             echo json_encode(['ok' => true, 'items' => [], 'more' => false], JSON_UNESCAPED_UNICODE);
             return;
         }
-        $rows = $this->searchProducts($f, self::SEARCH_LIMIT + 1);
-        $more = count($rows) > self::SEARCH_LIMIT;
-        echo json_encode(['ok' => true, 'items' => array_slice($rows, 0, self::SEARCH_LIMIT), 'more' => $more, 'limit' => self::SEARCH_LIMIT], JSON_UNESCAPED_UNICODE);
+        $limit = ($_GET['all'] ?? '') === '1' ? self::SEARCH_LIMIT_ALL : self::SEARCH_LIMIT;
+        $rows = $this->searchProducts($f, $limit + 1);
+        $more = count($rows) > $limit;
+        echo json_encode(['ok' => true, 'items' => array_slice($rows, 0, $limit), 'more' => $more, 'limit' => $limit], JSON_UNESCAPED_UNICODE);
     }
 
     private const SEARCH_LIMIT = 10;
+    private const SEARCH_LIMIT_ALL = 1000;
 
     /** @return array{brand:int,group:int,type:string,search:string} */
     private function productFilters(): array
