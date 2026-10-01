@@ -10,13 +10,14 @@ Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy
 
 - `src/Controller/ProductsController.php` — největší controller v projektu (~2500 řádků)
 - `src/Service/StockService.php` — výpočty stavů a dovyrobit
-- `views/products_index.php` — tabulka + formulář + BOM editor
+- `views/products_index.php` — formuláře, hledání, BOM editor (JS), živé hledání + výběr sloupců (JS na konci)
+- `views/products_results.php` — fragment s výsledky (tabulka, definice sloupců s tooltipy, menu výběru sloupců); vkládá ho index a vrací `/products?partial=1`
 
 ## Routes
 
 | Metoda | URL | Akce |
 |--------|-----|------|
-| GET | `/products` | `ProductsController::index` |
+| GET | `/products` | `ProductsController::index` (s `partial=1` jen fragment výsledků pro živé hledání) |
 | GET | `/products/export` | `ProductsController::exportCsv` |
 | POST | `/products/import` | `ProductsController::importCsv` |
 | POST | `/products/create` | `ProductsController::create` |
@@ -47,6 +48,9 @@ Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy
 - Search endpoint pro autocomplete (používá např. modul `rezervace`)
 - Zobrazení aktuální zásoby, rezervací, dovyrobit
 - Filtr aktivní/neaktivní, značka, skupina, typ
+- **Živé hledání** (od 2026-10-01, vzor Pohyby): bez tlačítka, debounce 250 ms při psaní, select hned. Výsledky se načtou jako HTML fragment (`?partial=1`) a vymění v `#product-results`; URL se drží přes `history.replaceState` (reload/návrat ukáže stejný výpis). Delegace událostí (BOM strom, inline edit) je proto na `#product-results`, ne na tabulce; po výměně se posílá událost `products:replaced`. Bez filtrů se nic nevypisuje, strop 500 řádků (hláška).
+- **Výběr sloupců**: poslední sloupec tabulky (ikona `columns-3`) otevře seznam sloupců s checkboxy. SKU a Název jsou povinné. Skryté sloupce se ukládají per prohlížeč v `localStorage` (`gworm.produkty.skryteSloupce`) a skrývají se CSS `nth-child` podle pořadí hlavičky — při přidání sloupce stačí upravit `$productColumns` a buňku řádku ve stejném pořadí.
+- **Tooltipy hlaviček**: `title` u každého `<th>` z `$productColumns` (popis, co sloupec znamená).
 - **Mazání produktů** (jen superadmin): křížek ✕ v tabulce jen u produktů, které **nejsou v BOM** (rodič ani potomek) a **nemají žádné pohyby** (`polozky_pohyby`) — kontrola přes `sku` i `alt_sku`. Flag `can_delete` počítá `annotateDeletable()`, server v `delete()` kritéria znovu ověří (nespoléhat na klienta). Pozn.: BOM/pohyby jsou string reference bez FK, takže gate je logický, ne přes FK.
 
 ⚠️ **Známé dluhy / gotchy**

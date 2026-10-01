@@ -224,6 +224,20 @@
   line-height:1;
 }
 .search-reset:hover { color:#d32f2f; }
+button.search-reset { border:none; background:transparent; cursor:pointer; }
+#product-results .search-result-pill { margin:0.2rem 0 0; }
+/* Výběr sloupců – poslední sloupec tabulky */
+.col-picker-th { position:relative; width:1%; text-align:center; padding:0.2rem 0.35rem !important; }
+.col-picker-btn { border:1px solid var(--c-border-strong); background:#fff; color:var(--c-text-secondary); border-radius:4px; padding:0.2rem 0.35rem; cursor:pointer; line-height:0; }
+.col-picker-btn:hover, .col-picker-btn[aria-expanded="true"] { color:var(--c-primary-text); border-color:var(--c-primary); }
+.col-picker-menu { position:absolute; right:0; top:100%; z-index:20; margin-top:4px; background:#fff; border:1px solid var(--c-border-strong); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.12); padding:0.5rem 0.7rem; text-align:left; font-weight:600; white-space:nowrap; min-width:200px; }
+.col-picker-menu[hidden] { display:none; }
+.col-picker-title { font-size:0.8rem; color:var(--c-text-muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:0.3rem; }
+.col-picker-menu label { display:flex; align-items:center; gap:0.45rem; padding:0.15rem 0; cursor:pointer; font-weight:600; }
+.col-picker-menu label.is-required { cursor:default; color:var(--c-text-secondary); }
+.col-picker-all { margin-top:0.4rem; width:100%; }
+.col-picker-td { width:1%; }
+.products-table th[title] { cursor:help; }
 </style>
 
 <?php if (!empty($error)): ?>
@@ -244,7 +258,8 @@ document.addEventListener('DOMContentLoaded', function () {
       stockModes: [{value:'auto',label:'Automaticky'},{value:'manual',label:'Manuálně'}]
     };
 
-    const table = document.querySelector('.products-table');
+    // Delegace na obal výsledků – tabulka se při živém hledání vyměňuje
+    const table = document.getElementById('product-results');
     if (!table) return;
 
     const updateUrl = '/products/update';
@@ -254,6 +269,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const productSearchUrl = '/products/search';
     let bomState = { row: null, detail: null };
     let bomAddState = { row: null };
+    table.addEventListener('products:replaced', () => {
+      bomState = { row: null, detail: null };
+      bomAddState = { row: null };
+    });
 
     table.addEventListener('click', (event) => {
       const cell = event.target.closest('.sku-cell');
@@ -300,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const detailRow = document.createElement('tr');
       detailRow.className = 'bom-tree-row';
       const detailCell = document.createElement('td');
-      detailCell.colSpan = row.children.length;
+      detailCell.colSpan = Array.from(row.children).filter((c) => getComputedStyle(c).display !== 'none').length; // bez skrytých sloupců
       detailCell.textContent = 'Načítám…';
       detailRow.appendChild(detailCell);
       row.parentNode.insertBefore(detailRow, row.nextSibling);
@@ -913,8 +932,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <div class="product-search-panel">
   <div class="section-title">Vyhledej produkt</div>
-  <form method="get" action="/products" class="product-filter-form">
-    <input type="hidden" name="search" value="1" />
+  <form method="get" action="/products" class="product-filter-form" id="product-search" autocomplete="off">
     <label>
       <span>Značka</span>
       <select name="znacka_id">
@@ -944,79 +962,128 @@ document.addEventListener('DOMContentLoaded', function () {
     </label>
     <label>
       <span>Hledat</span>
-      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / název / EAN" />
+      <input type="text" name="q" value="<?= htmlspecialchars($filterSearch,ENT_QUOTES,'UTF-8') ?>" placeholder="SKU / název / EAN – hledá se průběžně" />
     </label>
     <div class="search-actions">
-      <button type="submit">Vyhledat</button>
-      <?php if ($hasSearchActive): ?>
-        <span class="search-result-pill">Zobrazeno <?= $resultCount ?></span>
-        <a href="/products" class="search-reset" title="Zrušit filtr" aria-label="Zrušit filtr"><?= ikona('x', 14) ?></a>
-      <?php endif; ?>
+      <button type="button" class="search-reset" id="product-search-reset" title="Vymazat hledání" aria-label="Vymazat hledání"><?= ikona('x', 14) ?></button>
     </div>
   </form>
 </div>
 
-<?php if (!$hasSearchActive): ?>
-  <p class="muted">Zadejte parametry vyhledávání a potvrďte tlačítkem „Vyhledat“. Seznam produktů se zobrazí až po vyhledání.</p>
-<?php elseif (empty($items)): ?>
-  <p class="muted">Žádné produkty neodpovídají zadaným filtrům.</p>
-<?php else: ?>
-<table class="products-table">
-  <tr>
-    <th>SKU</th>
-    <th>Alt SKU</th>
-    <th>EAN</th>
-    <th>Značka</th>
-    <th>Skupina</th>
-    <th>Typ</th>
-    <th>MJ</th>
-    <th>Název</th>
-    <th>Min. zásoba</th>
-    <th>Min. dávka</th>
-    <th>Krok výroby</th>
-    <th>Výrobní doba</th>
-    <th>Skladová hodnota</th>
-    <th>Aktivní</th>
-    <th>Poznámka</th>
-    <?php if (!empty($isSuperadmin)): ?><th>Smazat</th><?php endif; ?>
-  </tr>
-  <?php foreach (($items ?? []) as $it): ?>
-  <tr data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-    <td class="sku-cell" data-sku="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-      <span class="sku-toggle"><?= ikona('chevron-right', 14) ?></span>
-      <span class="<?= (int)$it['aktivni'] ? '' : 'inactive-sku' ?>"><?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?></span>
-    </td>
-    <td class="editable" data-field="alt_sku" data-type="text" data-value="<?= htmlspecialchars((string)($it['alt_sku'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['alt_sku']) && $it['alt_sku'] !== '' ? htmlspecialchars((string)$it['alt_sku'],ENT_QUOTES,'UTF-8') : '' ?>
-    </td>
-    <td class="editable" data-field="ean" data-type="text" data-value="<?= htmlspecialchars((string)($it['ean'] ?? ''),ENT_QUOTES,'UTF-8') ?>">
-      <?= isset($it['ean']) && $it['ean'] !== '' ? htmlspecialchars((string)$it['ean'],ENT_QUOTES,'UTF-8') : '' ?>
-    </td>
-    <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['znacka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= htmlspecialchars((string)($it['skupina'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="typ" data-type="select" data-options="types" data-value="<?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['typ'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="merna_jednotka" data-type="select" data-options="units" data-value="<?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['merna_jednotka'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="nazev" data-type="text" data-value="<?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['nazev'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_zasoba'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_zasoba'] ?></td>
-    <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['min_davka'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['min_davka'] ?></td>
-    <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= htmlspecialchars((string)$it['krok_vyroby'],ENT_QUOTES,'UTF-8') ?>"><?= (int)$it['krok_vyroby'] ?></td>
-    <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['vyrobni_doba_dni'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)$it['skl_hodnota'],ENT_QUOTES,'UTF-8') ?></td>
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? 'Ano' : 'Ne' ?></td>
-    <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?>"><?= htmlspecialchars((string)($it['poznamka'] ?? ''),ENT_QUOTES,'UTF-8') ?></td>
-    <?php if (!empty($isSuperadmin)): ?>
-    <td class="del-cell" style="text-align:center;">
-      <?php if ((int)($it['can_delete'] ?? 0) === 1): ?>
-        <form method="post" action="/products/delete" style="margin:0;" onsubmit="return confirm('Opravdu smazat produkt <?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>? Akce je nevratná.');">
-          <input type="hidden" name="sku" value="<?= htmlspecialchars((string)$it['sku'],ENT_QUOTES,'UTF-8') ?>">
-          <button type="submit" class="del-btn" title="Smazat produkt (není v kusovníku a nemá pohyby)"><?= ikona('x', 14) ?></button>
-        </form>
-      <?php else: ?>
-        <span class="del-disabled" title="Nelze smazat — produkt je v kusovníku (BOM) nebo má historické pohyby">–</span>
-      <?php endif; ?>
-    </td>
-    <?php endif; ?>
-  </tr>
-  <?php endforeach; ?>
-</table>
-<?php endif; ?>
+<div id="product-results">
+<?php require __DIR__ . '/products_results.php'; ?>
+</div>
+
+<script>
+// Živé hledání produktů (vzor: hledání v Pohybech) + výběr zobrazených sloupců
+(function () {
+  const form = document.getElementById('product-search');
+  const box = document.getElementById('product-results');
+  if (!form || !box) return;
+
+  // --- Výběr sloupců: skryté sloupce si pamatuje prohlížeč (localStorage), SKU a Název jsou povinné
+  const HIDE_KEY = 'gworm.produkty.skryteSloupce';
+  const REQUIRED = ['sku', 'nazev', '_picker'];
+  let hidden = [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(HIDE_KEY) || '[]');
+    if (Array.isArray(saved)) hidden = saved.filter((k) => !REQUIRED.includes(k));
+  } catch (_) { hidden = []; }
+  const colStyle = document.createElement('style');
+  document.head.appendChild(colStyle);
+
+  function applyColumns() {
+    // Skrytí přes nth-child podle pořadí hlavičky – buňky řádků nepotřebují vlastní značku
+    const rules = [];
+    box.querySelectorAll('.products-table th[data-col]').forEach((th) => {
+      if (hidden.includes(th.dataset.col)) {
+        rules.push(`.products-table > tbody > tr > :nth-child(${th.cellIndex + 1})`);
+      }
+    });
+    colStyle.textContent = rules.length ? rules.join(',\n') + ' { display:none; }' : '';
+    box.querySelectorAll('.col-picker-menu input[type=checkbox]').forEach((cb) => {
+      cb.checked = !hidden.includes(cb.value);
+    });
+  }
+  function saveColumns() {
+    try { localStorage.setItem(HIDE_KEY, JSON.stringify(hidden)); } catch (_) { /* jen pohodlí, bez uložení to funguje */ }
+  }
+  function closePicker() {
+    box.querySelectorAll('.col-picker-menu').forEach((m) => { m.hidden = true; });
+    box.querySelectorAll('.col-picker-btn').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  }
+
+  box.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.col-picker-btn');
+    if (btn) {
+      const menu = btn.parentNode.querySelector('.col-picker-menu');
+      const open = menu.hidden;
+      closePicker();
+      menu.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      return;
+    }
+    if (ev.target.closest('.col-picker-all')) {
+      hidden = [];
+      applyColumns();
+      saveColumns();
+    }
+  });
+  box.addEventListener('change', (ev) => {
+    const cb = ev.target.closest('.col-picker-menu input[type=checkbox]');
+    if (!cb || REQUIRED.includes(cb.value)) return;
+    hidden = hidden.filter((k) => k !== cb.value);
+    if (!cb.checked) hidden.push(cb.value);
+    applyColumns();
+    saveColumns();
+  });
+  document.addEventListener('click', (ev) => {
+    if (!ev.target.closest('.col-picker-th')) closePicker();
+  });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closePicker(); });
+  applyColumns();
+
+  // --- Živé hledání: debounce 250 ms u psaní, změna selectu hned, výsledky jako HTML fragment
+  let timer = null;
+  let seq = 0;
+  async function runSearch() {
+    const params = new URLSearchParams();
+    new FormData(form).forEach((v, k) => { if (String(v).trim() !== '') params.set(k, String(v)); });
+    const hasAny = Array.from(params.keys()).length > 0;
+    if (hasAny) params.set('search', '1');
+    // URL drží aktuální filtr – reload i návrat po uložení/smazání ukáže stejný výpis
+    history.replaceState(null, '', '/products' + (hasAny ? '?' + params.toString() : ''));
+    params.set('partial', '1');
+    const mySeq = ++seq;
+    try {
+      const res = await fetch('/products?' + params.toString(), { headers: { 'Accept': 'text/html' } });
+      if (res.redirected || !res.ok) { window.location.reload(); return; } // např. vypršelé přihlášení
+      const html = await res.text();
+      if (mySeq !== seq) return; // mezitím přišel novější dotaz
+      box.innerHTML = html;
+      box.dispatchEvent(new CustomEvent('products:replaced'));
+      applyColumns();
+    } catch (_) {
+      if (mySeq === seq) box.innerHTML = '<p class="text-error">Vyhledávání selhalo.</p>';
+    }
+  }
+  form.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runSearch, 250); });
+  form.addEventListener('change', (ev) => {
+    if (ev.target.tagName !== 'SELECT') return;
+    clearTimeout(timer);
+    runSearch();
+  });
+  form.addEventListener('submit', (ev) => { ev.preventDefault(); clearTimeout(timer); runSearch(); });
+  const reset = document.getElementById('product-search-reset');
+  if (reset) {
+    reset.addEventListener('click', () => {
+      form.querySelectorAll('select').forEach((s) => { s.value = ''; });
+      form.querySelectorAll('input[type=text]').forEach((i) => { i.value = ''; });
+      clearTimeout(timer);
+      runSearch();
+      const q = form.querySelector('input[name=q]');
+      if (q) q.focus();
+    });
+  }
+})();
+</script>

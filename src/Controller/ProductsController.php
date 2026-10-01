@@ -24,6 +24,16 @@ final class ProductsController
 
         $hasSearch = $this->searchTriggered();
 
+        // Živé hledání: jen fragment s výsledky, bez layoutu a bez importních/BOM statistik
+        if (($_GET['partial'] ?? '') === '1') {
+            $items = $this->fetchProducts($filters);
+            $resultCount = count($items);
+            $isSuperadmin = (($_SESSION['user']['role'] ?? '') === 'superadmin');
+            header('Content-Type: text/html; charset=utf-8');
+            require __DIR__ . '/../../views/products_results.php';
+            return;
+        }
+
         $message = $_SESSION['products_message'] ?? null;
 
         $errorMessage = $_SESSION['products_error'] ?? null;
