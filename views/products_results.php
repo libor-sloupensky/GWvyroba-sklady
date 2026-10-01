@@ -20,7 +20,7 @@
       'krok'       => ['Krok výroby', 'Násobek, po kterém se vyrábí (např. po 25 ks). Dvojklikem upravíte.', false],
       'doba'       => ['Výrobní doba', 'Počet dní od zadání výroby do jejího dokončení. Dvojklikem upravíte.', false],
       'hodnota'    => ['Skladová hodnota', 'Jednotková skladová / nákladová hodnota v CZK. Oceňují se jí pohyby skladu a počítá marže. Dvojklikem upravíte.', false],
-      'aktivni'    => ['Aktivní', 'Neaktivní produkt má přeškrtnuté SKU a řadí se na konec. Dvojklikem upravíte.', false],
+      'aktivni'    => ['Aktivní', 'Fajfka = aktivní, křížek = neaktivní (přeškrtnuté SKU, řadí se na konec). Kliknutím přepnete.', false],
       'poznamka'   => ['Poznámka', 'Volná poznámka k produktu. Dvojklikem upravíte.', false],
   ];
   if (!empty($isSuperadmin)) {
@@ -48,7 +48,6 @@
             <?= $e($label) ?><?= $required ? ' <span class="muted">(vždy)</span>' : '' ?>
           </label>
         <?php endforeach; ?>
-        <button type="button" class="col-picker-all">Zobrazit vše</button>
       </div>
     </th>
   </tr>
@@ -74,7 +73,9 @@
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= $e($it['krok_vyroby']) ?>"><?= (int)$it['krok_vyroby'] ?></td>
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= $e($it['vyrobni_doba_dni']) ?>"><?= $e($it['vyrobni_doba_dni']) ?></td>
     <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= $e($it['skl_hodnota']) ?>"><?= $e($it['skl_hodnota']) ?></td>
-    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni'] ? 'Ano' : 'Ne' ?></td>
+    <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni']
+      ? '<span class="active-mark active-yes" title="Aktivní – kliknutím změníte">' . ikona('check', 16) . '</span>'
+      : '<span class="active-mark active-no" title="Neaktivní – kliknutím změníte">' . ikona('x', 16) . '</span>' ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= $e($it['poznamka'] ?? '') ?>"><?= $e($it['poznamka'] ?? '') ?></td>
     <?php if (!empty($isSuperadmin)): ?>
     <td class="del-cell" style="text-align:center;">

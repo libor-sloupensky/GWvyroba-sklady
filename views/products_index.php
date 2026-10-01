@@ -235,7 +235,19 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 .col-picker-title { font-size:0.8rem; color:var(--c-text-muted); text-transform:uppercase; letter-spacing:.03em; margin-bottom:0.3rem; }
 .col-picker-menu label { display:flex; align-items:center; gap:0.45rem; padding:0.15rem 0; cursor:pointer; font-weight:600; }
 .col-picker-menu label.is-required { cursor:default; color:var(--c-text-secondary); }
-.col-picker-all { margin-top:0.4rem; width:100%; }
+/* Aktivní: fajfka / křížek, po kliknutí přepínač */
+.editable[data-field="aktivni"] { text-align:center; cursor:pointer; }
+.active-mark { display:inline-flex; line-height:0; }
+.active-yes { color:var(--c-ok); }
+.active-no { color:var(--c-danger); }
+.active-toggle { display:inline-flex; border:1px solid var(--c-border-strong); border-radius:4px; overflow:hidden; }
+.active-toggle button { border:none; border-radius:0; background:#fff; padding:0.2rem 0.4rem; line-height:0; cursor:pointer; }
+.active-toggle button + button { border-left:1px solid var(--c-border-strong); }
+.active-toggle button.on { color:var(--c-ok); }
+.active-toggle button.off { color:var(--c-danger); }
+.active-toggle button:hover { background:var(--c-surface); }
+.active-toggle button.on.is-sel { background:#e8f5e9; }
+.active-toggle button.off.is-sel { background:#ffebee; }
 .col-picker-td { width:1%; }
 .products-table th[title] { cursor:help; }
 </style>
@@ -275,6 +287,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     table.addEventListener('click', (event) => {
+      // Aktivní: jedno kliknutí otevře přepínač fajfka / křížek
+      const activeCell = event.target.closest('.editable[data-field="aktivni"]');
+      if (activeCell && table.contains(activeCell)) {
+        if (activeCell.dataset.editing !== '1') startActiveToggle(activeCell);
+        return;
+      }
       const cell = event.target.closest('.sku-cell');
       if (!cell || !table.contains(cell) || event.detail > 1) return;
       event.preventDefault();
@@ -288,7 +306,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       const cell = event.target.closest('.editable');
-      if (!cell || cell.dataset.editing === '1') return;
+      if (!cell || cell.dataset.editing === '1' || cell.dataset.field === 'aktivni') return;
       const row = cell.closest('tr');
       const sku = row?.dataset.sku;
       if (!sku) return;
@@ -658,20 +676,20 @@ document.addEventListener('DOMContentLoaded', function () {
         input.removeEventListener('blur', onBlur);
         input.removeEventListener('keydown', onKey);
         if (!commit) {
-          cell.textContent = formatDisplay(field, currentValue);
+          setDisplay(cell, field, currentValue);
           cell.dataset.value = currentValue;
           return;
         }
         const newValue = input.value.trim();
         if (newValue === currentValue) {
-          cell.textContent = formatDisplay(field, currentValue);
+          setDisplay(cell, field, currentValue);
           return;
         }
         saveChange(sku, field, newValue)
           .then((ok) => {
             const valueToShow = ok ? newValue : currentValue;
             if (ok) cell.dataset.value = newValue;
-            cell.textContent = formatDisplay(field, valueToShow);
+            setDisplay(cell, field, valueToShow);
           });
       };
 
@@ -687,6 +705,52 @@ document.addEventListener('DOMContentLoaded', function () {
       };
       input.addEventListener('blur', onBlur);
       input.addEventListener('keydown', onKey);
+    }
+
+    function setDisplay(cell, field, value) {
+      if (field === 'aktivni') { renderActive(cell, value); return; }
+      cell.textContent = formatDisplay(field, value);
+    }
+
+    function renderActive(cell, value) {
+      cell.innerHTML = value === '1'
+        ? `<span class="active-mark active-yes" title="Aktivní – kliknutím změníte">${LUCIDE.check}</span>`
+        : (value === '0' ? `<span class="active-mark active-no" title="Neaktivní – kliknutím změníte">${LUCIDE.x}</span>` : '');
+      const skuLabel = cell.closest('tr')?.querySelector('.sku-cell > span:not(.sku-toggle)');
+      if (skuLabel) skuLabel.classList.toggle('inactive-sku', value === '0');
+    }
+
+    // Přepínač Aktivní: dvě tlačítka (fajfka / křížek), volba se hned uloží; Esc nebo klik mimo = beze změny
+    function startActiveToggle(cell) {
+      const sku = cell.closest('tr')?.dataset.sku;
+      if (!sku) return;
+      const current = cell.dataset.value;
+      cell.dataset.editing = '1';
+      cell.innerHTML = `<span class="active-toggle" role="group" aria-label="Aktivní">`
+        + `<button type="button" data-v="1" class="on${current === '1' ? ' is-sel' : ''}" title="Aktivní">${LUCIDE.check}</button>`
+        + `<button type="button" data-v="0" class="off${current === '0' ? ' is-sel' : ''}" title="Neaktivní">${LUCIDE.x}</button>`
+        + `</span>`;
+      const close = (value) => {
+        document.removeEventListener('click', onOutside, true);
+        document.removeEventListener('keydown', onKey);
+        cell.dataset.editing = '0';
+        renderActive(cell, value);
+      };
+      const onOutside = (e) => { if (!cell.contains(e.target)) close(current); };
+      const onKey = (e) => { if (e.key === 'Escape') close(current); };
+      cell.querySelector('.active-toggle').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const btn = e.target.closest('button[data-v]');
+        if (!btn) return;
+        const value = btn.dataset.v;
+        if (value === current) { close(current); return; }
+        cell.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        const ok = await saveChange(sku, 'aktivni', value);
+        if (ok) cell.dataset.value = value;
+        close(ok ? value : current);
+      });
+      setTimeout(() => document.addEventListener('click', onOutside, true)); // až po aktuálním kliknutí
+      document.addEventListener('keydown', onKey);
     }
 
     function appendOptions(select, options) {
@@ -1021,12 +1085,6 @@ document.addEventListener('DOMContentLoaded', function () {
       closePicker();
       menu.hidden = !open;
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      return;
-    }
-    if (ev.target.closest('.col-picker-all')) {
-      hidden = [];
-      applyColumns();
-      saveColumns();
     }
   });
   box.addEventListener('change', (ev) => {
