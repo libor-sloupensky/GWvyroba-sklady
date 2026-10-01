@@ -134,14 +134,14 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     <nav>
       <a href="/" class="brand" title="Gworm – domů"<?= $navIsActive('/') ? ' aria-current="page"' : '' ?>>Gworm</a>
       <?php $navIsReader = (($currentUser['role'] ?? '') === 'user'); ?>
+      <a href="/products" title="Kmenová karta produktů, CSV import/export"<?= $navIsActive('/products') ? ' class="active" aria-current="page"' : '' ?>>Produkty</a>
+      <a href="/movements" title="Skladové doklady – výroba a korekce"<?= $navIsActive('/movements') ? ' class="active" aria-current="page"' : '' ?>>Pohyby</a>
       <?php if (!$navIsReader): ?>
       <a href="/import" title="Nahrát XML a spustit import"<?= $navIsActive('/import') ? ' class="active" aria-current="page"' : '' ?>>Import</a>
       <?php endif; ?>
-      <a href="/products" title="Kmenová karta produktů, CSV import/export"<?= $navIsActive('/products') ? ' class="active" aria-current="page"' : '' ?>>Produkty</a>
       <a href="/inventory" title="Záznam inventury a korekcí"<?= $navIsActive('/inventory') ? ' class="active" aria-current="page"' : '' ?>>Inventura</a>
       <a href="/reservations" title="Rezervace hotových produktů"<?= $navIsActive('/reservations') ? ' class="active" aria-current="page"' : '' ?>>Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného"<?= $navIsActive('/production') ? ' class="active" aria-current="page"' : '' ?>>Výroba</a>
-      <a href="/movements" title="Skladové doklady – výroba a korekce"<?= $navIsActive('/movements') ? ' class="active" aria-current="page"' : '' ?>>Pohyby</a>
       <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
       <?php if (!$navIsReader): ?>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
