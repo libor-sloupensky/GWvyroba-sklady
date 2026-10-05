@@ -70,6 +70,7 @@ Cílová skupina: interní tým (admin/superadmin/user). Aplikace je privátní,
 - `sklad` → základ pro `vyroba`, `rezervace`, `produkty.skl_hodnota`
 - `rezervace` → čte `produkty`, ovlivňuje dostupný stav počítaný ve `vyroba`/`sklad`
 - `vyroba` → využívá `bom` (demand tree), zapisuje do `polozky_pohyby` (jako `sklad`)
+- `pohyby` → skladové doklady (výroba / korekce / inventura) nad `polozky_pohyby`; využívá `bom`, `sklad` (stavy, inventury), `auth` (role, zámky). Sloupec Akce ve Výrobě je skrytý, zápis pohybů jde přes doklady
 - `analytics` → čte `doklady_eshop`, `polozky_eshop`, `produkty`, `bom`
 - `deploy` → průřezový
 
@@ -132,7 +133,9 @@ gworm/
 | `inventury` | sklad | Inventury (otevřená/zavřená) |
 | `inventura_polozky` | sklad | Položky inventury |
 | `inventura_stavy` | sklad | Vypočtené stavy zásob (při uzavření) |
-| `polozky_pohyby` | sklad/vyroba | Pohyby: `inventura`/`vyroba`/`korekce`/`odpis` |
+| `polozky_pohyby` | sklad/vyroba/pohyby | Pohyby: `inventura`/`vyroba`/`korekce`/`odpis`; `doklad_id`, `parent_pohyb_id`, `user_id`, `skl_hodnota_jedn` |
+| `sklad_doklady` | pohyby | Hlavičky skladových dokladů (číslo RR-NNNN, typ, autor, vazba na inventuru) |
+| `sklad_doklady_log` | pohyby | Historie změn dokladu |
 | `rezervace` | rezervace | Blokace zásob |
 | `nastaveni_rady`, `nastaveni_ignorovane_polozky`, `nastaveni_global` | nastaveni | Řady dokladů, ignorované SKU vzory, globální parametry |
 | `ai_prompts` | analytics | Uložené AI SQL favorit queries |
