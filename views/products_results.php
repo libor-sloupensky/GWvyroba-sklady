@@ -17,7 +17,7 @@
   $productColumns = [
       'sku'        => ['SKU', 'Interní kód produktu. Kliknutím rozbalíte kusovník (z čeho se produkt skládá).', true],
       'alt_sku'    => ['Alt SKU', 'Alternativní nebo starší označení, pod kterým produkt chodí z e-shopu či Pohody. Dvojklikem upravíte.', false],
-      'ean'        => ['EAN', 'Čárový kód produktu. Dvojklikem upravíte.', false],
+      'ean'        => ['EAN', 'Čárový kód produktu. Dvojklikem upravíte. Ikona za platným EAN-13 / EAN-8 stáhne čárový kód jako vektor (SVG).', false],
       'znacka'     => ['Značka', 'Značka produktu (číselník v Nastavení). Dvojklikem upravíte.', false],
       'skupina'    => ['Skupina', 'Produktová skupina (číselník v Nastavení). Dvojklikem upravíte.', false],
       'typ'        => ['Typ', 'Typ položky – produkt, karton, surovina, obal … Určuje, jak se s položkou počítá ve výrobě a analýze. Dvojklikem upravíte.', false],
@@ -76,6 +76,9 @@
     </td>
     <td class="editable" data-field="ean" data-type="text" data-value="<?= $e($it['ean'] ?? '') ?>">
       <?= isset($it['ean']) && $it['ean'] !== '' ? $e($it['ean']) : '' ?>
+      <?php if (\App\Support\EanSvg::jePlatny((string)($it['ean'] ?? ''))): ?>
+        <a class="ean-svg" href="/products/ean-svg?ean=<?= $e(rawurlencode((string)$it['ean'])) ?>&amp;sku=<?= $e(rawurlencode((string)$it['sku'])) ?>" title="Stáhnout čárový kód jako vektor (SVG)" aria-label="Stáhnout čárový kód (SVG)"><?= ikona('download', 14) ?></a>
+      <?php endif; ?>
     </td>
     <td class="editable" data-field="znacka_id" data-type="select" data-options="brands" data-value="<?= (int)($it['znacka_id'] ?? 0) ?>"><?= $e($it['znacka'] ?? '') ?></td>
     <td class="editable" data-field="skupina_id" data-type="select" data-options="groups" data-value="<?= (int)($it['skupina_id'] ?? 0) ?>"><?= $e($it['skupina'] ?? '') ?></td>

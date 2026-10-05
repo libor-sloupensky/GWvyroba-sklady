@@ -124,8 +124,8 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
   <script>
     // Ikony pro JavaScript ve view (stejná sada Lucide jako ikona() v PHP): LUCIDE.x, LUCIDE['chevron-down'] …
     window.LUCIDE = <?= json_encode(array_combine(
-        ['x', 'check', 'chevron-right', 'chevron-down', 'chevron-up', 'trash-2', 'plus', 'info', 'circle-help', 'search', 'loader-circle', 'triangle-alert', 'arrow-right'],
-        array_map(static fn(string $n): string => \App\Support\Lucide::svg($n, 16), ['x', 'check', 'chevron-right', 'chevron-down', 'chevron-up', 'trash-2', 'plus', 'info', 'circle-help', 'search', 'loader-circle', 'triangle-alert', 'arrow-right'])
+        ['x', 'check', 'chevron-right', 'chevron-down', 'chevron-up', 'trash-2', 'plus', 'info', 'circle-help', 'search', 'loader-circle', 'triangle-alert', 'arrow-right', 'download'],
+        array_map(static fn(string $n): string => \App\Support\Lucide::svg($n, 16), ['x', 'check', 'chevron-right', 'chevron-down', 'chevron-up', 'trash-2', 'plus', 'info', 'circle-help', 'search', 'loader-circle', 'triangle-alert', 'arrow-right', 'download'])
     ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
   </script>
 </head>

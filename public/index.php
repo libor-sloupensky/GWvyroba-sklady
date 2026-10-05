@@ -69,6 +69,7 @@ $router->get('/import/auto-run', [ImportController::class, 'autoRun']);
 // Produkty
 $router->get('/products', [ProductsController::class, 'index']);
 $router->get('/products/export', [ProductsController::class, 'exportCsv']);
+$router->get('/products/ean-svg', [ProductsController::class, 'eanSvg']);
 $router->post('/products/import', [ProductsController::class, 'importCsv']);
 $router->post('/products/create', [ProductsController::class, 'create']);
 $router->post('/products/delete', [ProductsController::class, 'delete']);

@@ -8,6 +8,8 @@ use App\Service\StockService;
 
 use App\Support\DB;
 
+use App\Support\EanSvg;
+
 
 
 final class ProductsController
@@ -202,6 +204,29 @@ final class ProductsController
 
         exit;
 
+    }
+
+    /**
+     * Čárový kód EAN-13 / EAN-8 jako vektorové SVG ke stažení (odkaz za EAN ve sloupci EAN).
+     */
+    public function eanSvg(): void
+    {
+        $this->requireAuth();
+        $ean = preg_replace('/\s+/', '', (string)($_GET['ean'] ?? ''));
+        $svg = EanSvg::svg($ean);
+        if ($svg === null) {
+            http_response_code(422);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo 'EAN „' . $ean . '“ není platný EAN-13 ani EAN-8 (počet číslic nebo kontrolní číslice).';
+            exit;
+        }
+        // Název souboru: EAN, případně i SKU (jen bezpečné znaky)
+        $sku = preg_replace('/[^A-Za-z0-9._-]+/', '-', trim((string)($_GET['sku'] ?? '')));
+        $soubor = 'ean-' . $ean . ($sku !== '' ? '-' . $sku : '') . '.svg';
+        header('Content-Type: image/svg+xml; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $soubor . '"');
+        echo $svg;
+        exit;
     }
 
 

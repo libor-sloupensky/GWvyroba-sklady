@@ -252,6 +252,11 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 .active-toggle button.on.is-sel { background:#e8f5e9; }
 .active-toggle button.off.is-sel { background:#ffebee; }
 .col-picker-td { width:1%; }
+/* EAN: ikona stažení čárového kódu (SVG) za číslem */
+.editable[data-field="ean"] { white-space:nowrap; }
+.ean-svg { display:inline-flex; vertical-align:middle; margin-left:0.25rem; line-height:0; color:var(--c-primary-text); }
+.ean-svg:hover { color:var(--c-primary-akcent-hover); }
+.ean-svg svg { width:14px; height:14px; }
 /* Přetahování sloupců: úchyt a ruka po najetí, při tažení průhledný sloupec a oranžová čára v místě dopadu */
 .products-table th[draggable="true"] { cursor:grab; user-select:none; white-space:nowrap; position:relative; }
 .products-table th[draggable="true"]:active { cursor:grabbing; }
@@ -744,6 +749,24 @@ document.addEventListener('DOMContentLoaded', function () {
     function setDisplay(cell, field, value) {
       if (field === 'aktivni') { renderActive(cell, value); return; }
       cell.textContent = formatDisplay(field, value);
+      if (field === 'ean' && isValidEan(value)) {
+        // Odkaz na stažení čárového kódu (SVG) – stejný jako z products_results.php
+        const link = document.createElement('a');
+        link.className = 'ean-svg';
+        link.href = `/products/ean-svg?ean=${encodeURIComponent(value)}&sku=${encodeURIComponent(cell.closest('tr')?.dataset.sku || '')}`;
+        link.title = 'Stáhnout čárový kód jako vektor (SVG)';
+        link.setAttribute('aria-label', 'Stáhnout čárový kód (SVG)');
+        link.innerHTML = LUCIDE.download;
+        cell.append(' ', link);
+      }
+    }
+
+    // Platný EAN-13 / EAN-8 včetně kontrolní číslice (shodně s App\Support\EanSvg::jePlatny)
+    function isValidEan(value) {
+      if (!/^(\d{8}|\d{13})$/.test(value || '')) return false;
+      const digits = value.slice(0, -1).split('').reverse();
+      const sum = digits.reduce((acc, d, i) => acc + Number(d) * (i % 2 === 0 ? 3 : 1), 0);
+      return (10 - sum % 10) % 10 === Number(value.slice(-1));
     }
 
     function renderActive(cell, value) {
