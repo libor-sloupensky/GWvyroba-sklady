@@ -51,6 +51,7 @@ Všechny POST endpointy vrací JSON nebo redirect:
 ## Aktuální stav
 
 ✅ **Hotovo**
+- **Systémový e-mail** (2026-10-14, jen superadmin, sekce `#systemovy-email`): SMTP server/port/uživatel/heslo v `nastaveni_global` (`smtp_host`, `smtp_port`, `smtp_user`, `smtp_heslo_enc` – šifrované `CryptoService`; sloupce se zakládají lazy v `MailService::ensureColumns`). Výchozí `smtp.cesky-hosting.cz:465`, `doklady@tuptudu.cz`. Prázdné heslo při uložení = ponechat stávající. Tlačítko „Poslat testovací e-mail“ pošle test všem aktivním superadminům. Routes `POST /settings/mail`, `POST /settings/mail/test` (bez CSRF jako zbytek aplikace).
 - Všechny číselníky mají CRUD (add/delete, s kontrolou používání — nedovolí smazat značku použitou v produktech)
 - Šifrování Shoptet hesel (`CryptoService::encrypt` — AES-256-CBC s `ENCRYPTION_KEY`)
 - Globální parametry:

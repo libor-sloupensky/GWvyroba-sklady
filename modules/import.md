@@ -47,6 +47,8 @@ Cron endpoint (mimo router): `GET /cron.php?token=...`
 ## Aktuální stav
 
 ✅ **Hotovo**
+- **Upozornění e-mailem na chyby auto-importu** (2026-10-14): `ShoptetImportService::saveHistory()` při první chybě e-shopu za den (`status='error'`) pošle e-mail všem aktivním superadminům přes `MailService` (SMTP, Nastavení → Systémový e-mail). Cron zkouší max. 3× denně, takže při trvající chybě chodí 1 e-mail denně za e-shop. Selhání odeslání se jen zaloguje (WARN), import neshodí.
+- **Doklady mimo fakturační řadu** se v auto-importu dřív ztrácely potichu (`persistInvoices` je přeskočí, CLI výsledek je zahodil a zapsal `ok`). Nově `importPohodaFromStringCli()` vrací `skipped`, auto-import zapíše řádek `import_history` se `status='warning'` a zprávou začínající `Mimo řadu:` a pošle e-mail (1× denně za e-shop). Nastavení → řady pak ukazuje stav „chybně“.
 - Shoptet XML parser (`ShoptetImportService::parsePohodaXml()`)
 - Auto-import přes cron, jeden eshop za běh (zabrání timeout)
 - File lock — jedna instance najednou

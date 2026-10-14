@@ -12,6 +12,9 @@ use App\Support\DB;
  */
 final class ShoptetImportService
 {
+    /** Začátek zprávy v import_history pro doklady přeskočené kvůli řadě (podle něj se hlídá 1 e-mail denně). */
+    private const SKIPPED_PREFIX = 'Mimo řadu:';
+
     private string $logFile;
     /** @var string[] Buffered log lines for web output */
     private array $logBuffer = [];
@@ -431,6 +434,27 @@ final class ShoptetImportService
                         null
                     );
 
+                    // Doklady mimo nastavenou řadu import přeskočí – dřív se to v auto-importu ztratilo
+                    $skipped = $result['skipped'] ?? [];
+                    if ($skipped) {
+                        $first = array_slice($skipped, 0, 10);
+                        $msg = self::SKIPPED_PREFIX . ' přeskočeno ' . count($skipped) . ' dokladů: '
+                            . implode('; ', array_map(static fn(array $s): string => (string)$s['duvod'], $first))
+                            . (count($skipped) > 10 ? ' …' : '');
+                        $this->log($msg, 'WARN');
+                        $this->saveHistory(
+                            $eshopSource,
+                            strtoupper($label),
+                            $firstOfLastMonth->format('Y-m-d'),
+                            $now->format('Y-m-d'),
+                            $result['batch'],
+                            0,
+                            0,
+                            'warning',
+                            $msg
+                        );
+                    }
+
                     $totalResults['currencies'][$label] = $result;
                 } catch (\Throwable $e) {
                     $isEmptyExport = str_contains($e->getMessage(), 'neobsahuje žádné doklady');
@@ -607,12 +631,48 @@ final class ShoptetImportService
         string $status,
         ?string $message
     ): void {
+        $firstErrorToday = false;
         try {
             $pdo = DB::pdo();
-            $st = $pdo->prepare('INSERT INTO import_history (eshop_source,mena,datum_od,datum_do,batch_id,doklady,polozky,status,message) VALUES (?,?,?,?,?,?,?,?,?)');
+            if ($status === 'error') {
+                $err = $pdo->prepare("SELECT COUNT(*) FROM import_history WHERE eshop_source = ? AND status = 'error' AND DATE(created_at) = CURDATE()");
+                $err->execute([$eshopSource]);
+                $firstErrorToday = (int)$err->fetchColumn() === 0;
+            } elseif ($status === 'warning' && str_starts_with((string)$message, self::SKIPPED_PREFIX)) {
+                $err = $pdo->prepare("SELECT COUNT(*) FROM import_history WHERE eshop_source = ? AND status = 'warning' AND message LIKE ? AND DATE(created_at) = CURDATE()");
+                $err->execute([$eshopSource, self::SKIPPED_PREFIX . '%']);
+                $firstErrorToday = (int)$err->fetchColumn() === 0;
+            }
+            $st =$pdo->prepare('INSERT INTO import_history (eshop_source,mena,datum_od,datum_do,batch_id,doklady,polozky,status,message) VALUES (?,?,?,?,?,?,?,?,?)');
             $st->execute([$eshopSource, $mena, $datumOd, $datumDo, $batchId, $doklady, $polozky, $status, $message]);
         } catch (\Throwable $e) {
             $this->log('Zápis do import_history selhal: ' . $e->getMessage(), 'ERROR');
+        }
+        // Chyba importu nesmí umřít potichu: první chyba e-shopu za den jde e-mailem superadminům
+        // (cron zkouší max. 3× denně, takže při trvající chybě přijde 1 e-mail denně za e-shop).
+        if ($firstErrorToday) {
+            $this->notifyError($eshopSource, $mena, (string)$message);
+        }
+    }
+
+    private function notifyError(string $eshopSource, string $mena, string $message): void
+    {
+        $isSkipped = str_starts_with($message, self::SKIPPED_PREFIX);
+        $subject = $isSkipped ? "Gworm: import {$eshopSource} – doklady mimo řadu" : "Gworm: import {$eshopSource} selhal";
+        $body = ($isSkipped
+                ? "Automatický import z e-shopu {$eshopSource} proběhl, ale některé doklady přeskočil, protože neodpovídají nastavené fakturační řadě (prefix / rozsah čísel). Tyto doklady v Gwormu chybí – upravte řadu v Nastavení a import zopakujte.\n\n"
+                : "Automatický import faktur z e-shopu {$eshopSource} se nepodařil.\n\n")
+            . 'Čas: ' . date('j. n. Y H:i') . "\n"
+            . ($mena !== '' ? "Měna: {$mena}\n" : '')
+            . "Chyba: {$message}\n\n"
+            . "Další upozornění tohoto druhu k e-shopu přijde nejdřív zítra, pokud problém potrvá.\n\n"
+            . "Historie a ruční import: https://gworm.wormup.com/import\n"
+            . "Nastavení e-shopů a řad: https://gworm.wormup.com/settings\n";
+        try {
+            MailService::sendToSuperadmins($subject, $body);
+            $this->log("Upozornění na chybu odesláno e-mailem superadminům.");
+        } catch (\Throwable $e) {
+            $this->log('Upozornění e-mailem se nepodařilo odeslat: ' . $e->getMessage(), 'WARN');
         }
     }
 

@@ -1194,12 +1194,13 @@ LIMIT {$limit}
             throw new \RuntimeException('XML neobsahuje žádné doklady.');
         }
         $batch = date('YmdHis');
-        [$docCount, $itemCount, $missingSku] = $this->persistInvoices($eshop, $series, $documents, $batch, $currencyOverride);
+        [$docCount, $itemCount, $missingSku, $skipped] = $this->persistInvoices($eshop, $series, $documents, $batch, $currencyOverride);
         return [
             'batch' => $batch,
             'doklady' => $docCount,
             'polozky' => $itemCount,
             'missingSku' => $missingSku,
+            'skipped' => $skipped, // doklady mimo řadu – auto-import je hlásí e-mailem
         ];
     }
 

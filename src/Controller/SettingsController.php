@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Service\CryptoService;
+use App\Service\MailService;
 use App\Service\ShoptetImportService;
 use App\Service\StockService;
 use App\Support\DB;
@@ -29,8 +30,9 @@ final class SettingsController
         $updatedCol = $hasUpdatedAt ? 'nr.updated_at' : 'NULL AS updated_at';
         $series = $pdo->query("SELECT nr.id,nr.eshop_source,nr.prefix,nr.cislo_od,nr.cislo_do,nr.admin_url,nr.admin_email,nr.admin_password_enc,{$updatedCol},
             EXISTS(SELECT 1 FROM doklady_eshop de WHERE de.eshop_source = nr.eshop_source LIMIT 1) AS has_imports,
-            (SELECT ih.status FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_status,
-            (SELECT ih.created_at FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_at
+            (SELECT ih.status FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC, ih.id DESC LIMIT 1) AS last_import_status,
+            (SELECT ih.created_at FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC LIMIT 1) AS last_import_at,
+            (SELECT ih.message FROM import_history ih WHERE ih.eshop_source = nr.eshop_source ORDER BY ih.created_at DESC, ih.id DESC LIMIT 1) AS last_import_message
             FROM nastaveni_rady nr ORDER BY nr.eshop_source")->fetchAll();
         foreach ($series as &$sRow) {
             $sRow['import_state'] = $this->seriesImportState($sRow);
@@ -43,6 +45,7 @@ final class SettingsController
         $units = $pdo->query('SELECT u.id,u.kod,(SELECT COUNT(*) FROM produkty p WHERE p.merna_jednotka=u.kod) AS used_count FROM produkty_merne_jednotky u ORDER BY u.kod')->fetchAll();
         $types = $pdo->query('SELECT pt.id,pt.code,pt.name,pt.is_nonstock,(SELECT COUNT(*) FROM produkty p WHERE p.typ=pt.code) AS used_products,(SELECT COUNT(*) FROM rezervace r WHERE r.typ=pt.code) AS used_reservations FROM product_types pt ORDER BY pt.name')->fetchAll();
         $users = $this->isSuperAdmin() ? $this->fetchUsers() : [];
+        $mail = $this->isSuperAdmin() ? MailService::settings() : null;
         $flashError = $_SESSION['settings_error'] ?? null;
         $flashMessage = $_SESSION['settings_message'] ?? null;
         unset($_SESSION['settings_error'], $_SESSION['settings_message']);
@@ -58,6 +61,8 @@ final class SettingsController
             'types' => $types,
             'users' => $users,
             'canManageUsers' => $this->isSuperAdmin(),
+            'mail' => $mail,
+            'superadminEmails' => $this->isSuperAdmin() ? MailService::superadminEmails() : [],
             'flashError' => $flashError,
             'flashMessage' => $flashMessage,
         ]);
@@ -81,7 +86,10 @@ final class SettingsController
         if ($updatedAt !== '' && strtotime($updatedAt) > strtotime($lastAt)) {
             return 'neovereno'; // řada změněna po posledním importu → čeká na další stažení
         }
-        return ((string)($s['last_import_status'] ?? '') === 'error') ? 'chybne' : 'overeno';
+        $lastStatus = (string)($s['last_import_status'] ?? '');
+        // Doklady přeskočené kvůli řadě (warning „Mimo řadu:“ z auto-importu) = řada neodpovídá → chybně
+        $skippedBySeries = $lastStatus === 'warning' && str_starts_with((string)($s['last_import_message'] ?? ''), 'Mimo řadu:');
+        return ($lastStatus === 'error' || $skippedBySeries) ? 'chybne' : 'overeno';
     }
 
     public function saveSeries(): void
@@ -424,6 +432,39 @@ final class SettingsController
         StockService::recalcAutoSafetyStock();
         $_SESSION['settings_message'] = 'Globální nastavení bylo upraveno.';
         header('Location: /settings');
+    }
+
+    /** Systémový e-mail (SMTP) pro upozornění na chyby importu – jen superadmin. Prázdné heslo = ponechat. */
+    public function saveMail(): void
+    {
+        $this->requireSuperAdmin();
+        $host = trim((string)($_POST['smtp_host'] ?? ''));
+        $port = (int)($_POST['smtp_port'] ?? 465);
+        $user = trim((string)($_POST['smtp_user'] ?? ''));
+        $password = (string)($_POST['smtp_heslo'] ?? '');
+        if ($host === '' || $user === '' || !in_array($port, [465, 587], true)) {
+            $_SESSION['settings_error'] = 'Vyplňte SMTP server a uživatele, port 465 (SSL) nebo 587 (STARTTLS).';
+        } else {
+            MailService::saveSettings($host, $port, $user, $password);
+            $_SESSION['settings_message'] = 'Systémový e-mail byl uložen.' . ($password === '' ? '' : ' Heslo je uložené šifrovaně.');
+        }
+        header('Location: /settings#systemovy-email');
+    }
+
+    public function testMail(): void
+    {
+        $this->requireSuperAdmin();
+        try {
+            MailService::sendToSuperadmins(
+                'Gworm: testovací e-mail',
+                "Systémový e-mail Gwormu funguje.\n\n"
+                . "Na tuto adresu budou chodit upozornění, když automatický import faktur selže nebo přeskočí doklady mimo fakturační řadu.\n"
+            );
+            $_SESSION['settings_message'] = 'Testovací e-mail odeslán na: ' . implode(', ', MailService::superadminEmails()) . '.';
+        } catch (\Throwable $e) {
+            $_SESSION['settings_error'] = 'Testovací e-mail se nepodařilo odeslat: ' . $e->getMessage();
+        }
+        header('Location: /settings#systemovy-email');
     }
 
     /** 'user' = čtenář (jen prohlížení + Analýza). Dřívější hodnota 'employee' v DB ENUM neexistovala. */

@@ -145,6 +145,8 @@ $router->post('/settings/unit/delete', [SettingsController::class, 'deleteUnit']
 $router->post('/settings/type', [SettingsController::class, 'saveProductType']);
 $router->post('/settings/type/delete', [SettingsController::class, 'deleteProductType']);
 $router->post('/settings/global', [SettingsController::class, 'saveGlobal']);
+$router->post('/settings/mail', [SettingsController::class, 'saveMail']);
+$router->post('/settings/mail/test', [SettingsController::class, 'testMail']);
 $router->post('/settings/users/save', [SettingsController::class, 'saveUser']);
 $router->post('/settings/users/role', [SettingsController::class, 'updateUserRole']);
 $router->post('/settings/users/delete', [SettingsController::class, 'deleteUser']);

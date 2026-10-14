@@ -86,7 +86,7 @@ gworm/
 ├── src/
 │   ├── bootstrap.php      # autoload, timezone, session
 │   ├── Controller/        # 11 controllers (1 per modul)
-│   ├── Service/           # ShoptetImportService, StockService, CryptoService, AnalyticsSchema
+│   ├── Service/           # ShoptetImportService, StockService, CryptoService, MailService (SMTP upozornění superadminům), AnalyticsSchema
 │   └── Support/           # Router (mini HTTP router), DB (PDO singleton)
 ├── views/                 # 15 .php šablon + _layout.php
 ├── db/

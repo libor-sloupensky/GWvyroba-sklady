@@ -430,6 +430,55 @@
 </form>
 </div>
 
+<?php if (!empty($canManageUsers) && !empty($mail)): ?>
+<h2 class="settings-toggle" id="systemovy-email"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Systémový e-mail</h2>
+<div class="settings-section" style="display:none;">
+<style>
+.mail-form { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px 14px; align-items:end; max-width:900px; }
+.mail-form .fld { display:flex; flex-direction:column; gap:3px; }
+.mail-form .fld label { font-size:12px; color:var(--c-text-secondary); font-weight:700; }
+.mail-form .fld input, .mail-form .fld select { width:100%; box-sizing:border-box; }
+.mail-form .form-actions { grid-column:1 / -1; display:flex; gap:0.6rem; align-items:center; }
+.mail-state-ok { color:var(--c-ok); font-weight:700; }
+.mail-state-missing { color:var(--c-danger); font-weight:700; }
+@media (max-width:760px) { .mail-form { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+</style>
+<p class="muted">Z této schránky Gworm posílá upozornění, když automatický import faktur selže nebo přeskočí doklady mimo fakturační řadu (nejvýše 1 e-mail denně za e-shop a druh problému). Příjemci: aktivní superadmini – <?= htmlspecialchars(implode(', ', $superadminEmails ?? []), ENT_QUOTES, 'UTF-8') ?: '<em>žádný</em>' ?>.</p>
+<p>Heslo:
+  <?php if (!empty($mail['has_password'])): ?>
+    <span class="mail-state-ok">uložené</span> <span class="muted">(šifrovaně; pole hesla nechte prázdné, pokud ho neměníte)</span>
+  <?php else: ?>
+    <span class="mail-state-missing">není nastavené</span> <span class="muted">– bez něj se upozornění neodešlou</span>
+  <?php endif; ?>
+</p>
+<form method="post" action="/settings/mail" class="mail-form" autocomplete="off">
+  <div class="fld">
+    <label for="smtp_host">SMTP server</label>
+    <input type="text" id="smtp_host" name="smtp_host" value="<?= htmlspecialchars((string)$mail['smtp_host'], ENT_QUOTES, 'UTF-8') ?>" required />
+  </div>
+  <div class="fld">
+    <label for="smtp_port">Port</label>
+    <select id="smtp_port" name="smtp_port">
+      <option value="465"<?= (int)$mail['smtp_port'] === 465 ? ' selected' : '' ?>>465 (SSL)</option>
+      <option value="587"<?= (int)$mail['smtp_port'] === 587 ? ' selected' : '' ?>>587 (STARTTLS)</option>
+    </select>
+  </div>
+  <div class="fld">
+    <label for="smtp_user">Uživatel = odesílatel</label>
+    <input type="email" id="smtp_user" name="smtp_user" value="<?= htmlspecialchars((string)$mail['smtp_user'], ENT_QUOTES, 'UTF-8') ?>" required />
+  </div>
+  <div class="fld">
+    <label for="smtp_heslo">Heslo<?= !empty($mail['has_password']) ? ' (nové)' : '' ?></label>
+    <input type="password" id="smtp_heslo" name="smtp_heslo" value="" autocomplete="new-password" placeholder="<?= !empty($mail['has_password']) ? 'beze změny' : '' ?>" />
+  </div>
+  <div class="form-actions">
+    <button type="submit">Uložit</button>
+    <button type="submit" formaction="/settings/mail/test" formnovalidate class="ikona-btn"<?= empty($mail['has_password']) ? ' disabled title="Nejdřív uložte heslo"' : '' ?>><?= ikona('mail', 16) ?> Poslat testovací e-mail</button>
+  </div>
+</form>
+</div>
+<?php endif; ?>
+
 <?php if (!empty($canManageUsers)): ?>
 <h2 class="settings-toggle"><span class="tri"><?= ikona('chevron-right', 18) ?></span> Uživatelé</h2>
 <div class="settings-section" style="display:none;">
@@ -518,6 +567,14 @@
 
 <script>
 (function(){
+  // Návrat po uložení (např. #systemovy-email) otevře příslušnou sekci
+  if (location.hash) {
+    var target = document.getElementById(location.hash.slice(1));
+    if (target && target.classList.contains('settings-toggle') && target.nextElementSibling) {
+      target.nextElementSibling.style.display = '';
+      target.querySelector('.tri').innerHTML = LUCIDE['chevron-down'];
+    }
+  }
   document.querySelectorAll('.settings-toggle').forEach(function(h2) {
     h2.addEventListener('click', function() {
       var body = this.nextElementSibling;
