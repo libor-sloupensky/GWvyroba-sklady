@@ -24,6 +24,10 @@
 .invoice-items-table td { padding:6px 8px; border-bottom:1px solid #e5e5e5; }
 .item-not-deducted { background:#ffebee; }
 .item-not-deducted td { color:#c62828; }
+.import-help { border:1px solid var(--c-border); background:var(--c-surface-2); border-radius:8px; padding:0.6rem 0.9rem; margin:0.5rem 0 1rem; font-size:0.92rem; }
+.import-help-title { font-weight:700; display:flex; align-items:center; gap:0.35rem; }
+.import-help ol { margin:0.4rem 0 0; padding-left:1.3rem; }
+.import-help li { margin:0.15rem 0; }
 </style>
 <?php
 $formatQty = static function ($value): string {
@@ -36,6 +40,15 @@ $formatCzk = static function ($value): string {
 };
 ?>
 <p class="muted">Postup: vyberte e-shop a XML soubor. Pokud nejsou nastaven&eacute; &rcaron;ady, import propust&iacute; v&scaron;echny doklady. P&#345;i nesouladu &rcaron;ad se import zastav&iacute; a nic se neulo&#382;&iacute;.</p>
+<div class="import-help">
+  <div class="import-help-title"><?= ikona('info', 16) ?> Kde vzít XML soubor (ruční import)</div>
+  <ol>
+    <li>V administraci e-shopu otevřete <strong>Daňové doklady</strong> – adresa <code>https://www.&lt;e-shop&gt;/admin/danove-doklady/</code> (např. <code>www.grigsupply.cz/admin/danove-doklady/</code>) – a klikněte na <strong>Export</strong>.</li>
+    <li><strong>Typ exportu: XML (Pohoda) (CZ)</strong> – jiný formát (Money S3, ISDOC, CSV, XLSX) import nenačte.</li>
+    <li>Vyplňte <strong>Datum vystavení</strong> od–do za chybějící období, ostatní pole nechte prázdná. <strong>Měna</strong>: CZK, a má-li e-shop i eurové doklady, udělejte ještě druhý export s EUR.</li>
+    <li>Stažený soubor nahrajte níže pod správný e-shop. Překryv období nevadí – faktura se stejným číslem se přepíše, nezdvojí.</li>
+  </ol>
+</div>
 <?php if (!empty($error)): ?><div class="notice" style="border-color:#ffbdbd;background:#fff5f5;color:#b00020;"><?= htmlspecialchars((string)$error,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php if (!empty($message)): ?><div class="notice" style="border-color:#c8e6c9;background:#f1f8f1;color:#2e7d32;"><?= htmlspecialchars((string)$message,ENT_QUOTES,'UTF-8') ?></div><?php endif; ?>
 <?php
