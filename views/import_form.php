@@ -31,7 +31,6 @@
 .force-run-list { display:flex; flex-wrap:wrap; gap:0.4rem; }
 .force-run { display:inline-flex; align-items:center; gap:0.3rem; padding:0.25rem 0.6rem; border:1px solid var(--c-border-strong); border-radius:4px; background:#fff; text-decoration:none; }
 .force-run:hover { border-color:var(--c-primary); }
-.cron-url {display:block; padding:0.35rem 0.5rem; background:#fff; border:1px solid var(--c-border-strong); border-radius:4px; word-break:break-all; user-select:all; }
 </style>
 <?php
 $formatQty = static function ($value): string {
@@ -56,9 +55,8 @@ $formatCzk = static function ($value): string {
 <?php if (!empty($cronUrl)): ?>
 <div class="import-help">
   <div class="import-help-title"><?= ikona('clock', 16) ?> Automatický import (cron) <span class="muted" style="font-weight:600;">– vidí jen superadmin</span></div>
-  <p style="margin:0.35rem 0;">Odkaz pro cron ve Webglobe (HOSTING → WEB → CRON), spouštět každou hodinu. Jedno spuštění zpracuje jeden e-shop, dnes hotové e-shopy přeskočí. Odkaz obsahuje tajný token – nesdílejte ho.</p>
-  <code class="cron-url"><?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?></code>
-  <p style="margin:0.6rem 0 0.3rem;"><strong>Vynucený import jednoho e-shopu</strong> – i když už dnes proběhl (stáhne období od začátku minulého měsíce). Otevře se v novém okně s průběhem, trvá do minuty. Do cron odkazu jde totéž přidat jako <code>&amp;eshop=…&amp;force=1</code>.</p>
+  <p style="margin:0.35rem 0;"><a href="<?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener" title="<?= htmlspecialchars($cronUrl, ENT_QUOTES, 'UTF-8') ?>">Cron odkaz</a></p>
+  <p style="margin:0.6rem 0 0.3rem;"><strong>Vynucený import jednoho e-shopu</strong> – i když už dnes proběhl (stáhne období od začátku minulého měsíce).</p>
   <div class="force-run-list">
     <?php foreach (($eshops ?? []) as $s): $src = (string)$s['eshop_source']; ?>
       <a class="force-run" href="/import/auto-run?eshop=<?= rawurlencode($src) ?>&amp;force=1" target="_blank" rel="noopener"><?= ikona('refresh-cw', 14) ?> <?= htmlspecialchars($src, ENT_QUOTES, 'UTF-8') ?></a>
