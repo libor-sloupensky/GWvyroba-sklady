@@ -29,7 +29,7 @@ Parsuje hlavičku dokladu (`doklady_eshop`) + položky (`polozky_eshop`), napár
 | GET | `/import/auto-run` | `ImportController::autoRun` (ruční spuštění auto-importu) |
 | GET | `/report/missing-sku` | `ImportController::reportMissingSku` |
 
-Cron endpoint (mimo router): `GET /cron.php?token=...` — celý odkaz (se skutečným tokenem z configu serveru) ukazuje superadminovi rámeček na `/import` (`renderImportForm` → `$cronUrl`).
+Cron endpoint (mimo router): `GET /cron.php?token=...` — celý odkaz (se skutečným tokenem z configu serveru) ukazuje superadminovi rámeček na `/import` (`renderImportForm` → `$cronUrl`). **Vynucený import** jednoho e-shopu: `&eshop=<eshop_source>&force=1` (cron.php i `/import/auto-run`; CLI `php cron.php grigsupply.cz force`) – přeskočí kontrolu „dnes už naimportováno / 3 chyby“, období jako běžně (od začátku minulého měsíce). Na `/import` má superadmin tlačítka po e-shopech (otevře `/import/auto-run?...` v novém okně, autorizace session).
 
 ## Tabulky
 

@@ -1385,8 +1385,11 @@ LIMIT {$limit}
         echo "Shoptet auto-import\n";
         echo str_repeat('=', 40) . "\n\n";
 
+        // ?eshop=grigsupply.cz&force=1 – jen jeden e-shop, i když už dnes proběhl
+        $onlyEshop = trim((string)($_GET['eshop'] ?? ''));
+        $force = ($_GET['force'] ?? '') === '1';
         $service = new ShoptetImportService();
-        $results = $service->runAll();
+        $results = $service->runAll($onlyEshop !== '' ? $onlyEshop : null, $force);
 
         // Výpis logů
         foreach ($service->getLogBuffer() as $line) {

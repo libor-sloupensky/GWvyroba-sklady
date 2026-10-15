@@ -36,9 +36,11 @@ final class ShoptetImportService
     /**
      * Spustí auto-import. Zpracuje JEDEN eshop na jedno spuštění.
      * Používá file lock proti souběžným běhům.
+     * @param string|null $onlyEshop jen tento e-shop (eshop_source), jinak všechny
+     * @param bool        $force     importovat i e-shop, který už dnes proběhl (nebo dnes 3× selhal)
      * @return array<string,array<string,mixed>> Výsledky per eshop
      */
-    public function runAll(): array
+    public function runAll(?string $onlyEshop = null, bool $force = false): array
     {
         // File lock - zabránit souběžným běhům
         $lockFile = sys_get_temp_dir() . '/gworm_shoptet_import.lock';
@@ -55,16 +57,23 @@ final class ShoptetImportService
         fflush($lockFp);
 
         try {
-            return $this->runAllInternal();
+            return $this->runAllInternal($onlyEshop, $force);
         } finally {
             flock($lockFp, LOCK_UN);
             fclose($lockFp);
         }
     }
 
-    private function runAllInternal(): array
+    private function runAllInternal(?string $onlyEshop, bool $force): array
     {
         $eshops = $this->loadEshopsWithCredentials();
+        if ($onlyEshop !== null && $onlyEshop !== '') {
+            $eshops = array_values(array_filter($eshops, static fn(array $r): bool => strcasecmp((string)$r['eshop_source'], $onlyEshop) === 0));
+            if (empty($eshops)) {
+                $this->log("E-shop {$onlyEshop} neexistuje nebo nemá přihlašovací údaje.", 'ERROR');
+                return [$onlyEshop => ['error' => 'E-shop neexistuje nebo nemá přihlašovací údaje k administraci.']];
+            }
+        }
         if (empty($eshops)) {
             $this->log('Žádné eshopy s přihlašovacími údaji.', 'WARN');
             return [];
@@ -77,7 +86,9 @@ final class ShoptetImportService
             $eshopSource = (string)$row['eshop_source'];
 
             // Přeskočit eshopy, které už dnes byly úspěšně naimportovány
-            if ($this->wasImportedToday($eshopSource)) {
+            if ($force) {
+                $this->log("=== Eshop {$eshopSource}: vynucený import (force) ===");
+            } elseif ($this->wasImportedToday($eshopSource)) {
                 $this->log("=== Eshop {$eshopSource}: už byl dnes naimportován, přeskakuji ===");
                 $results[$eshopSource] = ['skipped' => true];
                 continue;

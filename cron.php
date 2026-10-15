@@ -59,8 +59,11 @@ if (function_exists('ob_implicit_flush')) {
 }
 
 // -- Import -------------------------------------------------------------
+// Volitelně ?eshop=grigsupply.cz&force=1 (CLI: php cron.php grigsupply.cz force) – jen jeden e-shop, i když už dnes proběhl
+$onlyEshop = trim((string)($_GET['eshop'] ?? ($argv[1] ?? '')));
+$force = ($_GET['force'] ?? '') === '1' || in_array('force', $argv ?? [], true);
 $service = new ShoptetImportService();
-$results = $service->runAll();
+$results = $service->runAll($onlyEshop !== '' && $onlyEshop !== 'force' ? $onlyEshop : null, $force);
 
 // -- Sestavení výstupu --------------------------------------------------
 $lines = []; // [text, type] - type: 'heading', 'ok', 'fail', 'warn', 'skip', 'lock', 'info', 'sep'
