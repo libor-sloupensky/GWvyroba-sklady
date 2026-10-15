@@ -29,7 +29,7 @@ Parsuje hlavičku dokladu (`doklady_eshop`) + položky (`polozky_eshop`), napár
 | GET | `/import/auto-run` | `ImportController::autoRun` (ruční spuštění auto-importu) |
 | GET | `/report/missing-sku` | `ImportController::reportMissingSku` |
 
-Cron endpoint (mimo router): `GET /cron.php?token=...`
+Cron endpoint (mimo router): `GET /cron.php?token=...` — celý odkaz (se skutečným tokenem z configu serveru) ukazuje superadminovi rámeček na `/import` (`renderImportForm` → `$cronUrl`).
 
 ## Tabulky
 

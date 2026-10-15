@@ -820,6 +820,16 @@ final class ImportController
         $vars['invoiceRows'] = $viewMode === 'invoices' ? $this->loadImportedInvoices($invoiceLimit) : [];
         $vars['invoiceLimit'] = $invoiceLimit;
         $vars['historyRows'] = $viewMode === 'history' ? $this->loadImportHistory() : [];
+        // Cron odkaz jen pro superadmina – token spouští import; skutečný token z configu (i z config.local.php)
+        $vars['cronUrl'] = null;
+        if (($_SESSION['user']['role'] ?? '') === 'superadmin') {
+            $cfg = include __DIR__ . '/../../config/config.php';
+            $token = (string)($cfg['cron_token'] ?? '');
+            if ($token !== '') {
+                $host = (string)($_SERVER['HTTP_HOST'] ?? 'gworm.wormup.com');
+                $vars['cronUrl'] = 'https://' . $host . '/cron.php?token=' . rawurlencode($token);
+            }
+        }
         $this->render('import_form.php', $vars);
     }
 
