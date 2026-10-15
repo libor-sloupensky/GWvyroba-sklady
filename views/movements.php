@@ -46,6 +46,8 @@
 .mv-log summary { cursor:pointer; color:#5f5e5a; }
 .mv-log table { font-size:.85rem; }
 .mv-muted { color:#5f5e5a; }
+.mv-sku { cursor:help; border-bottom:1px dotted var(--c-border-strong); }
+.mv-sku:hover { color:var(--c-text); }
 .mv-badge { display:inline-block; padding:.1rem .5rem; border-radius:10px; font-size:.8rem; }
 .mv-badge.open { background:#e8f5e9; color:#1b5e20; }
 .mv-badge.locked { background:#f6f5f2; color:#5f5e5a; }
@@ -102,7 +104,17 @@
       <td><?= $h(date('j. n. Y', strtotime((string)$d['datum']))) ?></td>
       <td><span class="mv-badge <?= $h($d['typ']) ?>"><?= $h($typLabel[$d['typ']] ?? $d['typ']) ?></span></td>
       <td><?= $h($d['user_email']) ?></td>
-      <td title="<?= $h($d['skus'] ?? '') ?>"><?= (int)$d['radku'] ?><?php if (!empty($d['skus'])): ?> <span class="mv-muted"><?= $h(mb_strimwidth((string)$d['skus'], 0, 40, '…')) ?></span><?php endif; ?></td>
+      <td><?= (int)$d['radku'] ?><?php if (!empty($d['polozky'])): ?> <span class="mv-muted"><?php
+        // Všechna SKU bez zkrácení; najetí na SKU ukáže název × množství MJ
+        $skuParts = [];
+        foreach ($d['polozky'] as $p) {
+            $qty = rtrim(rtrim(number_format((float)$p['mnozstvi'], 3, ',', ' '), '0'), ',');
+            $tip = ($p['nazev'] ?? '') !== '' ? $p['nazev'] : $p['sku'];
+            $tip .= ' × ' . ($qty === '' || $qty === '-0' ? '0' : $qty) . (($p['mj'] ?? '') !== '' ? ' ' . $p['mj'] : '');
+            $skuParts[] = '<span class="mv-sku" title="' . $h($tip) . '">' . $h($p['sku']) . '</span>';
+        }
+        echo implode(', ', $skuParts);
+      ?></span><?php endif; ?></td>
       <td style="text-align:right; white-space:nowrap;<?= (float)($d['hodnota'] ?? 0) < 0 ? ' color:#c62828;' : '' ?>"><?= $d['hodnota'] === null ? '<span class="mv-muted">—</span>' : $h(number_format((float)$d['hodnota'], 2, ',', ' ')) ?></td>
       <td><?= $h(mb_strimwidth((string)($d['poznamka'] ?? ''), 0, 60, '…')) ?></td>
       <td><?php if ($d['lock'] === null): ?><span class="mv-badge open">otevřený</span><?php else: ?><span class="mv-badge locked" title="<?= $h($d['lock']) ?>">uzamčený</span><?php endif; ?></td>

@@ -857,11 +857,32 @@ final class MovementDocService
         }
         $sql = 'SELECT d.*,
                 ' . self::SQL_RADKU . ' AS radku,
-                (SELECT ROUND(SUM(pp.mnozstvi * COALESCE(pp.skl_hodnota_jedn, 0)), 2) FROM polozky_pohyby pp WHERE pp.doklad_id = d.id) AS hodnota,
-                (SELECT GROUP_CONCAT(DISTINCT pp.sku ORDER BY pp.id SEPARATOR ", ") FROM polozky_pohyby pp WHERE pp.doklad_id = d.id AND pp.parent_pohyb_id IS NULL) AS skus
+                (SELECT ROUND(SUM(pp.mnozstvi * COALESCE(pp.skl_hodnota_jedn, 0)), 2) FROM polozky_pohyby pp WHERE pp.doklad_id = d.id) AS hodnota
                 FROM sklad_doklady d WHERE ' . implode(' AND ', $where) . ' ORDER BY d.datum DESC, d.id DESC LIMIT ' . (int)$limit;
         $stmt = DB::pdo()->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $docs = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (!$docs) {
+            return [];
+        }
+
+        // Položky dokladů (jen řádky zadané uživatelem, bez odepsaných komponent): SKU, název, součet množství, MJ.
+        // Samostatný dotaz místo GROUP_CONCAT – ten má limit 1024 znaků a velké doklady by usekl.
+        $ids = array_map(static fn($d) => (int)$d['id'], $docs);
+        $st = DB::pdo()->prepare('SELECT pp.doklad_id, pp.sku, SUM(pp.mnozstvi) AS mnozstvi, MIN(pp.id) AS poradi,
+                MAX(p.nazev) AS nazev, MAX(COALESCE(p.merna_jednotka, pp.merna_jednotka)) AS mj
+            FROM polozky_pohyby pp LEFT JOIN produkty p ON p.sku = pp.sku
+            WHERE pp.doklad_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ') AND pp.parent_pohyb_id IS NULL
+            GROUP BY pp.doklad_id, pp.sku ORDER BY poradi');
+        $st->execute($ids);
+        $byDoc = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $byDoc[(int)$r['doklad_id']][] = $r;
+        }
+        foreach ($docs as &$d) {
+            $d['polozky'] = $byDoc[(int)$d['id']] ?? [];
+        }
+        unset($d);
+        return $docs;
     }
 }
