@@ -54,7 +54,7 @@ Pohyby skladu jsou dostupné přes `vyroba` modul (viz `vyroba.md` — `/product
 
 ⚠️ **Známé dluhy / gotchy**
 - **Reopen inventury** vrací stav do `inventura_polozky` a smaže `inventura_stavy` — ale pokud mezitím proběhly pohyby s `ref_id` vázaným na zavřenou inventuru, data mohou být nekonzistentní
-- **DECIMAL(18,6) pro stav vs. DECIMAL(18,3) pro množství** — při sčítání pozor na truncation
+- **Přesnost množství**: od 2026-10-22 mají `polozky_pohyby.mnozstvi`, `rezervace.mnozstvi` a `sklad_doklady_log` DECIMAL(18,6) jako `bom.koeficient` a inventura (přechod surovin z g na kg, koeficient 0,0202 kg). Migrace `db/migrate_mnozstvi_decimal6.sql`, záloha `Gworm_backups/gworm_mnozstvi_pred_decimal6_2026-10-22_172532.sql`. Zobrazení množství ořezává na 4 desetinná místa (koncové nuly pryč). `produkty.min_zasoba/min_davka/krok_vyroby/dovyrobit` zůstávají (18,3) = gramy v kg; `dovyrobit` se ukládá zaokrouhlený na celé jednotky (`StockService::recalcDovyrobit`) – u surovin v kg pozor.
 - **Historické stavy** se pro konkrétní datum počítají rekurzivně — u SKU s tisíci pohybů to může být pomalé. StockService má statické cache per request.
 - Pohyb typu `odpis` je "odečet bez odpovídajícího příjmu" — nepoužívá se často, ale existuje
 - `inventura_polozky.mnozstvi` může být i záporné? (viz UI — záleží na zápisu)

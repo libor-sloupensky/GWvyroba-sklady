@@ -1309,7 +1309,7 @@ final class ProductionController
         ];
     }
 
-    private function formatQtyDisplay(float $value, int $decimals = 3): string
+    private function formatQtyDisplay(float $value, int $decimals = 4): string
     {
         $decimals = max(0, $decimals);
         $formatted = number_format($value, $decimals, ',', ' ');

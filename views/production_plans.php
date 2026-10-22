@@ -68,7 +68,7 @@
 
 
 
-  $formatQty = static function ($value, int $decimals = 3): string {
+  $formatQty = static function ($value, int $decimals = 4): string {
       $decimals = max(0, $decimals);
       $formatted = number_format((float)$value, $decimals, ',', ' ');
       if ($decimals > 0) {
@@ -5242,7 +5242,7 @@ closeModal();
 
 
 
-  function formatNumber(value, decimals = 3) {
+  function formatNumber(value, decimals = 4) {
 
 
 

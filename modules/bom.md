@@ -45,6 +45,7 @@ Editor je integrovaný do modulu `produkty` (záložka "BOM strom" na produktu).
 - Tree editor v produktu (add/delete potomka)
 
 ⚠️ **Známé dluhy / gotchy**
+- Koeficient je DECIMAL(18,6) a pole v Produktech (přidání vazby) má `step="any"` – jde zadat např. 0,0202 kg. Výrobní strom zobrazuje až 4 desetinná místa (2026-10-22).
 - **Cyklické kusovníky nejsou ošetřené** — pokud by někdo nastavil A → B → A, rekurzivní funkce (`StockService::demandTree`, `AnalyticsController::calculateItemCost`) dojdou k infinite loop / stack overflow
 - **Nonstock typy** — BOM rozpad v analytics se spouští jen pro produkty s `product_types.is_nonstock = 1`. Pro "běžné" produkty se vezme `skl_hodnota` přímo. Hranice mezi typ = `produkt` (skladový) a nonstock typy (např. `baleni`, `sada`) je zásadní pro správnost výpočtů.
 - **Historické BOM** — když se změní kusovník, všechny historické výroby/analytiky pracují s aktuálním BOM (BOM je "live", ne versionovaný)

@@ -4,7 +4,7 @@
   $resultCount = (int)($resultCount ?? 0);
   $e = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
   // Formát množství jako ve Výrobě: mezera jako oddělovač tisíců, bez koncových nul
-  $formatQty = static function ($value, int $decimals = 3): string {
+  $formatQty = static function ($value, int $decimals = 4): string {
       $formatted = number_format((float)$value, max(0, $decimals), ',', ' ');
       if ($decimals > 0) {
           $formatted = rtrim(rtrim($formatted, '0'), ',');
@@ -128,9 +128,9 @@
         <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= (int)round($ratio * 100) ?>%"></span></div>
       </div>
     </td>
-    <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= $e($it['min_zasoba']) ?>"><?= (int)$it['min_zasoba'] ?></td>
-    <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= $e($it['min_davka']) ?>"><?= (int)$it['min_davka'] ?></td>
-    <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= $e($it['krok_vyroby']) ?>"><?= (int)$it['krok_vyroby'] ?></td>
+    <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= $e($it['min_zasoba']) ?>"><?= $e($formatQty($it['min_zasoba'])) ?></td>
+    <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= $e($it['min_davka']) ?>"><?= $e($formatQty($it['min_davka'])) ?></td>
+    <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= $e($it['krok_vyroby']) ?>"><?= $e($formatQty($it['krok_vyroby'])) ?></td>
     <td class="editable" data-field="vyrobni_doba_dni" data-type="number" data-step="1" data-value="<?= $e($it['vyrobni_doba_dni']) ?>"><?= $e($it['vyrobni_doba_dni']) ?></td>
     <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= $e($it['skl_hodnota']) ?>"><?= $e($it['skl_hodnota']) ?></td>
     <td class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni']

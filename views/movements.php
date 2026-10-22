@@ -1,7 +1,7 @@
 <?php
   $mode = $mode ?? 'list';
   $h = static fn($v): string => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
-  $fmtQty = static function ($v, int $dec = 3): string {
+  $fmtQty = static function ($v, int $dec = 4): string {
       $n = (float)$v;
       $s = number_format($n, $dec, ',', ' ');
       $s = rtrim(rtrim($s, '0'), ',');
@@ -108,7 +108,7 @@
         // Všechna SKU bez zkrácení; najetí na SKU ukáže název × množství MJ
         $skuParts = [];
         foreach ($d['polozky'] as $p) {
-            $qty = rtrim(rtrim(number_format((float)$p['mnozstvi'], 3, ',', ' '), '0'), ',');
+            $qty = rtrim(rtrim(number_format((float)$p['mnozstvi'], 4, ',', ' '), '0'), ',');
             $tip = ($p['nazev'] ?? '') !== '' ? $p['nazev'] : $p['sku'];
             $tip .= ' × ' . ($qty === '' || $qty === '-0' ? '0' : $qty) . (($p['mj'] ?? '') !== '' ? ' ' . $p['mj'] : '');
             $skuParts[] = '<span class="mv-sku" title="' . $h($tip) . '">' . $h($p['sku']) . '</span>';
@@ -259,7 +259,7 @@
   const fmt = (v) => {
     const n = Number(v);
     if (!Number.isFinite(n)) return '';
-    return n.toLocaleString('cs-CZ', { maximumFractionDigits: 3 });
+    return n.toLocaleString('cs-CZ', { maximumFractionDigits: 4 }); // kg surovin: 0,0202
   };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const showError = (msg) => { errBox.textContent = msg; errBox.style.display = msg ? '' : 'none'; };

@@ -559,7 +559,7 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
           <div class="field">
             <label>Koeficient*</label>
-            <input type="number" step="0.001" min="0" class="bom-input-koef" required />
+            <input type="number" step="any" min="0" class="bom-input-koef" required />
           </div>
         </div>
         <div class="bom-add-actions">
@@ -1547,7 +1547,7 @@ document.addEventListener('DOMContentLoaded', function () {
     return td;
   }
 
-  function formatNumber(value, decimals = 3) {
+  function formatNumber(value, decimals = 4) {
     if (value === null || value === undefined || value === '') return '—';
     const num = Number(value);
     if (!Number.isFinite(num)) return '—';
