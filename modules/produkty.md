@@ -42,6 +42,7 @@ Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy
 ## Aktuální stav
 
 ✅ **Hotovo**
+- **Dostupné / Cílový stav / Dovyrobit s měrnou jednotkou** (2026-10-22): za číslem šedá MJ produktu (`.qty-unit`); kusové jednotky (ks, bal, balení, karton) bez desetin, ostatní (Kg…) na 3 místa. **Neskladové položky** (`product_types.is_nonstock`): Dostupné = „neskladové“ s tooltipem, Cílový stav a Dovyrobit = pomlčka (místo zavádějící 0), bez rozbalení pohybů/stromu.
 - Tabulka produktů s inline editací (všechny klíčové sloupce editovatelné)
 - CSV export a import (`ON DUPLICATE KEY UPDATE` — safe pro opakovaný import)
 - Hlavička CSV: `sku,alt_sku,ean,znacka,skupina,typ,merna_jednotka,nazev,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,skl_hodnota,aktivni,poznamka`

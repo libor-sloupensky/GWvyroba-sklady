@@ -1936,7 +1936,9 @@ final class ProductsController
 
         $sklColumn = $this->hasProductStockValueColumn() ? 'p.skl_hodnota' : '0 AS skl_hodnota';
 
-        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,' . $sklColumn . ',p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina ' .
+        return 'SELECT p.sku,p.alt_sku,p.nazev,p.typ,p.merna_jednotka,p.ean,p.min_zasoba,p.nast_zasob,p.min_davka,p.krok_vyroby,p.vyrobni_doba_dni,' . $sklColumn . ',p.aktivni,p.znacka_id,p.skupina_id,p.poznamka,zb.nazev AS znacka,sg.nazev AS skupina,' .
+
+               'COALESCE((SELECT pt.is_nonstock FROM product_types pt WHERE pt.code = p.typ LIMIT 1), 0) AS is_nonstock ' .
 
                'FROM produkty p ' .
 

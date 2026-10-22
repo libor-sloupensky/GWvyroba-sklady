@@ -50,6 +50,7 @@ Modul nemá vlastní tabulky — píše do:
 ## Aktuální stav
 
 ✅ **Hotovo**
+- **Dostupné / Cílový stav / Dovyrobit s měrnou jednotkou** (2026-10-22): za číslem šedá MJ produktu (`.qty-unit`); kusové jednotky (ks, bal, balení, karton) bez desetin, ostatní (Kg…) na 3 místa. **Neskladové položky** (`product_types.is_nonstock`): Dostupné = „neskladové“ s tooltipem, Cílový stav a Dovyrobit = pomlčka (místo zavádějící 0), bez rozbalení pohybů/stromu.
 - Demand tree — rekurzivní rozpad potřeby z root produktu na komponenty
 - Výpočet `dovyrobit` z historie spotřeby (`buildDemandMap`, kaskáda prodejů přes BOM) mínus dostupný stav
 - **Cílový stav v plánech** — `recalcDovyrobit()` vrací mapu `sku => cilovy_stav` (potřeba rodičů + vlastní cíl u kořenů), `plans()` ji zobrazí ve sloupci „Cílový stav". Cíl se do DB neukládá. Dříve se dopočítával jako `dovyrobit + dostupné`, což při nulovém dovyrobit ukazovalo jen stav skladu.

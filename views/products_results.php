@@ -11,6 +11,10 @@
       }
       return $formatted === '' ? '0' : $formatted;
   };
+  // Množství s měrnou jednotkou (Dostupné, Cílový stav, Dovyrobit), ať je hned jasné, o jakou hodnotu jde
+  $qtyUnit = static fn($unit): string => trim((string)$unit) !== '' ? ' <span class="qty-unit">' . htmlspecialchars(trim((string)$unit), ENT_QUOTES, 'UTF-8') . '</span>' : '';
+  // Kusové jednotky bez desetin, kg/l apod. s desetinami
+  $qtyDecimals = static fn($unit): int => in_array(mb_strtolower(trim((string)$unit)), ['ks', 'bal', 'balení', 'karton', ''], true) ? 0 : 3;
 
   // Sloupce tabulky: klíč => [hlavička, tooltip, povinný]. Pořadí = pořadí buněk v řádku.
   // Povinné sloupce (SKU, Název) nejdou ve výběru sloupců skrýt.
@@ -107,27 +111,34 @@
         <?php endif; ?>
       </div>
     </td>
+    <?php $unit = (string)($it['merna_jednotka'] ?? ''); $dec = $qtyDecimals($unit); ?>
+    <?php if (!empty($it['is_nonstock'])): ?>
+    <td class="qty-cell"><span class="nonstock-label" title="Tato položka se neeviduje jako skladová – nemá stav ani zásobu, sklad se odepisuje u jejích komponent.">neskladové</span></td>
+    <td class="qty-cell"><span class="muted">–</span></td>
+    <td class="qty-cell"><span class="muted">–</span></td>
+    <?php else: ?>
     <td class="qty-cell<?= $vyrobaClass ?>">
       <span class="available-cell" data-sku="<?= $e($it['sku']) ?>">
         <span class="available-toggle"><?= ikona('chevron-right', 14) ?></span>
-        <span><?= $formatQty((float)($it['available'] ?? 0) + (float)($it['reservations'] ?? 0)) ?></span>
+        <span><?= $formatQty((float)($it['available'] ?? 0) + (float)($it['reservations'] ?? 0)) ?><?= $qtyUnit($unit) ?></span>
       </span>
     </td>
     <td class="qty-cell<?= $vyrobaClass ?>">
-      <?= $formatQty($it['target'] ?? 0, 0) ?>
+      <?= $formatQty($it['target'] ?? 0, $dec) ?><?= $qtyUnit($unit) ?>
       <?php if (($it['reservations'] ?? 0) > 0): ?>
-        <br><span class="muted" style="font-size:0.85em;">(<?= $formatQty($it['reservations']) ?>)</span>
+        <br><span class="muted" style="font-size:0.85em;">(<?= $formatQty($it['reservations']) ?><?= $qtyUnit($unit) ?>)</span>
       <?php endif; ?>
     </td>
     <td class="qty-cell deficit-cell<?= $vyrobaClass ?>">
       <div class="deficit-with-bar">
         <span class="demand-cell" data-sku="<?= $e($it['sku']) ?>">
           <span class="demand-toggle"><?= ikona('chevron-right', 14) ?></span>
-          <span><?= $formatQty($deficit, 0) ?></span>
+          <span><?= $formatQty($deficit, $dec) ?><?= $qtyUnit($unit) ?></span>
         </span>
         <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= (int)round($ratio * 100) ?>%"></span></div>
       </div>
     </td>
+    <?php endif; ?>
     <td class="editable" data-field="min_zasoba" data-type="number" data-step="0.001" data-value="<?= $e($it['min_zasoba']) ?>"><?= $e($formatQty($it['min_zasoba'])) ?></td>
     <td class="editable" data-field="min_davka" data-type="number" data-step="0.001" data-value="<?= $e($it['min_davka']) ?>"><?= $e($formatQty($it['min_davka'])) ?></td>
     <td class="editable" data-field="krok_vyroby" data-type="number" data-step="0.001" data-value="<?= $e($it['krok_vyroby']) ?>"><?= $e($formatQty($it['krok_vyroby'])) ?></td>

@@ -1150,6 +1150,8 @@
 
 }
 
+.qty-unit { color:var(--c-text-muted); font-size:0.85em; margin-left:0.15em; }
+.nonstock-label { color:var(--c-text-secondary); font-style:italic; cursor:help; border-bottom:1px dotted var(--c-border-strong); }
 .available-cell {
 
   display:inline-flex;
@@ -2306,10 +2308,22 @@
 
 
 
+        <?php
+          // Množství s měrnou jednotkou; kusové jednotky bez desetin, kg/l s desetinami
+          $unit = trim((string)($item['merna_jednotka'] ?? ''));
+          $unitHtml = $unit !== '' ? ' <span class="qty-unit">' . htmlspecialchars($unit, ENT_QUOTES, 'UTF-8') . '</span>' : '';
+          $dec = in_array(mb_strtolower($unit), ['ks', 'bal', 'balení', 'karton', ''], true) ? 0 : 3;
+          $isNonstockRow = !empty($item['is_nonstock']);
+        ?>
+        <?php if ($isNonstockRow): ?>
+        <td class="qty-cell"><span class="nonstock-label" title="Tato položka se neeviduje jako skladová – nemá stav ani zásobu, sklad se odepisuje u jejích komponent.">neskladové</span></td>
+        <td class="qty-cell"><span class="muted">–</span></td>
+        <td class="qty-cell"><span class="muted">–</span></td>
+        <?php else: ?>
         <td class="qty-cell">
           <span class="available-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
             <span class="available-toggle"><?= ikona('chevron-right', 14) ?></span>
-            <span class="available-value"><?= $formatQty(($item['available'] ?? 0) + ($item['reservations'] ?? 0)) ?></span>
+            <span class="available-value"><?= $formatQty(($item['available'] ?? 0) + ($item['reservations'] ?? 0)) ?><?= $unitHtml ?></span>
           </span>
         </td>
 
@@ -2319,9 +2333,9 @@
 
 
         <td class="qty-cell">
-          <?= $formatQty($item['target'] ?? 0, 0) ?>
+          <?= $formatQty($item['target'] ?? 0, $dec) ?><?= $unitHtml ?>
           <?php if (($item['reservations'] ?? 0) > 0): ?>
-            <br><span style="font-size: 0.85em; color: #5f5e5a;">(<?= $formatQty($item['reservations']) ?>)</span>
+            <br><span style="font-size: 0.85em; color: #5f5e5a;">(<?= $formatQty($item['reservations']) ?><?= $unitHtml ?>)</span>
           <?php endif; ?>
         </td>
 
@@ -2333,11 +2347,12 @@
           <div class="deficit-with-bar">
             <span class="demand-cell" data-sku="<?= htmlspecialchars($sku, ENT_QUOTES, 'UTF-8') ?>">
               <span class="demand-toggle"><?= ikona('chevron-right', 14) ?></span>
-              <span class="demand-value"><?= $formatQty($deficit, 0) ?></span>
+              <span class="demand-value"><?= $formatQty($deficit, $dec) ?><?= $unitHtml ?></span>
             </span>
             <div class="ratio-bar"><span data-state="<?= $ratioState ?>" style="width: <?= $ratioPct . '%' ?>"></span></div>
           </div>
         </td>
+        <?php endif; ?>
 
 
 

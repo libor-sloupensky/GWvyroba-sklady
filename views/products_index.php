@@ -281,6 +281,8 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 .sku-availability-bar span[data-state="critical"], .ratio-bar span[data-state="critical"] { background:#ff7043; }
 .deficit-cell { font-weight:600; }
 .deficit-with-bar { display:flex; flex-direction:column; gap:0.25rem; }
+.qty-unit { color:var(--c-text-muted); font-size:0.85em; margin-left:0.15em; }
+.nonstock-label { color:var(--c-text-secondary); font-style:italic; cursor:help; border-bottom:1px dotted var(--c-border-strong); }
 .available-cell, .demand-cell { display:inline-flex; align-items:center; gap:0.35rem; cursor:pointer; }
 .bom-node-critical { color:#b00020; font-weight:600; }
 .bom-node-warning { color:#ef6c00; font-weight:600; }
