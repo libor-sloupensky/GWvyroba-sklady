@@ -43,6 +43,7 @@ Pohyby skladu jsou dostupné přes `vyroba` modul (viz `vyroba.md` — `/product
 ## Aktuální stav
 
 ✅ **Hotovo**
+- **Převod surovin z g na Kg** (2026-10-22): všech 41 surovin má MJ `Kg`, koeficienty BOM a `skl_hodnota` (Kč/kg) přepracoval uživatel. Stav převeden korekčním dokladem **26-0029** „Převod surovin z g na Kg“ (19 řádků, hodnota 0): nový stav = (stav − odpisy z e-shopu od inventury #17) / 1000 + tyto odpisy – e-shop gogrig prodává suroviny po kg, takže jeho odpisy už v kg byly (dřív se z gramového stavu odečítaly jako gramy). Snímky starších inventur a pohyby před 26-0029 zůstávají v gramech – historické stavy surovin k datu před převodem jsou v g. Smazáním dokladu se převod vrátí.
 - Inventura: otevřít / zapisovat / zavřít / znovu otevřít
 - **Baseline inventory** — nová inventura může navázat na starší (`baseline_inventory_id`), stavy pak = baseline + pohyby mezi nimi + nové položky
 - Inkrementální výpočet stavu z `inventura_stavy` + `polozky_pohyby`
