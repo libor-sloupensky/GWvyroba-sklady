@@ -82,5 +82,6 @@
 | vyroba | `modules/vyroba.md` | Plány výroby, demand tree, záznamy pohybů |
 | pohyby | `modules/pohyby.md` | Skladové doklady (výroba/korekce), autosave, zámky, log změn |
 | analytics | `modules/analytics.md` | /analytics/revenue, tržby/marže, AI SQL šablony |
+| vanoce | `modules/vanoce.md` | /vanoce – Vánoce 2026: plán vs. skutečnost odbytu, výroby, zásob a surovin |
 | nastaveni | `modules/nastaveni.md` | Řady, ignor vzory, značky/skupiny/typy/jednotky, uživatelé, globální parametry |
 | deploy | `modules/deploy.md` | GitHub Actions + FTPS na Webglobe |

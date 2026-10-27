@@ -72,6 +72,7 @@ Cílová skupina: interní tým (admin/superadmin/user). Aplikace je privátní,
 - `vyroba` → využívá `bom` (demand tree), zapisuje do `polozky_pohyby` (jako `sklad`)
 - `pohyby` → skladové doklady (výroba / korekce / inventura) nad `polozky_pohyby`; využívá `bom`, `sklad` (stavy, inventury), `auth` (role, zámky). Sloupec Akce ve Výrobě je skrytý, zápis pohybů jde přes doklady
 - `analytics` → čte `doklady_eshop`, `polozky_eshop`, `produkty`, `bom`
+- `vanoce` → sezónní stránka Vánoce 2026 (jen čtení): plán odbytu z loňských týdnů × koeficienty vs. skutečný odbyt, výroba a zásoba; čte `polozky_eshop`, `produkty`, `bom`, `polozky_pohyby` a stavy přes `StockService`
 - `deploy` → průřezový
 
 ---

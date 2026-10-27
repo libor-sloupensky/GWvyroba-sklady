@@ -17,6 +17,7 @@ use App\Controller\ProductionController;
 use App\Controller\MovementsController;
 use App\Controller\AnalyticsController;
 use App\Controller\SettingsController;
+use App\Controller\VanoceController;
 
 $sessionLifetime = 60 * 60 * 24 * 7; // 7 dni
 ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
@@ -122,6 +123,9 @@ $router->post('/movements/line/delete', [MovementsController::class, 'lineDelete
 
 // Analytics
 $router->get('/analytics/revenue', [AnalyticsController::class, 'revenue']);
+
+// Vánoce 2026 – sledování vánoční výroby (jen čtení)
+$router->get('/vanoce', [VanoceController::class, 'index']);
 $router->post('/analytics/run', [AnalyticsController::class, 'runTemplateV2']);
 $router->get('/analytics/contacts', [AnalyticsController::class, 'searchContactsV2']);
 $router->get('/analytics/contacts/by-id', [AnalyticsController::class, 'searchContactsByIdsV2']);

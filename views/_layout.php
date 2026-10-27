@@ -143,6 +143,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
       <a href="/reservations" title="Rezervace hotových produktů"<?= $navIsActive('/reservations') ? ' class="active" aria-current="page"' : '' ?>>Rezervace</a>
       <a href="/production/plans" title="Návrhy výroby a zápis vyrobeného"<?= $navIsActive('/production') ? ' class="active" aria-current="page"' : '' ?>>Výroba</a>
       <a href="/analytics/revenue" title="Analýza"<?= $navIsActive('/analytics') ? ' class="active" aria-current="page"' : '' ?>>Analýza</a>
+      <a href="/vanoce" title="Vánoce 2026 – plán a průběh vánoční výroby"<?= $navIsActive('/vanoce') ? ' class="active" aria-current="page"' : '' ?>>Vánoce 2026</a>
       <?php if (!$navIsReader): ?>
       <a href="/settings" title="Řady, ignorované vzory, globální nastavení"<?= $navIsActive('/settings') ? ' class="active" aria-current="page"' : '' ?>>Nastavení</a>
       <?php endif; ?>
