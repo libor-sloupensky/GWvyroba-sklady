@@ -230,8 +230,11 @@
 button.search-reset { border:none; background:transparent; cursor:pointer; }
 #product-results .search-result-pill { margin:0.2rem 0 0; }
 /* Výběr sloupců – poslední sloupec tabulky */
-.col-picker-th { position:relative; width:1%; text-align:center; padding:0.2rem 0.35rem !important; }
-.col-picker-btn { border:1px solid var(--c-border-strong); background:#fff; color:var(--c-text-secondary); border-radius:4px; padding:0.2rem 0.35rem; cursor:pointer; line-height:0; }
+/* Lišta nad tabulkou: počet nalezených vlevo, výběr sloupců vpravo (nezabírá sloupec tabulky) */
+.products-toolbar { display:flex; align-items:flex-end; justify-content:space-between; gap:0.5rem; margin-top:0.6rem; }
+.products-toolbar + .products-table { margin-top:0.4rem; }
+.col-picker { position:relative; }
+.col-picker-btn { border:1px solid var(--c-border-strong); background:#fff; color:var(--c-text-secondary); border-radius:4px; padding:0.25rem 0.55rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; font-weight:600; font-size:0.9rem; }
 .col-picker-btn:hover, .col-picker-btn[aria-expanded="true"] { color:var(--c-primary-text); border-color:var(--c-primary); }
 .col-picker-menu { position:absolute; right:0; top:100%; z-index:20; margin-top:4px; background:#fff; border:1px solid var(--c-border-strong); border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,.12); padding:0.5rem 0.7rem; text-align:left; font-weight:600; white-space:nowrap; min-width:200px; }
 .col-picker-menu[hidden] { display:none; }
@@ -251,7 +254,12 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 .active-toggle button:hover { background:var(--c-surface); }
 .active-toggle button.on.is-sel { background:#e8f5e9; }
 .active-toggle button.off.is-sel { background:#ffebee; }
-.col-picker-td { width:1%; }
+/* Sloučený sloupec Aktivní / Smazat */
+.aktivni-cell { text-align:center; white-space:nowrap; width:1%; }
+.aktivni-cell .del-form { display:inline-block; margin:0 0 0 0.35rem; vertical-align:middle; }
+.aktivni-cell .del-btn { line-height:0; padding:3px; }
+.aktivni-cell .del-disabled { margin-left:0.5rem; }
+.products-table th[data-col="aktivni"] { text-align:center; }
 /* EAN: ikona stažení čárového kódu (SVG) za číslem */
 .editable[data-field="ean"] { white-space:nowrap; }
 .ean-svg { display:inline-flex; vertical-align:middle; margin-left:0.25rem; line-height:0; color:var(--c-primary-text); }
@@ -1103,19 +1111,28 @@ document.addEventListener('DOMContentLoaded', function () {
   const box = document.getElementById('product-results');
   if (!form || !box) return;
 
-  // --- Výběr sloupců: skryté sloupce si pamatuje prohlížeč (localStorage), SKU a Název jsou povinné
-  const HIDE_KEY = 'gworm.produkty.skryteSloupce';
-  const REQUIRED = ['sku', 'nazev', '_picker'];
-  let hidden = [];
+  // --- Výběr sloupců: skryté sloupce si pamatuje prohlížeč (localStorage), SKU a Název jsou povinné.
+  // Klíče .v2 (2026-10-27): nové výchozí sloupce pro všechny – starší uložený výběr a pořadí se zahodí.
+  const HIDE_KEY = 'gworm.produkty.skryteSloupce.v2';
+  const REQUIRED = ['sku', 'nazev'];
   try {
-    const saved = JSON.parse(localStorage.getItem(HIDE_KEY) || '[]');
+    localStorage.removeItem('gworm.produkty.skryteSloupce');
+    localStorage.removeItem('gworm.produkty.poradiSloupcu');
+  } catch (_) { /* jen úklid */ }
+  let hidden = null; // null = uživatel výběr neměnil → výchozí viditelnost ze serveru (data-default)
+  try {
+    const saved = JSON.parse(localStorage.getItem(HIDE_KEY) || 'null');
     if (Array.isArray(saved)) hidden = saved.filter((k) => !REQUIRED.includes(k));
-  } catch (_) { hidden = []; }
+  } catch (_) { hidden = null; }
+  function hiddenCols() {
+    if (hidden !== null) return hidden;
+    return Array.from(box.querySelectorAll('.col-picker-menu input[data-default="0"]')).map((cb) => cb.value);
+  }
   const colStyle = document.createElement('style');
   document.head.appendChild(colStyle);
 
   // --- Pořadí sloupců: přetažením hlavičky, ukládá se per prohlížeč (localStorage); prázdné = výchozí pořadí
-  const ORDER_KEY = 'gworm.produkty.poradiSloupcu';
+  const ORDER_KEY = 'gworm.produkty.poradiSloupcu.v2';
   let order = [];
   try {
     const saved = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
@@ -1205,18 +1222,22 @@ document.addEventListener('DOMContentLoaded', function () {
   function applyColumns() {
     // Skrytí přes nth-child podle pořadí hlavičky – buňky řádků nepotřebují vlastní značku
     const rules = [];
+    const hide = hiddenCols();
     box.querySelectorAll('.products-table th[data-col]').forEach((th) => {
-      if (hidden.includes(th.dataset.col)) {
+      if (hide.includes(th.dataset.col)) {
         rules.push(`.products-table > tbody > tr > :nth-child(${th.cellIndex + 1})`);
       }
     });
     colStyle.textContent = rules.length ? rules.join(',\n') + ' { display:none; }' : '';
     box.querySelectorAll('.col-picker-menu input[type=checkbox]').forEach((cb) => {
-      cb.checked = !hidden.includes(cb.value);
+      cb.checked = !hide.includes(cb.value);
     });
   }
   function saveColumns() {
-    try { localStorage.setItem(HIDE_KEY, JSON.stringify(hidden)); } catch (_) { /* jen pohodlí, bez uložení to funguje */ }
+    try {
+      if (hidden === null) localStorage.removeItem(HIDE_KEY);
+      else localStorage.setItem(HIDE_KEY, JSON.stringify(hidden));
+    } catch (_) { /* jen pohodlí, bez uložení to funguje */ }
   }
   function closePicker() {
     box.querySelectorAll('.col-picker-menu').forEach((m) => { m.hidden = true; });
@@ -1225,8 +1246,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   box.addEventListener('click', (ev) => {
     if (ev.target.closest('.col-order-reset')) {
+      // Výchozí sloupce: zpět výchozí viditelnost i pořadí
       order = [];
+      hidden = null;
       saveOrder();
+      saveColumns();
       applyOrder();
       applyColumns();
       return;
@@ -1243,13 +1267,13 @@ document.addEventListener('DOMContentLoaded', function () {
   box.addEventListener('change', (ev) => {
     const cb = ev.target.closest('.col-picker-menu input[type=checkbox]');
     if (!cb || REQUIRED.includes(cb.value)) return;
-    hidden = hidden.filter((k) => k !== cb.value);
+    hidden = hiddenCols().filter((k) => k !== cb.value);
     if (!cb.checked) hidden.push(cb.value);
     applyColumns();
     saveColumns();
   });
   document.addEventListener('click', (ev) => {
-    if (!ev.target.closest('.col-picker-th')) closePicker();
+    if (!ev.target.closest('.col-picker')) closePicker();
   });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closePicker(); });
   applyOrder();
