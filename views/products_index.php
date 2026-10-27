@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="fld"><label>Krok výroby</label><input type="number" step="0.001" name="krok_vyroby" value="<?= htmlspecialchars((string)($formOld['krok_vyroby'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
         <div class="fld"><label>Výrobní doba (dny)</label><input type="number" step="1" name="vyrobni_doba_dni" value="<?= htmlspecialchars((string)($formOld['vyrobni_doba_dni'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
         <!-- 4. řádek: ostatní -->
-        <div class="fld"><label>Skladová hodnota</label><input type="number" step="0.01" name="skl_hodnota" value="<?= htmlspecialchars((string)($formOld['skl_hodnota'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
+        <div class="fld"><label title="Skladová hodnota – jednotková nákladová cena v CZK">Cena/kus</label><input type="number" step="0.01" name="skl_hodnota" value="<?= htmlspecialchars((string)($formOld['skl_hodnota'] ?? ''),ENT_QUOTES,'UTF-8') ?>" /></div>
         <div class="fld"><label>Aktivní*</label>
           <select name="aktivni">
             <option value="1"<?= (string)($formOld['aktivni'] ?? '1') === '1' ? ' selected' : '' ?>>Aktivní</option>

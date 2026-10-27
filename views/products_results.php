@@ -30,13 +30,13 @@
       // Výrobní sloupce převzaté z Výroby (/production/plans)
       'sku_vyroba' => ['SKU výroba', "Kliknutím se rozbalí strom potomků se skladovými dostupnostmi (dostupné, cílový stav, chybí).\nBarevná stupnice ukazuje, jaký podíl z hodnoty Dovyrobit lze aktuálně vyrobit z dostupných přímých surovin (1. úroveň BOM).\nZelená = lze vyrobit vše, oranžová = částečně, červená = nedostatek materiálu.", false],
       'dostupne'   => ['Dostupné', 'Aktuální stav skladu (včetně rezervovaného). Kliknutím se rozbalí pohyby položky.', false],
-      'cil'        => ['Cílový stav (rezervace)', "Celková poptávka po produktu z BOM kaskády.\nPro finální výrobky: denní spotřeba × cílové dny zásoby.\nPro komponenty: součet poptávky od všech rodičovských produktů.\nPokud existují rezervace, jsou zobrazeny v závorce.\nVztah: Dovyrobit = max(0, Cílový stav − dostupné), dostupné = stav − rezervace.", false],
+      'cil'        => ["Cílový stav\n(rezervace)", "Celková poptávka po produktu z BOM kaskády.\nPro finální výrobky: denní spotřeba × cílové dny zásoby.\nPro komponenty: součet poptávky od všech rodičovských produktů.\nPokud existují rezervace, jsou zobrazeny v závorce.\nVztah: Dovyrobit = max(0, Cílový stav − dostupné), dostupné = stav − rezervace.", false],
       'dovyrobit'  => ['Dovyrobit', "Vychází z průměrné denní poptávky za nastavený počet dnů.\nU kořenových položek v auto režimu se násobí cílovým počtem dní zásoby, u komponent je cíl jen potřeba rodičů (dovyrobit rodiče × koeficient).\nOdečtou se aktuální zásoby mínus rezervace. U neskladových typů se cíl nekrátí o stav, jen se propaguje dál.\nBarevná stupnice (priorita): červená = vysoká, oranžová = střední, zelená = nízká.\nKliknutím se rozbalí strom poptávky.", false],
       'min_zasoba' => ['Min. zásoba', 'Minimální zásoba – pod tuto hranici se produkt dostane do plánu výroby. Dvojklikem upravíte.', false],
       'min_davka'  => ['Min. dávka', 'Nejmenší množství, které má smysl vyrobit najednou. Dvojklikem upravíte.', false],
       'krok'       => ['Krok výroby', 'Násobek, po kterém se vyrábí (např. po 25 ks). Dvojklikem upravíte.', false],
       'doba'       => ['Výrobní doba', 'Počet dní od zadání výroby do jejího dokončení. Dvojklikem upravíte.', false],
-      'hodnota'    => ['Skladová hodnota', 'Jednotková skladová / nákladová hodnota v CZK. Oceňují se jí pohyby skladu a počítá marže. Dvojklikem upravíte.', false],
+      'hodnota'    => ['Cena/kus', 'Skladová hodnota: jednotková skladová / nákladová hodnota v CZK. Oceňují se jí pohyby skladu a počítá marže. Dvojklikem upravíte.', false],
       'aktivni'    => ['Aktivní', 'Fajfka = aktivní, křížek = neaktivní (přeškrtnuté SKU, řadí se na konec). Kliknutím přepnete.', false],
       'poznamka'   => ['Poznámka', 'Volná poznámka k produktu. Dvojklikem upravíte.', false],
   ];
@@ -53,7 +53,7 @@
 <table class="products-table">
   <tr>
     <?php foreach ($productColumns as $key => [$label, $tip, $required]): ?>
-      <th data-col="<?= $key ?>" draggable="true" title="<?= $e($tip . "\n\nHlavičku můžete přetáhnout na jiné místo.") ?>"><span class="col-grip" aria-hidden="true"><?= ikona('grip-vertical', 14) ?></span><?= $e($label) ?></th>
+      <th data-col="<?= $key ?>" draggable="true" title="<?= $e($tip . "\n\nHlavičku můžete přetáhnout na jiné místo.") ?>"><span class="col-grip" aria-hidden="true"><?= ikona('grip-vertical', 14) ?></span><?= nl2br($e($label), false) ?></th>
     <?php endforeach; ?>
     <th class="col-picker-th" data-col="_picker" title="Výběr zobrazených sloupců">
       <button type="button" class="col-picker-btn" aria-label="Výběr sloupců" aria-expanded="false"><?= ikona('columns-3', 16) ?></button>
@@ -62,7 +62,7 @@
         <?php foreach ($productColumns as $key => [$label, $tip, $required]): ?>
           <label title="<?= $e($tip) ?>"<?= $required ? ' class="is-required"' : '' ?>>
             <input type="checkbox" value="<?= $key ?>" checked<?= $required ? ' disabled' : '' ?> />
-            <?= $e($label) ?><?= $required ? ' <span class="muted">(vždy)</span>' : '' ?>
+            <?= $e(str_replace("\n", ' ', $label)) ?><?= $required ? ' <span class="muted">(vždy)</span>' : '' ?>
           </label>
         <?php endforeach; ?>
         <button type="button" class="col-order-reset ikona-btn" title="Vrátit sloupce do výchozího pořadí"><?= ikona('rotate-ccw', 14) ?> Výchozí pořadí</button>
