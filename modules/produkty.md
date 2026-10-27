@@ -2,7 +2,7 @@
 
 ## Co modul dělá
 
-CRUD katalogu produktů. Produkt = SKU + název + typ + měrná jednotka + sklad. konvence, min_zasoba, krok_vyroby, značka, skupina. Podporuje `alt_sku` (mapování na starší/alternativní označení). CSV import/export (idempotentní — `ON DUPLICATE KEY UPDATE`). Inline editace v tabulce. Integrace s BOM (kusovníky — přidání/odebrání potomků).
+CRUD katalogu produktů. Produkt = SKU + název + typ + měrná jednotka + sklad. konvence, min_zasoba, krok_vyroby, značka, skupina. Podporuje `alt_sku` (mapování na starší/alternativní označení). CSV import/export (idempotentní, párování výhradně podle SKU). Inline editace v tabulce. Integrace s BOM (kusovníky — přidání/odebrání potomků).
 
 Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy` + `polozky_pohyby`).
 
@@ -44,7 +44,7 @@ Zobrazuje aktuální stav skladu pro každé SKU (počítáno z `inventura_stavy
 ✅ **Hotovo**
 - **Dostupné / Cílový stav / Dovyrobit s měrnou jednotkou** (2026-10-22): za číslem šedá MJ produktu (`.qty-unit`); kusové jednotky (ks, bal, balení, karton) bez desetin, ostatní (Kg…) na 3 místa. **Neskladové položky** (`product_types.is_nonstock`): Dostupné = „neskladové“ s tooltipem, Cílový stav a Dovyrobit = pomlčka (místo zavádějící 0), bez rozbalení pohybů/stromu.
 - Tabulka produktů s inline editací (všechny klíčové sloupce editovatelné)
-- CSV export a import (`ON DUPLICATE KEY UPDATE` — safe pro opakovaný import)
+- CSV export a import, bezpečný pro opakovaný import. **Párování výhradně podle SKU** (od 2026-10-27): existující SKU = `UPDATE … WHERE sku=?`, jinak `INSERT`. Dřív `ON DUPLICATE KEY UPDATE`, který se spustil i při kolizi unikátního EAN / alt_sku a **přepsal cizí produkt** (incident 27. 10. 2026: nový `KW040138` s EANem produktu WU0139 přepsal WU0139 na karton „Karton 4 ks …“, opraveno CSV + ručně typ zpět na `produkt`, protože import změnu typu u produktu s potomky v BOM blokuje). EAN se k párování nepoužívá. Patří-li EAN jinému produktu (v DB nebo dříve v souboru), řádek se uloží bez změny EAN a import hlásí varování. Kolize alt_sku = chyba řádku (beze změny).
 - Hlavička CSV: `sku,alt_sku,ean,znacka,skupina,typ,merna_jednotka,nazev,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,skl_hodnota,aktivni,poznamka`
 - BOM tree view + add/delete potomků (úzká integrace s modulem `bom`)
 - Search endpoint pro autocomplete (používá např. modul `rezervace`)

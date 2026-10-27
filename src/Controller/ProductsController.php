@@ -304,19 +304,28 @@ final class ProductsController
 
             }
 
-            [$existingSkuMap, $existingAltMap] = $this->loadExistingSkuMaps();
+            [$existingSkuMap, $existingAltMap, $existingEanMap] = $this->loadExistingSkuMaps();
 
             $pendingSku = [];
 
             $pendingAlt = [];
 
-            $stmt = $pdo->prepare(
+            $pendingEan = [];
 
-                'INSERT INTO produkty (sku,alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,skl_hodnota,aktivni,znacka_id,poznamka,skupina_id) ' .
+            // Párování výhradně podle SKU: existující SKU = UPDATE, jinak INSERT.
+            // Dřív ON DUPLICATE KEY UPDATE – ten se spustil i při kolizi EAN / alt_sku
+            // a přepsal cizí produkt místo založení nového SKU.
+            $insertStmt = $pdo->prepare(
 
-                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ' .
+                'INSERT INTO produkty (alt_sku,nazev,typ,merna_jednotka,ean,min_zasoba,nast_zasob,min_davka,krok_vyroby,vyrobni_doba_dni,skl_hodnota,aktivni,znacka_id,poznamka,skupina_id,sku) ' .
 
-                'ON DUPLICATE KEY UPDATE alt_sku=VALUES(alt_sku),nazev=VALUES(nazev),typ=VALUES(typ),merna_jednotka=VALUES(merna_jednotka),ean=VALUES(ean),min_zasoba=VALUES(min_zasoba),nast_zasob=VALUES(nast_zasob),min_davka=VALUES(min_davka),krok_vyroby=VALUES(krok_vyroby),vyrobni_doba_dni=VALUES(vyrobni_doba_dni),skl_hodnota=VALUES(skl_hodnota),aktivni=VALUES(aktivni),znacka_id=VALUES(znacka_id),poznamka=VALUES(poznamka),skupina_id=VALUES(skupina_id)'
+                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+
+            );
+
+            $updateStmt = $pdo->prepare(
+
+                'UPDATE produkty SET alt_sku=?,nazev=?,typ=?,merna_jednotka=?,ean=?,min_zasoba=?,nast_zasob=?,min_davka=?,krok_vyroby=?,vyrobni_doba_dni=?,skl_hodnota=?,aktivni=?,znacka_id=?,poznamka=?,skupina_id=? WHERE sku=?'
 
             );
 
@@ -545,9 +554,33 @@ final class ProductsController
 
                 }
 
-                $stmt->execute([
+                $isExisting = isset($existingSkuMap[$skuKey]);
 
-                    $sku,
+                // EAN se k párování nepoužívá. Patří-li už jinému produktu (v DB nebo dříve v tomto souboru),
+                // řádek se uloží bez změny EAN a hlásí se varování – nikdy se nepřepíše cizí produkt.
+                if ($ean !== null) {
+
+                    $eanOwner = $existingEanMap[$ean] ?? ($pendingEan[$ean] ?? null);
+
+                    if ($eanOwner !== null && strcasecmp($eanOwner, $sku) !== 0) {
+
+                        $errors[] = "Řádek {$line}: EAN {$ean} už má produkt {$eanOwner} – u {$sku} se EAN nezměnil, ostatní údaje se uložily.";
+
+                        $ean = $isExisting ? $existingSkuMap[$skuKey]['ean'] : null;
+
+                    }
+
+                }
+
+                if ($ean !== null) {
+
+                    $pendingEan[$ean] = $sku;
+
+                }
+
+                $stmt = $isExisting ? $updateStmt : $insertStmt;
+
+                $stmt->execute([
 
                     $altSku,
 
@@ -579,6 +612,8 @@ final class ProductsController
 
                     $groupId,
 
+                    $sku,
+
                 ]);
 
                 if ($stockMode === 'auto') {
@@ -587,13 +622,11 @@ final class ProductsController
 
                 }
 
-                $affected = $stmt->rowCount();
-
-                if ($affected === 1) {
+                if (!$isExisting) {
 
                     $created++;
 
-                } elseif ($affected === 2) {
+                } elseif ($stmt->rowCount() > 0) {
 
                     $updated++;
 
@@ -1964,7 +1997,9 @@ final class ProductsController
 
         $altMap = [];
 
-        foreach (DB::pdo()->query('SELECT sku, alt_sku, typ FROM produkty') as $row) {
+        $eanMap = [];
+
+        foreach (DB::pdo()->query('SELECT sku, alt_sku, typ, ean FROM produkty') as $row) {
 
             $sku = trim((string)$row['sku']);
 
@@ -1986,6 +2021,8 @@ final class ProductsController
 
                 'typ' => $row['typ'] === null ? null : (string)$row['typ'],
 
+                'ean' => ($row['ean'] ?? '') === '' ? null : (string)$row['ean'],
+
             ];
 
             if ($alt !== null && $alt !== '') {
@@ -1994,9 +2031,19 @@ final class ProductsController
 
             }
 
+            // EAN slouží jen ke kontrole kolizí (je v DB UNIQUE), k párování se nepoužívá
+
+            $ean = trim((string)($row['ean'] ?? ''));
+
+            if ($ean !== '') {
+
+                $eanMap[$ean] = $sku;
+
+            }
+
         }
 
-        return [$skuMap, $altMap];
+        return [$skuMap, $altMap, $eanMap];
 
     }
 
