@@ -129,7 +129,6 @@ CREATE TABLE IF NOT EXISTS bom (
   rodic_sku VARCHAR(128) NOT NULL,
   potomek_sku VARCHAR(128) NOT NULL,
   koeficient DECIMAL(18,6) NOT NULL,
-  merna_jednotka_potomka VARCHAR(16) NULL,
   KEY idx_bom_rodic (rodic_sku),
   KEY idx_bom_potomek (potomek_sku)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_czech_ci;

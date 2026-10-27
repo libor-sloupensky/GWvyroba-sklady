@@ -1126,10 +1126,6 @@ final class ProductsController
 
         $coefRaw = str_replace(',', '.', (string)($payload['koeficient'] ?? ''));
 
-        $unit = $this->toUtf8((string)($payload['merna_jednotka_potomka'] ?? ''));
-
-
-
         if ($parent === '' || $child === '') {
 
             echo json_encode(['ok'=>false,'error'=>'ChybĂ­ rodiÄŤ nebo potomek.']);
@@ -1166,20 +1162,7 @@ final class ProductsController
 
         }
 
-        if ($unit === '') {
-
-            $unit = $childInfo['merna_jednotka'] ?? '';
-
-        }
-
-        if ($unit === '') {
-
-            echo json_encode(['ok'=>false,'error'=>'Zadejte mÄ›rnou jednotku potomka.']);
-
-            return;
-
-        }
-
+        // MJ vazby se neeviduje – koeficient je vždy v měrné jednotce potomka (karta produktu)
         $coef = (float)$coefRaw;
 
         $pdo = DB::pdo();
@@ -1190,9 +1173,9 @@ final class ProductsController
 
             $pdo->prepare('DELETE FROM bom WHERE rodic_sku=? AND potomek_sku=?')->execute([$parent, $child]);
 
-            $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka) VALUES (?,?,?,?)')
+            $pdo->prepare('INSERT INTO bom (rodic_sku,potomek_sku,koeficient) VALUES (?,?,?)')
 
-                ->execute([$parent, $child, $coef, $unit]);
+                ->execute([$parent, $child, $coef]);
 
             $pdo->commit();
 
@@ -1822,7 +1805,7 @@ final class ProductsController
 
                         'koeficient' => $child['koeficient'],
 
-                        'merna_jednotka' => $child['edge_mj'] ?: $child['merna_jednotka'],
+                        'merna_jednotka' => $child['merna_jednotka'],
 
 
                     ],
@@ -1845,7 +1828,7 @@ final class ProductsController
 
                 'koeficient' => $child['koeficient'],
 
-                'merna_jednotka' => $child['edge_mj'] ?: $subtree['merna_jednotka'],
+                'merna_jednotka' => $subtree['merna_jednotka'],
 
 
             ];
@@ -1922,7 +1905,7 @@ final class ProductsController
 
         $stmt = DB::pdo()->prepare(
 
-            'SELECT b.potomek_sku AS sku, b.koeficient, COALESCE(NULLIF(b.merna_jednotka_potomka, \'\'), NULL) AS edge_mj, ' .
+            'SELECT b.potomek_sku AS sku, b.koeficient, ' .
 
             'p.nazev, p.typ, p.merna_jednotka ' .
 
@@ -1943,8 +1926,6 @@ final class ProductsController
                 'sku' => (string)$row['sku'],
 
                 'koeficient' => (float)$row['koeficient'],
-
-                'edge_mj' => $row['edge_mj'] === null ? null : (string)$row['edge_mj'],
 
                 'nazev' => (string)($row['nazev'] ?? '(nezn?m?)'),
 

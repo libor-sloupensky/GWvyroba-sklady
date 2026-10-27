@@ -528,7 +528,7 @@ final class MovementDocService
                     continue;
                 }
                 if (!isset($out[$child])) {
-                    $out[$child] = ['sku' => $child, 'mnozstvi' => 0.0, 'merna_jednotka' => $edge['edge_mj'] ?? null];
+                    $out[$child] = ['sku' => $child, 'mnozstvi' => 0.0, 'merna_jednotka' => $edge['merna_jednotka'] ?? null];
                 }
                 $out[$child]['mnozstvi'] += $childQty;
             }

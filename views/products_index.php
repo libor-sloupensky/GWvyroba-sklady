@@ -992,7 +992,6 @@ document.addEventListener('DOMContentLoaded', function () {
         <li><code>rodic_sku</code> – finální produkt nebo karton, pro který skládáte recepturu.</li>
         <li><code>potomek_sku</code> – komponenta, která do rodiče vstupuje.</li>
         <li><code>koeficient</code> – množství potomka na 1 jednotku rodiče (ve stejné MJ jako má potomek).</li>
-        <li><code>merna_jednotka_potomka</code> – volitelné; prázdné pole převezme MJ potomka z kmenových produktů.</li>
       </ul>
       <p>Desetinné hodnoty zadávejte s tečkou. Každou vazbu lze nahrát kdykoliv – rodič i potomek musí existovat v tabulce produktů.</p>
     </section>

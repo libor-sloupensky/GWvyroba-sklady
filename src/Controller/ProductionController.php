@@ -493,7 +493,7 @@ final class ProductionController
 
     {
 
-        $stmt = DB::pdo()->prepare("SELECT potomek_sku AS sku, koeficient, merna_jednotka_potomka FROM bom WHERE rodic_sku=?");
+        $stmt = DB::pdo()->prepare("SELECT b.potomek_sku AS sku, b.koeficient, p.merna_jednotka FROM bom b LEFT JOIN produkty p ON p.sku = b.potomek_sku WHERE b.rodic_sku=?");
 
         $stmt->execute([$sku]);
 
@@ -507,7 +507,7 @@ final class ProductionController
 
                 'koeficient' => (float)$row['koeficient'],
 
-                'merna_jednotka' => $row['merna_jednotka_potomka'] !== '' ? (string)$row['merna_jednotka_potomka'] : null,
+                'merna_jednotka' => ($row['merna_jednotka'] ?? '') !== '' ? (string)$row['merna_jednotka'] : null,
 
             ];
 

@@ -242,7 +242,8 @@ final class StockService
         $children = [];
         $parents = [];
         $indegree = [];
-        $stmt = DB::pdo()->query('SELECT rodic_sku, potomek_sku, koeficient, COALESCE(NULLIF(merna_jednotka_potomka, \'\'), NULL) AS edge_mj FROM bom');
+        // MJ vazby = MJ potomka z karty produktu (koeficient je vždy v jednotce potomka)
+        $stmt = DB::pdo()->query('SELECT b.rodic_sku, b.potomek_sku, b.koeficient, p.merna_jednotka AS mj_potomka FROM bom b LEFT JOIN produkty p ON p.sku = b.potomek_sku');
         foreach ($stmt as $row) {
             $parent = (string)$row['rodic_sku'];
             $child = (string)$row['potomek_sku'];
@@ -250,11 +251,11 @@ final class StockService
                 continue;
             }
             $coef = (float)$row['koeficient'];
-            $edgeUnit = $row['edge_mj'] === null ? null : (string)$row['edge_mj'];
+            $edgeUnit = ($row['mj_potomka'] ?? '') === '' ? null : (string)$row['mj_potomka'];
             $children[$parent][] = [
                 'sku' => $child,
                 'koeficient' => $coef,
-                'edge_mj' => $edgeUnit,
+                'merna_jednotka' => $edgeUnit,
             ];
             $parents[$child][] = [
                 'sku' => $parent,

@@ -71,6 +71,8 @@ try { $pdo->exec("ALTER TABLE rezervace MODIFY typ VARCHAR(32) NOT NULL DEFAULT 
 try { $pdo->exec("ALTER TABLE produkty ADD CONSTRAINT fk_produkty_typ FOREIGN KEY (typ) REFERENCES product_types(code)"); } catch (Throwable $e) {}
 try { $pdo->exec("ALTER TABLE rezervace ADD CONSTRAINT fk_rez_typ FOREIGN KEY (typ) REFERENCES product_types(code)"); } catch (Throwable $e) {}
 try { $pdo->exec("ALTER TABLE bom DROP COLUMN druh_vazby"); } catch (Throwable $e) {}
+// MJ vazby zrušena (2026-10-27) – koeficient je vždy v MJ potomka z karty produktu
+try { $pdo->exec("ALTER TABLE bom DROP COLUMN merna_jednotka_potomka"); } catch (Throwable $e) {}
 try { $pdo->exec("ALTER TABLE produkty ADD COLUMN dovyrobit DECIMAL(18,3) NOT NULL DEFAULT 0 AFTER skl_hodnota"); } catch (Throwable $e) {}
 
 try {

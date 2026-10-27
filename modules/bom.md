@@ -28,7 +28,7 @@ Editor je integrovaný do modulu `produkty` (záložka "BOM strom" na produktu).
 
 ## Tabulky
 
-- `bom` (id, rodic_sku, potomek_sku, koeficient DECIMAL(18,6), merna_jednotka_potomka)
+- `bom` (id, rodic_sku, potomek_sku, koeficient DECIMAL(18,6)) – koeficient je vždy v měrné jednotce potomka z karty produktu
 
 ## Závislosti
 
@@ -39,9 +39,9 @@ Editor je integrovaný do modulu `produkty` (záložka "BOM strom" na produktu).
 
 ✅ **Hotovo**
 - CSV import/export
-- Hlavička CSV: `rodic_sku,potomek_sku,koeficient,merna_jednotka_potomka`
+- Hlavička CSV: `rodic_sku;potomek_sku;koeficient` (import přijme i starší 4. sloupec `merna_jednotka_potomka`, hodnotu ignoruje)
 - **Replace per parent** — při re-uploadu se všechny existující řádky daného rodiče smažou a vloží nové
-- Jinou jednotku potomka než rodiče lze definovat (`merna_jednotka_potomka`)
+- **MJ vazby zrušena** (2026-10-27): sloupec `bom.merna_jednotka_potomka` smazán z DB. Byl to jen popisek bez převodu jednotek (koeficient byl vždy v MJ potomka) a u 90 vazeb karton → sáček nesprávně uváděl `bal` místo `ks`. Strom kusovníku, rozpad prodejů kartonů (import) i odpisy komponent (Pohyby, Výroba) berou MJ z `produkty.merna_jednotka` potomka (`StockService::getBomGraph` JOIN produkty).
 - Tree editor v produktu (add/delete potomka)
 
 ⚠️ **Známé dluhy / gotchy**

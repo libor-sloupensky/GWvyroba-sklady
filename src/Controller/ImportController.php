@@ -332,7 +332,7 @@ final class ImportController
                                     if ($childQty === 0.0 || $childSku === '') {
                                         continue;
                                     }
-                                    $childUnit = $edge['edge_unit'] ?? $edge['merna_jednotka'] ?? null;
+                                    $childUnit = $edge['merna_jednotka'] ?? null;
                                     if (!isset($movementBuckets[$childSku])) {
                                         $movementBuckets[$childSku] = ['qty' => 0.0, 'unit' => $childUnit];
                                     }
@@ -1093,7 +1093,7 @@ final class ImportController
     }
 
     /**
-     * @return array<int,array{sku:string,koeficient:float,edge_unit:?string,merna_jednotka:?string}>
+     * @return array<int,array{sku:string,koeficient:float,merna_jednotka:?string}>
      */
     private function loadBomChildren(string $sku): array
     {
@@ -1103,7 +1103,6 @@ final class ImportController
         }
         $stmt = DB::pdo()->prepare(
             'SELECT b.potomek_sku AS sku,b.koeficient,' .
-            'COALESCE(NULLIF(b.merna_jednotka_potomka, \'\'), NULL) AS edge_unit,' .
             'p.merna_jednotka ' .
             'FROM bom b LEFT JOIN produkty p ON p.sku = b.potomek_sku WHERE b.rodic_sku=?'
         );
@@ -1113,7 +1112,6 @@ final class ImportController
             $rows[] = [
                 'sku' => (string)$row['sku'],
                 'koeficient' => (float)$row['koeficient'],
-                'edge_unit' => $row['edge_unit'] !== null ? (string)$row['edge_unit'] : null,
                 'merna_jednotka' => $row['merna_jednotka'] !== null ? (string)$row['merna_jednotka'] : null,
             ];
         }
