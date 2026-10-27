@@ -1,29 +1,5 @@
 <?php
 $title = $title ?? 'App';
-$config = include __DIR__ . '/../config/config.php';
-$version = $config['app']['version'] ?? 'dev';
-
-function app_footer_info(): array {
-    $root = dirname(__DIR__, 1);
-    $max = 0;
-    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
-    foreach ($iterator as $file) {
-        $path = $file->getPathname();
-        if (strpos($path, '/vendor/') !== false) {
-            continue;
-        }
-        $mtime = @filemtime($path);
-        if ($mtime && $mtime > $max) {
-            $max = $mtime;
-        }
-    }
-    if ($max <= 0) {
-        $max = time();
-    }
-    return ['mtime' => $max];
-}
-
-$fi = app_footer_info();
 $currentUser = $_SESSION['user'] ?? null;
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $navIsActive = static function (string $href) use ($currentPath): bool {
@@ -79,7 +55,6 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     nav a:not(.brand):hover { color:#fff; background:rgba(255,255,255,0.10); }
     nav a:not(.brand).active { color:#fff; background:rgba(255,255,255,0.14); border-bottom-color:#fff; }
     .container { max-width: 1200px; margin: 1rem auto; background:var(--c-bg); border:1px solid var(--c-border); border-radius: var(--radius-l); padding: 16px 18px; }
-    .footer { position: fixed; right: 1rem; bottom: 1rem; background:var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius-m); padding: 8px 10px; font-size: 12px; color:var(--c-text-secondary); box-shadow: var(--shadow-s); }
     .notice { padding:8px 10px; border:1px solid var(--c-border); background:var(--c-surface-2); border-radius:var(--radius-m); }
     table { border-collapse: collapse; width: 100%; }
     th,td { padding: 7px 8px; border-bottom:1px solid var(--c-border); text-align:left; }
@@ -116,7 +91,7 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
     .ikona-muted { color:#90a4ae; }
     .ikona-danger { color:#c62828; }
     @media print {
-      header, .footer, .print-hide { display:none !important; }
+      header, .print-hide { display:none !important; }
       body { background:#fff; }
       .container { border:none; border-radius:0; margin:0; padding:0.5rem; }
     }
@@ -161,10 +136,6 @@ $navIsActive = static function (string $href) use ($currentPath): bool {
   <main class="container">
     <?php require __DIR__ . '/' . basename($view ?? 'home.php'); ?>
   </main>
-  <div class="footer print-hide">
-    <div><strong>Poslední úprava:</strong> <?= date('Y-m-d H:i:s', (int)$fi['mtime']) ?></div>
-    <div><strong>Verze/Deploy:</strong> <?= htmlspecialchars((string)$version, ENT_QUOTES, 'UTF-8') ?></div>
-  </div>
 </body>
 </html>
 

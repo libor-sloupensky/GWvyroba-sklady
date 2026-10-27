@@ -27,4 +27,3 @@ BOM: `rodic_sku;potomek_sku;koeficient` (koeficient v MJ potomka)
 ## Poznámky
 - Všude UTF‑8.
 - DB collation: `utf8mb4_czech_ci`.
-- Footer zobrazuje „Poslední úprava“ (mtime) a „Verze/Deploy“ z configu.
