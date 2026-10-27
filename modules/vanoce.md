@@ -5,10 +5,10 @@
 Sezónní stránka **Vánoce 2026** (`/vanoce`, jen čtení, všichni přihlášení vč. čtenáře) – sleduje, jestli vánoční výroba stíhá plánovaný odbyt. Plánuje se jen **celkový objem v sáčcích** (spotřebitelská balení), ne konkrétní produkty – sortiment se proti loňsku změnil.
 
 - **Plán odbytu po ISO týdnech 44–52/2026** = odbyt ve stejných týdnech 2025 × koeficient e-shopu (maloobchod grig.cz, grig.sk, WormUP.com ×1,5; velkoobchod gogrig.com ×1,0). Stánky (grigsupply.cz) = odhad kolegyně 15 517 sáčků (realistický scénář) rovnoměrně v týdnech 45–51.
-- **Plán výroby** = 5 000 sáčků týdně do týdne 51.
+- **Plán výroby** = **6 100 sáčků týdně** do týdne 51 (od 2026-10-27, dřív 5 000) = plánovaný odbyt / 8 týdnů, aby **zásoba na konci sezóny zůstala jako na začátku** (uživatel: nelze se vyprodat na nulu). Graf zásoby má červenou čáru cíle (`cil_zasoba` = stav k 26. 10.).
 - **Skutečnost**: odbyt z faktur (DUZP), výroba z výrobních pohybů produktů (`polozky_pohyby.typ_pohybu='vyroba'`, typ produkt, čistý součet), zásoba = kladné stavy hotových produktů na konci týdne (`StockService::buildStockMap(null, asOf)`).
 - Karty: stav výroby (kumulativně za ukončené týdny proti plánu: ≥100 % v plánu, ≥85 % mírně pod, jinak pod plánem), tento týden, hotové sáčky skladem, zbývá vyrobit, prázdné obaly skladem (typ `obal`, kladné stavy).
-- Suroviny podle druhu (červíci / cvrčci / sarančata = kořen kusovníku SX9001 / SX9002 / SX9003; dochucené přepočtené na natural): skladem + plánované dodávky − náplň zbývajícího plánovaného odbytu (bez náplně v hotových sáčcích skladem).
+- Suroviny podle druhu (červíci / cvrčci / sarančata = kořen kusovníku SX9001 / SX9002 / SX9003; dochucené přepočtené na natural): skladem + plánované dodávky − (náplň zbývající plánované výroby se skladbou podle plánovaného odbytu + surovina prodaná po kg). Zásoba hotových sáčků se nečerpá, proto se od potřeby neodečítá. U běžícího týdne se počítá jen nevyrobená část cíle.
 
 ## Kam sahá v kódu
 

@@ -65,7 +65,7 @@ $konec = end($tydny);
 <div class="vn">
   <div class="vn-head">
     <h1><?= $e($sez['nazev']) ?></h1>
-    <p class="vn-sub">Plán odbytu podle loňských stejných týdnů (<?= (int)$sez['zakladni_rok'] ?>), výroba <?= $n0($sez['vyroba_tydne']) ?> sáčků týdně. Vše v sáčcích (spotřebitelská balení). Data k <?= $e(date('j. n. Y H:i', strtotime($report['vygenerovano']))) ?>.</p>
+    <p class="vn-sub">Plán odbytu podle loňských stejných týdnů (<?= (int)$sez['zakladni_rok'] ?>), výroba <?= $n0($sez['vyroba_tydne']) ?> sáčků týdně, aby zásoba na konci zůstala jako na začátku sezóny. Vše v sáčcích (spotřebitelská balení). Data k <?= $e(date('j. n. Y H:i', strtotime($report['vygenerovano']))) ?>.</p>
   </div>
 
   <div class="vn-cards">
@@ -117,11 +117,12 @@ $konec = end($tydny);
     </div>
     <div class="vn-panel">
       <h2>Zásoba hotových sáčků</h2>
-      <p class="note">Stav na konci týdne. Pokud skutečnost klesá pod plán, výroba nestíhá nebo se prodává víc.</p>
+      <p class="note">Stav na konci týdne. Zásoba nemá klesnout pod červenou čáru (stav na začátku sezóny). Pokud skutečnost klesá pod plán, výroba nestíhá nebo se prodává víc.</p>
       <div class="vn-chart" id="graf-zasoba"></div>
       <div class="vn-legend">
         <span><i style="border-color:var(--c-primary)"></i>Zásoba skutečnost</span>
         <span><i class="d" style="border-color:var(--c-primary)"></i>Zásoba plán</span>
+        <span><i class="d" style="border-color:var(--c-danger);border-top-width:1.5px"></i>Cíl: zásoba jako na začátku (<?= $n0($report['cil_zasoba']) ?>)</span>
       </div>
     </div>
   </div>
@@ -160,7 +161,7 @@ $konec = end($tydny);
   <div class="vn-grid">
     <div class="vn-panel">
       <h2>Suroviny do konce sezóny</h2>
-      <p class="note">kg natural suroviny (dochucené přepočtené přes kusovník). Potřeba = náplň zbývajícího plánovaného odbytu bez náplně v hotových sáčcích skladem.</p>
+      <p class="note">kg natural suroviny (dochucené přepočtené přes kusovník). Potřeba = náplň zbývající plánované výroby (skladba podle plánovaného odbytu) + surovina prodaná po kg. Zásoba hotových sáčků se nečerpá.</p>
       <table class="vn-table">
         <thead><tr><th>Druh</th><th>Skladem</th><th>Dodávky</th><th>Potřeba</th><th>Bilance</th></tr></thead>
         <tbody>
@@ -197,6 +198,7 @@ $konec = end($tydny);
 <script>
 (function () {
   const data = <?= json_encode($tydny, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+  const cil = <?= json_encode((float)$report['cil_zasoba']) ?>;
   const NS = 'http://www.w3.org/2000/svg';
   const nf = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 0 });
   const fmt = (v) => nf.format(Math.round(v)).replace('-', '−');
@@ -247,7 +249,7 @@ $konec = end($tydny);
     series.forEach((s) => {
       const pts = s.values.map((v, i) => v === null ? null : [x(i), y(v)]);
       let d = ''; pts.forEach((p, i) => { if (!p) return; d += (d && pts[i - 1] ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); });
-      if (d) el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.dash ? 2 : 2.5, 'stroke-dasharray': s.dash ? '6 4' : '', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
+      if (d) el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.thin ? 1.5 : (s.dash ? 2 : 2.5), 'stroke-dasharray': s.thin ? '2 4' : (s.dash ? '6 4' : ''), 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
       pts.forEach((p) => { if (p && !s.dash) el('circle', { cx: p[0], cy: p[1], r: 3, fill: s.color }, svg); });
     });
     // tooltip
@@ -279,6 +281,7 @@ $konec = end($tydny);
     chart(document.getElementById('graf-zasoba'), [
       { key: 'Zásoba plán', color: css('--c-primary'), dash: true, values: data.map((t) => t.plan_zasoba) },
       { key: 'Zásoba skutečnost', color: css('--c-primary'), dash: false, values: sk('zasoba') },
+      { key: 'Cíl (zásoba jako na začátku)', color: css('--c-danger'), dash: true, thin: true, values: data.map(() => cil) },
     ], { label: 'Zásoba hotových sáčků' });
   }
   draw();

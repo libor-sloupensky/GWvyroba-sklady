@@ -39,7 +39,7 @@ final class VanoceService
         // Stánky: odhad kolegyně (realistický scénář) v sáčcích, rovnoměrně po týdnech
         'stanky' => ['sacku' => 15517, 'tyden_od' => 45, 'tyden_do' => 51],
         // Plán výroby: sáčků za týden, poslední výrobní týden
-        'vyroba_tydne' => 5000,
+        'vyroba_tydne' => 6100,           // = plánovaný odbyt / 8 týdnů → zásoba na konci jako na začátku (2026-10-27)
         'vyroba_tyden_do' => 51,
         // Plánované dodávky suroviny (kg natural)
         'dodavky' => [
@@ -94,13 +94,14 @@ final class VanoceService
         $rows = [];
         foreach ($tydny as $w => $t) {
             $plan = ['maloobchod' => 0.0, 'velkoobchod' => 0.0, 'stanky' => 0.0];
-            $kg = array_fill_keys(array_keys(self::DRUHY), 0.0);
+            $kg = array_fill_keys(array_keys(self::DRUHY), 0.0);   // náplň sáčků
+            $volne = array_fill_keys(array_keys(self::DRUHY), 0.0); // surovina prodaná po kg
             foreach ($c['koeficienty'] as $e => $k) {
                 $l = $loni[$e][$w] ?? null;
                 if (!$l) continue;
                 $plan[$c['skupiny'][$e]] += $l['sacky'] * $k;
                 foreach ($l['kg'] as $d => $v) $kg[$d] += $v * $k;
-                foreach ($l['volne'] as $d => $v) $kg[$d] += $v * $k;
+                foreach ($l['volne'] as $d => $v) $volne[$d] += $v * $k;
             }
             if ($w >= $c['stanky']['tyden_od'] && $w <= $c['stanky']['tyden_do']) {
                 $s = $c['stanky']['sacku'] / $stankyTydnu;
@@ -128,7 +129,7 @@ final class VanoceService
             }
             $rows[] = $t + [
                 'plan' => $plan, 'plan_odbyt' => $planOdbyt, 'plan_odbyt_kum' => $planKumOdbyt,
-                'plan_kg' => $kg,
+                'plan_kg' => $kg, 'plan_volne' => $volne,
                 'plan_vyroba' => $planVyroba, 'plan_vyroba_kum' => $planKumVyroba,
                 'plan_zasoba' => $start + $planKumVyroba - $planKumOdbyt,
                 'skutecnost' => $sk,
@@ -139,17 +140,22 @@ final class VanoceService
         $dnes = $now->format('Y-m-d');
         $sklad = $this->sackuSkladem(null);
         $sur = $this->surovinySkladem();
-        $zbyvaVyroba = 0.0; $zbyvaKg = array_fill_keys(array_keys(self::DRUHY), 0.0); $zbyvaOdbyt = 0.0;
+        $zbyvaVyroba = 0.0; $zbyvaOdbyt = 0.0;
+        $zbyvaKg = array_fill_keys(array_keys(self::DRUHY), 0.0); $zbyvaVolne = $zbyvaKg;
         foreach ($rows as $r) {
             if ($r['do'] < $dnes) continue;
-            $zbyvaVyroba += $r['plan_vyroba'];
+            // u běžícího týdne zbývá jen nevyrobená část týdenního cíle
+            $zbyvaVyroba += max(0.0, $r['plan_vyroba'] - ($r['skutecnost']['vyroba'] ?? 0.0));
             $zbyvaOdbyt += $r['plan_odbyt'];
             foreach ($r['plan_kg'] as $d => $v) $zbyvaKg[$d] += $v;
+            foreach ($r['plan_volne'] as $d => $v) $zbyvaVolne[$d] += $v;
         }
-        // kg na vyrobené sáčky: náplň zbývajícího odbytu bez náplně v hotových sáčcích skladem, škálovaná na plán výroby
+        // Potřeba suroviny = náplň zbývající plánované výroby (skladba podle plánovaného odbytu) + surovina prodaná po kg.
+        // Zásoba hotových sáčků se nemá čerpat, takže se od potřeby neodečítá.
+        $sackuOdbyt = max(1.0, $zbyvaOdbyt);
         $suroviny = [];
         foreach (self::DRUHY as $d => $nazev) {
-            $potrebaOdbyt = max(0.0, $zbyvaKg[$d] - ($sklad['kg'][$d] ?? 0.0));
+            $potrebaOdbyt = $zbyvaKg[$d] / $sackuOdbyt * $zbyvaVyroba + $zbyvaVolne[$d];
             $dodavky = 0.0;
             foreach ($c['dodavky'] as $x) if ($x['druh'] === $d && $x['datum'] >= $prvni['od'] && $x['datum'] >= $dnes) $dodavky += $x['kg'];
             $suroviny[] = ['druh' => $d, 'nazev' => $nazev, 'sklad' => $sur[$d] ?? 0.0, 'dodavky' => $dodavky, 'potreba' => $potrebaOdbyt, 'bilance' => ($sur[$d] ?? 0.0) + $dodavky - $potrebaOdbyt];
@@ -159,6 +165,7 @@ final class VanoceService
             'sezona' => ['nazev' => $c['nazev'], 'vyroba_tydne' => $c['vyroba_tydne'], 'stanky' => $c['stanky'], 'koeficienty' => $c['koeficienty'], 'dodavky' => $c['dodavky'], 'zakladni_rok' => $c['zakladni_rok']],
             'tydny' => $rows,
             'start_zasoba' => $start,
+            'cil_zasoba' => $start, // na konci sezóny držet zásobu jako na začátku
             'sklad' => ['sacky' => $sklad['sacky'], 'obaly' => $this->obalySkladem()],
             'zbyva' => ['vyroba' => $zbyvaVyroba, 'odbyt' => $zbyvaOdbyt],
             'suroviny' => $suroviny,
