@@ -1584,17 +1584,30 @@ final class ProductsController
             return $rows;
         }
         $pdo = DB::pdo();
-        $used = [];
-        foreach (['SELECT DISTINCT rodic_sku FROM bom', 'SELECT DISTINCT potomek_sku FROM bom', 'SELECT DISTINCT sku FROM polozky_pohyby'] as $q) {
+        // Důvod blokace se zobrazuje v tooltipu u šedého koše (kusovník / pohyby)
+        $inBom = [];
+        $hasMoves = [];
+        foreach (['SELECT DISTINCT rodic_sku FROM bom', 'SELECT DISTINCT potomek_sku FROM bom'] as $q) {
             foreach ($pdo->query($q)->fetchAll(\PDO::FETCH_COLUMN) as $v) {
-                $used[(string)$v] = true;
+                $inBom[(string)$v] = true;
             }
         }
+        foreach ($pdo->query('SELECT DISTINCT sku FROM polozky_pohyby')->fetchAll(\PDO::FETCH_COLUMN) as $v) {
+            $hasMoves[(string)$v] = true;
+        }
+        $hit = static fn(array $set, string $sku, string $alt): bool => ($sku !== '' && isset($set[$sku])) || ($alt !== '' && isset($set[$alt]));
         foreach ($rows as &$r) {
             $sku = (string)($r['sku'] ?? '');
             $alt = (string)($r['alt_sku'] ?? '');
-            $blocked = ($sku !== '' && isset($used[$sku])) || ($alt !== '' && isset($used[$alt]));
-            $r['can_delete'] = $blocked ? 0 : 1;
+            $reasons = [];
+            if ($hit($inBom, $sku, $alt)) {
+                $reasons[] = 'je v kusovníku';
+            }
+            if ($hit($hasMoves, $sku, $alt)) {
+                $reasons[] = 'má pohyby skladu';
+            }
+            $r['can_delete'] = $reasons ? 0 : 1;
+            $r['delete_block'] = implode(' a ', $reasons);
         }
         unset($r);
         return $rows;

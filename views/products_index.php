@@ -243,22 +243,17 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 .col-picker-menu label.is-required { cursor:default; color:var(--c-text-secondary); }
 /* Aktivní: fajfka / křížek, po kliknutí přepínač */
 .editable[data-field="aktivni"] { text-align:center; cursor:pointer; }
-.active-mark { display:inline-flex; line-height:0; }
-.active-yes { color:var(--c-ok); }
-.active-no { color:var(--c-danger); }
-.active-toggle { display:inline-flex; border:1px solid var(--c-border-strong); border-radius:4px; overflow:hidden; }
-.active-toggle button { border:none; border-radius:0; background:#fff; padding:0.2rem 0.4rem; line-height:0; cursor:pointer; }
-.active-toggle button + button { border-left:1px solid var(--c-border-strong); }
-.active-toggle button.on { color:var(--c-ok); }
-.active-toggle button.off { color:var(--c-danger); }
-.active-toggle button:hover { background:var(--c-surface); }
-.active-toggle button.on.is-sel { background:#e8f5e9; }
-.active-toggle button.off.is-sel { background:#ffebee; }
-/* Sloučený sloupec Aktivní / Smazat */
+/* Aktivní = přepínač (zapnutý zelený, vypnutý šedý); Smazat = červený koš, Nelze smazat = šedý ztlumený koš */
+.active-switch { display:inline-flex; vertical-align:middle; line-height:0; color:var(--c-text-muted); cursor:pointer; border-radius:999px; }
+.active-switch.is-on { color:var(--c-ok); }
+.active-switch:hover { filter:brightness(0.85); }
+.active-switch.is-saving { opacity:0.5; pointer-events:none; }
 .aktivni-cell { text-align:center; white-space:nowrap; width:1%; }
-.aktivni-cell .del-form { display:inline-block; margin:0 0 0 0.35rem; vertical-align:middle; }
-.aktivni-cell .del-btn { line-height:0; padding:3px; }
-.aktivni-cell .del-disabled { margin-left:0.5rem; }
+.aktivni-cell .del-slot { display:inline-flex; align-items:center; vertical-align:middle; margin-left:0.45rem; padding-left:0.45rem; border-left:1px solid var(--c-border); }
+.aktivni-cell .del-form { display:inline-flex; margin:0; }
+.aktivni-cell .del-btn { line-height:0; padding:3px; color:var(--c-danger); }
+.aktivni-cell .del-disabled { display:inline-flex; line-height:0; padding:3px; color:var(--c-border-strong); cursor:not-allowed; }
+/* Sloučený sloupec Aktivní / Smazat */
 .products-table th[data-col="aktivni"] { text-align:center; }
 /* EAN: ikona stažení čárového kódu (SVG) za číslem */
 .editable[data-field="ean"] { white-space:nowrap; }
@@ -336,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     table.addEventListener('click', (event) => {
-      // Aktivní: jedno kliknutí otevře přepínač fajfka / křížek
+      // Aktivní: jedno kliknutí přepne stav (přepínač)
       const activeCell = event.target.closest('.editable[data-field="aktivni"]');
       if (activeCell && table.contains(activeCell)) {
         if (activeCell.dataset.editing !== '1') startActiveToggle(activeCell);
@@ -780,44 +775,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderActive(cell, value) {
-      cell.innerHTML = value === '1'
-        ? `<span class="active-mark active-yes" title="Aktivní – kliknutím změníte">${LUCIDE.check}</span>`
-        : (value === '0' ? `<span class="active-mark active-no" title="Neaktivní – kliknutím změníte">${LUCIDE.x}</span>` : '');
-      const skuLabel = cell.closest('tr')?.querySelector('.sku-cell > span:not(.sku-toggle)');
-      if (skuLabel) skuLabel.classList.toggle('inactive-sku', value === '0');
+      const on = value === '1';
+      cell.innerHTML = (on ? LUCIDE['toggle-right'] : LUCIDE['toggle-left']).replace(/width="16" height="16"/, 'width="22" height="22"');
+      cell.classList.toggle('is-on', on);
+      cell.setAttribute('aria-checked', on ? 'true' : 'false');
+      cell.title = on ? 'Aktivní – kliknutím vypnete' : 'Neaktivní – kliknutím zapnete';
+      // přeškrtnutí SKU v obou SKU sloupcích
+      cell.closest('tr')?.querySelectorAll('.sku-cell > span:not(.sku-toggle), .sku-availability-content > span:not(.sku-vyroba-toggle)')
+        .forEach((el) => el.classList.toggle('inactive-sku', !on));
     }
 
-    // Přepínač Aktivní: dvě tlačítka (fajfka / křížek), volba se hned uloží; Esc nebo klik mimo = beze změny
-    function startActiveToggle(cell) {
+    // Přepínač Aktivní: kliknutí stav hned přepne a uloží; při chybě se vrátí původní stav
+    async function startActiveToggle(cell) {
       const sku = cell.closest('tr')?.dataset.sku;
       if (!sku) return;
       const current = cell.dataset.value;
+      const value = current === '1' ? '0' : '1';
       cell.dataset.editing = '1';
-      cell.innerHTML = `<span class="active-toggle" role="group" aria-label="Aktivní">`
-        + `<button type="button" data-v="1" class="on${current === '1' ? ' is-sel' : ''}" title="Aktivní">${LUCIDE.check}</button>`
-        + `<button type="button" data-v="0" class="off${current === '0' ? ' is-sel' : ''}" title="Neaktivní">${LUCIDE.x}</button>`
-        + `</span>`;
-      const close = (value) => {
-        document.removeEventListener('click', onOutside, true);
-        document.removeEventListener('keydown', onKey);
-        cell.dataset.editing = '0';
-        renderActive(cell, value);
-      };
-      const onOutside = (e) => { if (!cell.contains(e.target)) close(current); };
-      const onKey = (e) => { if (e.key === 'Escape') close(current); };
-      cell.querySelector('.active-toggle').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const btn = e.target.closest('button[data-v]');
-        if (!btn) return;
-        const value = btn.dataset.v;
-        if (value === current) { close(current); return; }
-        cell.querySelectorAll('button').forEach((b) => { b.disabled = true; });
-        const ok = await saveChange(sku, 'aktivni', value);
-        if (ok) cell.dataset.value = value;
-        close(ok ? value : current);
-      });
-      setTimeout(() => document.addEventListener('click', onOutside, true)); // až po aktuálním kliknutí
-      document.addEventListener('keydown', onKey);
+      cell.classList.add('is-saving');
+      renderActive(cell, value); // okamžitá odezva
+      const ok = await saveChange(sku, 'aktivni', value);
+      if (ok) cell.dataset.value = value;
+      renderActive(cell, ok ? value : current);
+      cell.classList.remove('is-saving');
+      cell.dataset.editing = '0';
     }
 
     function appendOptions(select, options) {

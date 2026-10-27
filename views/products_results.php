@@ -148,18 +148,19 @@
     <td class="editable" data-field="skl_hodnota" data-type="number" data-step="0.01" data-value="<?= $e($it['skl_hodnota']) ?>"><?= $e($it['skl_hodnota']) ?></td>
     <td class="editable" data-field="poznamka" data-type="textarea" data-value="<?= $e($it['poznamka'] ?? '') ?>"><?= $e($it['poznamka'] ?? '') ?></td>
     <td class="aktivni-cell">
-      <span class="editable" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>"><?= (int)$it['aktivni']
-        ? '<span class="active-mark active-yes" title="Aktivní – kliknutím změníte">' . ikona('check', 16) . '</span>'
-        : '<span class="active-mark active-no" title="Neaktivní – kliknutím změníte">' . ikona('x', 16) . '</span>' ?></span>
+      <?php // Aktivní = přepínač (zapnutý zelený / vypnutý šedý), kliknutím se hned přepne a uloží ?>
+      <span class="editable active-switch<?= (int)$it['aktivni'] ? ' is-on' : '' ?>" data-field="aktivni" data-type="select" data-options="active" data-value="<?= (int)$it['aktivni'] ?>" role="switch" aria-checked="<?= (int)$it['aktivni'] ? 'true' : 'false' ?>" title="<?= (int)$it['aktivni'] ? 'Aktivní – kliknutím vypnete' : 'Neaktivní – kliknutím zapnete' ?>"><?= ikona((int)$it['aktivni'] ? 'toggle-right' : 'toggle-left', 22) ?></span>
       <?php if (!empty($isSuperadmin)): ?>
+        <span class="del-slot">
         <?php if ((int)($it['can_delete'] ?? 0) === 1): ?>
           <form method="post" action="/products/delete" class="del-form" onsubmit="return confirm('Opravdu smazat produkt <?= $e($it['sku']) ?>? Akce je nevratná.');">
             <input type="hidden" name="sku" value="<?= $e($it['sku']) ?>">
-            <button type="submit" class="del-btn" title="Smazat produkt (není v kusovníku a nemá pohyby)"><?= ikona('trash-2', 15) ?></button>
+            <button type="submit" class="del-btn" title="Smazat produkt (není v kusovníku a nemá pohyby)"><?= ikona('trash-2', 16) ?></button>
           </form>
         <?php else: ?>
-          <span class="del-disabled" title="Nelze smazat – produkt je v kusovníku (BOM) nebo má historické pohyby">–</span>
+          <span class="del-disabled" title="Nelze smazat – produkt <?= $e($it['delete_block'] ?? 'je používán') ?>"><?= ikona('trash-2', 16) ?></span>
         <?php endif; ?>
+        </span>
       <?php endif; ?>
     </td>
   </tr>
