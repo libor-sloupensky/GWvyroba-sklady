@@ -150,6 +150,10 @@
 .bom-tree-label { font-weight:600; display:inline-flex; flex-wrap:wrap; }
 .bom-root-label { font-weight:700; }
 .bom-tree-note { margin-left:0.5rem; font-size:0.8rem; color:#b00020; }
+/* Strom vazeb: hlubší úrovně (2+) jsou skryté, u větve je nenápadný přepínač s počtem vnořených vazeb */
+.bom-deep-row[hidden] { display:none; }
+.bom-deep-toggle { border:none; background:transparent; color:var(--c-text-muted); cursor:pointer; display:inline-flex; align-items:center; gap:0.15rem; margin-left:0.4rem; padding:0 0.25rem; font:inherit; font-size:0.78rem; line-height:1.2; border-radius:4px; }
+.bom-deep-toggle:hover, .bom-deep-toggle[aria-expanded="true"] { color:var(--c-primary-text); background:var(--c-surface); }
 .bom-tree-actions { text-align:right; white-space:nowrap; }
 .bom-action-btn {
   border: 1px solid #d6d4cf;
@@ -303,6 +307,40 @@ button.search-reset { border:none; background:transparent; cursor:pointer; }
 <?php endif; ?>
 
 <script>
+// Strom vazeb (kusovník i strom potomků ve výrobních sloupcích): výchozí výpis jen 1. úroveň.
+// Větev s hlubšími vazbami dostane za název nenápadný přepínač (šipka + počet), který rozbalí celou větev.
+// radky = [{ tr, depth }] v pořadí výpisu, kořen má depth 0; uzel bez vykresleného řádku má tr = null
+// (drží strukturu stromu, ale přepínač nedostane a nikam se neschová).
+function sbalitHlubokeVazby(radky) {
+  radky.forEach((radek, i) => {
+    if (radek.depth !== 1 || !radek.tr) return;
+    const vnorene = [];
+    for (let j = i + 1; j < radky.length && radky[j].depth > 1; j++) {
+      if (radky[j].tr) vnorene.push(radky[j].tr);
+    }
+    if (!vnorene.length) return;
+    vnorene.forEach((tr) => { tr.classList.add('bom-deep-row'); tr.hidden = true; });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bom-deep-toggle';
+    const vykreslit = (otevreno) => {
+      btn.innerHTML = (otevreno ? LUCIDE['chevron-up'] : LUCIDE['chevron-down']) + '<span>' + vnorene.length + '</span>';
+      btn.title = otevreno
+        ? 'Skrýt vnořené vazby'
+        : `Zobrazit celou větev (${vnorene.length} vnořených vazeb ve 2. a hlubší úrovni)`;
+      btn.setAttribute('aria-expanded', otevreno ? 'true' : 'false');
+    };
+    vykreslit(false);
+    btn.addEventListener('click', () => {
+      const otevrit = btn.getAttribute('aria-expanded') !== 'true';
+      vnorene.forEach((tr) => { tr.hidden = !otevrit; });
+      vykreslit(otevrit);
+    });
+    const bunka = radek.tr.querySelector('.bom-tree-cell');
+    if (bunka) bunka.appendChild(btn);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   (function () {
     const meta = {
@@ -423,8 +461,10 @@ document.addEventListener('DOMContentLoaded', function () {
       table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Typ položky</th><th>Akce</th></tr></thead>';
       const body = document.createElement('tbody');
       const rows = flattenBomTree(tree);
+      const radkyStromu = []; // pro sbalení hlubších úrovní
       rows.forEach((rowData) => {
         const tr = document.createElement('tr');
+        radkyStromu.push({ tr, depth: rowData.depth });
         if (rowData.node.is_root) {
           tr.className = 'bom-root-row';
         }
@@ -478,6 +518,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         body.appendChild(tr);
       });
+      sbalitHlubokeVazby(radkyStromu);
       table.appendChild(body);
       return table;
     }
@@ -1383,8 +1424,10 @@ document.addEventListener('DOMContentLoaded', function () {
     table.className = 'bom-tree-table';
     table.innerHTML = '<thead><tr><th>Strom vazeb</th><th>Koeficient</th><th>MJ</th><th>Typ položky</th><th>Dostupné</th><th>Cílový stav</th><th>Chybí</th></tr></thead>';
     const body = document.createElement('tbody');
+    const radkyStromu = []; // pro sbalení hlubších úrovní
     flattenTree(tree).forEach((row) => {
       const tr = document.createElement('tr');
+      radkyStromu.push({ tr, depth: row.guides.length });
       if (row.node.is_root) tr.classList.add('bom-root-row');
       const label = treeLabelCell(row);
       const status = row.node.status || null;
@@ -1403,6 +1446,7 @@ document.addEventListener('DOMContentLoaded', function () {
       tr.appendChild(createCell(formatInteger(status ? status.deficit : null)));
       body.appendChild(tr);
     });
+    sbalitHlubokeVazby(radkyStromu);
     table.appendChild(body);
     return table;
   }
@@ -1491,9 +1535,11 @@ document.addEventListener('DOMContentLoaded', function () {
     head.appendChild(headRow);
     table.appendChild(head);
     const body = document.createElement('tbody');
+    const radkyStromu = []; // pro sbalení hlubších úrovní
     flattenTree(tree).forEach((row) => {
-      if (row.node.is_nonstock) return; // neskladové uzly se v poptávce nezobrazují
+      if (row.node.is_nonstock) { radkyStromu.push({ tr: null, depth: row.guides.length }); return; } // neskladové uzly se v poptávce nezobrazují
       const tr = document.createElement('tr');
+      radkyStromu.push({ tr, depth: row.guides.length });
       if (row.node.is_root) tr.classList.add('bom-root-row');
       tr.appendChild(treeLabelCell(row).td);
       const unit = row.node.merna_jednotka || '';
@@ -1503,6 +1549,7 @@ document.addEventListener('DOMContentLoaded', function () {
       tr.appendChild(createCell(row.node.status && row.node.status.mode ? row.node.status.mode : '—'));
       body.appendChild(tr);
     });
+    sbalitHlubokeVazby(radkyStromu);
     table.appendChild(body);
     return table;
   }
