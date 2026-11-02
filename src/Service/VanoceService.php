@@ -10,7 +10,7 @@ use PDO;
  * Vánoce 2026 – plán a sledování vánoční výroby (stránka /vanoce, jen čtení).
  *
  * Plán odbytu = loňský odbyt ve stejných ISO týdnech × koeficient e-shopu; stánky (grigsupply)
- * rovnoměrně podle odhadu kolegyně. Plán výroby = pevný týdenní cíl. Skutečnost = faktury,
+ * podle odhadu kolegyně – rovnoměrně, nebo rostoucím trendem (viz SEZONA). Plán výroby = pevný týdenní cíl. Skutečnost = faktury,
  * výrobní doklady a stav hotových sáčků na konci týdne. Objem je v sáčcích (spotřebitelská balení):
  * kartony a sady se rozpadají přes kusovník, položky mimo katalog podle názvu („15 ks - …“).
  */
@@ -36,8 +36,11 @@ final class VanoceService
             'gogrig.com' => 'velkoobchod',
             'grigsupply.cz' => 'stanky',
         ],
-        // Stánky: odhad kolegyně (realistický scénář) v sáčcích, rovnoměrně po týdnech
-        'stanky' => ['sacku' => 15517, 'tyden_od' => 45, 'tyden_do' => 51],
+        // Stánky: odhad kolegyně (realistický scénář) v sáčcích. Rozložení po týdnech:
+        //   'rovnomerne' = sacku / počet týdnů (původní verze, 2 217/týden)
+        //   'rostouci'   = lineárně rostoucí o rust_tydne sáčků týdně, stejný součet i těžiště (od 2026-11-02;
+        //                  loňský průběh měl těžiště uprostřed sezóny a 35 % objemu v posledních dvou týdnech)
+        'stanky' => ['sacku' => 15517, 'tyden_od' => 45, 'tyden_do' => 51, 'rozlozeni' => 'rostouci', 'rust_tydne' => 252],
         // Plán výroby: sáčků za týden, poslední výrobní týden
         'vyroba_tydne' => 6100,           // = plánovaný odbyt / 8 týdnů → zásoba na konci jako na začátku (2026-10-27)
         'vyroba_tyden_do' => 51,
@@ -105,6 +108,10 @@ final class VanoceService
             }
             if ($w >= $c['stanky']['tyden_od'] && $w <= $c['stanky']['tyden_do']) {
                 $s = $c['stanky']['sacku'] / $stankyTydnu;
+                if (($c['stanky']['rozlozeni'] ?? 'rovnomerne') === 'rostouci') {
+                    // posun od středu sezóny: první týden −(n−1)/2 kroků, poslední +(n−1)/2, součet zůstává
+                    $s += ($w - $c['stanky']['tyden_od'] - ($stankyTydnu - 1) / 2) * (float)$c['stanky']['rust_tydne'];
+                }
                 $plan['stanky'] += $s;
                 if ($gs['sacky'] > 0) foreach ($gs['kg'] as $d => $v) $kg[$d] += $s * $v / $gs['sacky'];
             }

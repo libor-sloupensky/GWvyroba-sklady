@@ -4,7 +4,7 @@
 
 Sezónní stránka **Vánoce 2026** (`/vanoce`, jen čtení, všichni přihlášení vč. čtenáře) – sleduje, jestli vánoční výroba stíhá plánovaný odbyt. Plánuje se jen **celkový objem v sáčcích** (spotřebitelská balení), ne konkrétní produkty – sortiment se proti loňsku změnil.
 
-- **Plán odbytu po ISO týdnech 44–52/2026** = odbyt ve stejných týdnech 2025 × koeficient e-shopu (maloobchod grig.cz, grig.sk, WormUP.com ×1,5; velkoobchod gogrig.com ×1,0). Stánky (grigsupply.cz) = odhad kolegyně 15 517 sáčků (realistický scénář) rovnoměrně v týdnech 45–51.
+- **Plán odbytu po ISO týdnech 44–52/2026** = odbyt ve stejných týdnech 2025 × koeficient e-shopu (maloobchod grig.cz, grig.sk, WormUP.com ×1,5; velkoobchod gogrig.com ×1,0). Stánky (grigsupply.cz) = odhad kolegyně 15 517 sáčků (realistický scénář) v týdnech 45–51, od 2026-11-02 **rostoucím trendem** 1 461 → 2 973 týdně (+252/týden, `rozlozeni => 'rostouci'`, `rust_tydne`), stejný součet i těžiště (týden 48) jako rovnoměrné rozložení. Původní rovnoměrná verze (2 217/týden) zůstává jako záloha: `rozlozeni => 'rovnomerne'`. Důvod: loňský průběh grigsupply (2 762 · 72 · 7 268 · 1 344 · 122 · 2 515 · 3 773) má těžiště uprostřed a 35 % objemu v týdnech 50–51; čisté vyhlazení loňska se sbíhá k rovnoměrnému plánu, rostoucí trend lépe drží konec sezóny. Plán zásoby je s trendem uprostřed sezóny o ~1 300 sáčků výš, konec (12 346) stejný.
 - **Plán výroby** = **6 100 sáčků týdně** do týdne 51 (od 2026-10-27, dřív 5 000) = plánovaný odbyt / 8 týdnů, aby **zásoba na konci sezóny zůstala jako na začátku** (uživatel: nelze se vyprodat na nulu). Graf zásoby má červenou čáru cíle (`cil_zasoba` = stav k 26. 10.).
 - **Skutečnost**: odbyt z faktur (DUZP), výroba z výrobních pohybů produktů (`polozky_pohyby.typ_pohybu='vyroba'`, typ produkt, čistý součet), zásoba = kladné stavy hotových produktů na konci týdne (`StockService::buildStockMap(null, asOf)`).
 - Karty: stav výroby (kumulativně za ukončené týdny proti plánu: ≥100 % v plánu, ≥85 % mírně pod, jinak pod plánem), tento týden, hotové sáčky skladem, zbývá vyrobit, prázdné obaly skladem (typ `obal`, kladné stavy).
@@ -45,5 +45,7 @@ Vlastní tabulky nemá. Čte `polozky_eshop`, `produkty`, `product_types`, `bom`
 - Plán týdne počítá s celým týdnem výroby; u běžícího týdne je skutečnost dílčí (zvýrazněný řádek, hodnocení stavu až po ukončených týdnech).
 - Zásoba počítá s tím, že se celá kladná zásoba hotových produktů dá prodat (i vyřazený sortiment, krátká expirace).
 - Druhy surovin u stánků podle loňského složení grigsupply, ne podle nového sortimentu.
+- První tři sloupce týdenní tabulky (Maloobchod / Velkoobchod / Stánky) jsou **plán** po skupinách; skutečnost po skupinách se nevypisuje (jen celkem v „Odbyt skut.“). Uživatel to 2026-11-02 zaměnil za skutečnost – kandidát na doplnění.
+- Skutečnost stánků je skokovitá podle závozů (loni týden 47 = 7 268 sáčků, 41 % sezóny); hladký plán takový týden nezachytí, zásoba může spadnout 4–5 tis. pod plánovanou čáru.
 - Výroba se v Gworm zapisuje až od 18. 11. 2025 – loňská skutečná kapacita před tím není známá.
 - Po sezóně stránku (a položku menu) odstranit, nebo převést `SEZONA` na další rok.

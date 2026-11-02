@@ -129,7 +129,12 @@ $konec = end($tydny);
 
   <div class="vn-panel">
     <h2>Po týdnech</h2>
-    <p class="note">Plán odbytu: maloobchod (grig.cz, grig.sk, WormUP.com) ×<?= $e(str_replace('.', ',', (string)($sez['koeficienty']['grig.cz'] ?? 1))) ?>, velkoobchod gogrig ×<?= $e(str_replace('.', ',', (string)($sez['koeficienty']['gogrig.com'] ?? 1))) ?>, stánky <?= $n0($sez['stanky']['sacku']) ?> sáčků rovnoměrně v týdnech <?= (int)$sez['stanky']['tyden_od'] ?>–<?= (int)$sez['stanky']['tyden_do'] ?>.</p>
+    <p class="note">Plán odbytu: maloobchod (grig.cz, grig.sk, WormUP.com) ×<?= $e(str_replace('.', ',', (string)($sez['koeficienty']['grig.cz'] ?? 1))) ?>, velkoobchod gogrig ×<?= $e(str_replace('.', ',', (string)($sez['koeficienty']['gogrig.com'] ?? 1))) ?>, stánky <?= $n0($sez['stanky']['sacku']) ?> sáčků v týdnech <?= (int)$sez['stanky']['tyden_od'] ?>–<?= (int)$sez['stanky']['tyden_do'] ?><?php
+      $stN = (int)$sez['stanky']['tyden_do'] - (int)$sez['stanky']['tyden_od'] + 1;
+      $stPrumer = $sez['stanky']['sacku'] / max(1, $stN);
+      if (($sez['stanky']['rozlozeni'] ?? 'rovnomerne') === 'rostouci'):
+        $stKrok = (float)$sez['stanky']['rust_tydne']; ?> rostoucím trendem od <?= $n0($stPrumer - ($stN - 1) / 2 * $stKrok) ?> do <?= $n0($stPrumer + ($stN - 1) / 2 * $stKrok) ?> týdně (+<?= $n0($stKrok) ?> každý týden)<?php
+      else: ?> rovnoměrně (<?= $n0($stPrumer) ?> týdně)<?php endif; ?>.</p>
     <div class="vn-wrap">
       <table class="vn-table">
         <thead><tr>
@@ -186,7 +191,7 @@ $konec = end($tydny);
       <h2>Jak se počítá</h2>
       <ul class="vn-list">
         <li>Odbyt = sáčky odeslané podle faktur (DUZP). Kartony a sady se rozpadají přes kusovník, položky mimo katalog podle názvu („15 ks - …“). Etikety, kupony, balné a propagace se nepočítají.</li>
-        <li>Plán odbytu = odbyt ve stejném týdnu loni × koeficient e-shopu; stánky rovnoměrně podle odhadu (realistický scénář).</li>
+        <li>Plán odbytu = odbyt ve stejném týdnu loni × koeficient e-shopu; stánky podle odhadu (realistický scénář) rozložené do týdnů podle nastavení sezóny (rovnoměrně, nebo rostoucím trendem).</li>
         <li>Výroba = vyrobené hotové sáčky podle výrobních dokladů v Pohybech.</li>
         <li>Zásoba = kladné stavy hotových produktů na konci týdne (inventura + pohyby). Počítá s tím, že se celá zásoba dá prodat.</li>
         <li>Parametry sezóny (koeficienty, cíl výroby, dodávky) jsou v <code>VanoceService::SEZONA</code>.</li>
